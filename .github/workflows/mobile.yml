@@ -6,6 +6,9 @@ on:
     paths: ['dist/**', 'android/**', 'ios/**', 'package*.json', 'capacitor.config.json', '.github/workflows/mobile.yml']
 permissions:
   contents: read
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   android:
     runs-on: ubuntu-latest
