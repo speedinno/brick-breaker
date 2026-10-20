@@ -1,94 +1,62 @@
-export const W=420,H=590,COLS=42,ROWS=32,CELL=9.5,OX=10.5,OY=38;
-export const FAMILIES=['Prism gate','Ripple rings','Twin helix','Diamond mine','Sound wave','Star tunnel','Hourglass','Circuit garden','Vortex','Skyline','Petal burst','Chevron cascade'];
+export const W=416,H=660,COLS=52,ROWS=52,CELL=8,OX=0,OY=18,MAX_BALLS=768;
+export const FAMILIES=['T channel','Switchback','H chamber','M channel','Needle','W channel','Sword','Bent channel','Nested squares','Twin hearts','Step chamber','Fork'];
+export const COLORS=['#e71840','#8fab18','#527d24','#a31973','#47a91b','#a6a11a','#c61724','#df8a27','#c215a7','#df2942','#9bbb36','#89a623'];
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-export function rng(seed){let s=seed>>>0;return ()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296;};}
-export function makePattern(level,seed){
- const rand=rng((seed^Math.imul(level,0x9e3779b1))>>>0),family=(level-1)%FAMILIES.length;
- const phase=rand()*6.28,twist=.6+rand()*1.4, gap=.055+rand()*.025;
- const bricks=[];let signature='';
- for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-  const x=(c+.5-COLS/2)/(COLS/2),y=(r+.5-ROWS/2)/(ROWS/2),d=Math.hypot(x,y),a=Math.atan2(y,x);
-  let channel=false;
-  switch(family){
-   case 0: channel=Math.abs(x-Math.sin(y*3+phase)*.23)<.075||Math.abs(y+.28)<.06&&Math.abs(x)<.6;break;
-   case 1: channel=Math.abs(Math.sin(d*12+phase))<.22;break;
-   case 2: channel=Math.abs(x-Math.sin(y*6+phase)*.5)<.07||Math.abs(x+Math.sin(y*6+phase)*.5)<.07;break;
-   case 3: channel=Math.abs((Math.abs(x)+Math.abs(y))% .47-.23)<gap;break;
-   case 4: channel=Math.abs(y-Math.sin(x*7+phase)*.48)<.085||Math.abs(x)<.05;break;
-   case 5: channel=Math.abs(d-(.42+.16*Math.cos(a*5+phase)))<.08||d<.12;break;
-   case 6: channel=Math.abs(Math.abs(x)-Math.abs(y)*twist*.55)<.075;break;
-   case 7: channel=(c%10===Math.floor(rand()*2)+3&&r%12<10)||(r%11===4&&c%14<12);break;
-   case 8: channel=Math.abs(Math.sin(a*3+d*10+phase))<.26||d<.11;break;
-   case 9: channel=r>ROWS*(.25+(.5+.5*Math.sin(c*.49+phase))*.42)&&c%7<2;break;
-   case 10: channel=Math.abs(d-(.55+.25*Math.cos(a*6+phase)))<.07;break;
-   case 11: channel=Math.abs((y+Math.abs(x)*twist)% .55)<.09;break;
-  }
-  // An open central entry makes every field immediately playable.
-  if(r>25&&Math.abs(x)<.11)channel=true;
-  const alive=!channel&&rand()>.018;
-  signature+=alive?'1':'0';
-  if(alive)bricks.push({id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL-1.2,h:CELL-1.2,hp:1,type:rand()<.025?'bomb':rand()<.018?'core':'normal',hue:(185+family*27+r*2.6+c*.7)%360});
+export function rng(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+function segmentDistance(x,y,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);}
+export function makePattern(level,seed=1){
+ const family=(Math.max(1,level)-1)%12,random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
+ const path=(points,gate=true)=>{paths.push(points);if(gate){const a=points.at(-2),b=points.at(-1),len=Math.hypot(b[0]-a[0],b[1]-a[1]);gates.push({x:b[0],y:b[1],dx:(b[0]-a[0])/len,dy:(b[1]-a[1])/len});}};
+ switch(family){
+  case 0:path([[26,52],[26,29],[34,29],[34,26],[22,26]]);break;
+  case 1:path([[26,52],[26,13],[22,13],[22,34],[31,34]]);break;
+  case 2:entry=[18,52];path([[18,52],[18,21]]);path([[34,51],[34,21]]);path([[18,35],[34,35]],false);gates.push({x:34,y:51,dx:0,dy:1});break;
+  case 3:path([[26,52],[26,35],[16,24],[16,41]]);path([[26,35],[36,24],[36,41]]);break;
+  case 4:path([[26,52],[26,39]]);break;
+  case 5:path([[26,52],[26,28],[15,39],[15,21]]);path([[26,28],[37,39],[37,21]]);break;
+  case 6:path([[26,52],[26,8]]);path([[17,40],[35,40]]);gates.push({x:17,y:40,dx:-1,dy:0});break;
+  case 7:path([[26,52],[26,41],[20,35]]);break;
+  case 8:path([[26,52],[26,49],[3,49],[3,3],[49,3],[49,45],[7,45],[7,7],[45,7],[45,41],[11,41],[11,11],[41,11],[41,37],[15,37],[15,15],[37,15]]);break;
+  case 9:entry=[13,52];path([[13,52],[13,35],[18,35],[18,42],[8,42],[8,33],[13,29]]);path([[39,51],[39,30],[34,30],[34,42],[44,42]]);for(const cx of [13,39]){const h=[];for(let i=0;i<=40;i++){const t=i*Math.PI/20;h.push([cx+Math.sin(t)**3*7,18-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*.45]);}holes.push(h);}gates.push({x:39,y:51,dx:0,dy:1});break;
+  case 10:entry=[16,52];path([[16,52],[16,43],[22,43],[22,35],[17,35],[17,28],[37,28],[37,17]]);path([[37,17],[44,17],[44,34],[36,34]]);break;
+  case 11:path([[26,52],[26,33],[15,22],[15,12]]);path([[26,33],[37,22],[37,12]]);break;
  }
- return {bricks,family,name:FAMILIES[family],signature};
+ // Preserve the reference motifs first; later fields vary connected geometry.
+ if(level>12){const shift=Math.floor(random()*9)-4,sx=.74+random()*.35,sy=.70+random()*.28,flip=random()<.5?-1:1;const transform=([x,y])=>[clamp(26+(x-26)*sx*flip+shift,3,49),clamp(51-(51-y)*sy,3,52)];paths=paths.map(p=>p.map(transform));gates=gates.map(g=>{const p=transform([g.x,g.y]);return{...g,x:p[0],y:p[1],dx:g.dx*flip};});holes=holes.map(p=>p.map(transform));entry=transform(entry);entry[1]=52;paths[0][0]=entry;const join=paths[0][Math.min(1,paths[0].length-1)],branch=[join];let x=join[0],y=join[1];for(let i=0;i<3+Math.floor(random()*4);i++){x=clamp(x+(random()<.5?-1:1)*(4+Math.floor(random()*11)),4,48);y=clamp(y-3-Math.floor(random()*7),5,46);branch.push([x,y]);}path(branch);}
+ const segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
+ function insidePolygon(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
+ const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<.86?'empty':distance<1.8?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<.86)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
+ // A letter can enclose a colored island. Add the smallest number of gate
+ // tiles needed to make every breakable region reachable from the entrance.
+ const lookup=new Map(cells.map(c=>[c.id,c])),start=51*COLS+Math.floor(entry[0]);
+ for(let attempt=0;attempt<30;attempt++){
+  const seen=new Set([start]),queue=[start];for(let i=0;i<queue.length;i++){const id=queue[i],r=Math.floor(id/COLS),c=id%COLS;for(const v of[id-COLS,id+COLS,c>0?id-1:-1,c<COLS-1?id+1:-1]){if(v<0||v>=COLS*ROWS||seen.has(v)||lookup.get(v)?.type==='wall')continue;seen.add(v);queue.push(v);}}
+  if(!bricks.some(b=>!seen.has(b.id)))break;
+  const dist=new Int16Array(COLS*ROWS).fill(30000),parent=new Int32Array(COLS*ROWS).fill(-1),deque=new Int32Array(24000);let head=12000,tail=head,found=-1;for(const id of seen){dist[id]=0;deque[tail++]=id;}
+  while(head<tail){const id=deque[head++],r=Math.floor(id/COLS),c=id%COLS,cell=lookup.get(id);if(!seen.has(id)&&cell&&cell.type!=='wall'){found=id;break;}for(const v of[id-COLS,id+COLS,c>0?id-1:-1,c<COLS-1?id+1:-1]){if(v<0||v>=COLS*ROWS)continue;const vr=Math.floor(v/COLS),vc=v%COLS,wall=lookup.get(v)?.type==='wall';if(wall&&(vr===0||vr===ROWS-1||vc===0||vc===COLS-1))continue;const cost=wall?1:0;if(dist[v]>dist[id]+cost){dist[v]=dist[id]+cost;parent[v]=id;if(cost)deque[tail++]=v;else deque[--head]=v;}}}
+  if(found<0)break;for(let v=found;v>=0&&!seen.has(v);v=parent[v]){const cell=lookup.get(v);if(cell?.type==='wall'){cell.type='gate';cell.hp=1;bricks.push(cell);}}
+ }
+ signature=Array.from({length:COLS*ROWS},(_,id)=>{const t=lookup.get(id)?.type;return t==='brick'?'b':t==='wall'?'w':t==='gate'?'g':'.';}).join('');
+ return{cells,bricks,signature,family,name:FAMILIES[family],color:COLORS[family],entry:{x:entry[0]*CELL,y:OY+52*CELL},paths};
 }
-export function circleRect(x,y,r,b){const nx=clamp(x,b.x,b.x+b.w),ny=clamp(y,b.y,b.y+b.h);return (x-nx)**2+(y-ny)**2<=r*r;}
+export function circleRect(x,y,r,b){const nx=clamp(x,b.x,b.x+b.w),ny=clamp(y,b.y,b.y+b.h);return(x-nx)**2+(y-ny)**2<=r*r;}
 export class Game{
- constructor({seed=1,level=1,mode='arcade',onEvent=()=>{}}={}){this.seed=seed>>>0;this.level=clamp(Math.floor(level)||1,1,1000000);this.mode=mode;this.emit=onEvent;this.random=rng(this.seed^0xABCD);this.score=0;this.lives=3;this.paddle={x:W/2,w:86,y:548};this.target=W/2;this.balls=[];this.drops=[];this.combo=0;this.maxCombo=0;this.energy=0;this.time=0;this.lastHit=-10;this.wideUntil=0;this.fireUntil=0;this.shield=0;this.status='ready';this.seen=new Set();this.stage();}
- stage(){
-  let pattern=makePattern(this.level,this.seed),attempt=0;
-  while(this.seen.has(pattern.signature)&&attempt<30)pattern=makePattern(this.level,(this.seed+ ++attempt)>>>0);
-  this.seen.add(pattern.signature);if(this.seen.size>256)this.seen.delete(this.seen.values().next().value);
-  this.bricks=pattern.bricks;this.name=pattern.name;this.grid=new Map(this.bricks.map(b=>[b.id,b]));this.remaining=this.bricks.length;this.total=this.remaining;this.combo=0;this.energy=Math.max(45,this.energy);this.balls=[];this.drops=[];this.status='ready';this.wideUntil=0;this.fireUntil=0;this.stageTime=0;this.lastHit=this.time;this.shield=0;this.paddle.w=86;this.milestone=0;this.emit({type:'stage',level:this.level,name:this.name});
- }
- speed(){return Math.min(400,260+this.level*7);}
- ball(x,y,angle=-Math.PI/2){const s=this.speed();return{x,y,vx:Math.cos(angle)*s,vy:Math.sin(angle)*s,r:3.4,trail:[]};}
- launch(){if(this.status!=='ready')return;this.balls=[this.ball(this.paddle.x,this.paddle.y-10,-Math.PI/2-.07)];this.status='playing';this.emit({type:'launch'});if(this.stageTime===0){this.fireUntil=this.time+3.8;this.emit({type:'power',kind:'fire'});}}
+ constructor({seed=1,level=1,mode='play',onEvent=()=>{}}={}){this.seed=seed>>>0;this.level=clamp(Math.floor(level)||1,1,1000000);this.random=rng(this.seed^7523);this.emit=onEvent;this.mode=mode;this.score=0;this.lives=3;this.time=0;this.paddle={x:W/2+20,y:584,w:82};this.target=this.paddle.x;this.balls=[];this.drops=[];this.seen=new Set();this.stage();}
+ stage(){let p=makePattern(this.level,this.seed),tries=0;while(this.seen.has(p.signature)&&tries<50)p=makePattern(this.level,(this.seed+ ++tries*7919)>>>0);this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.peakBalls=1;this.combo=0;this.paddle.w=82;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
+ speed(){return Math.min(430,320+this.level*2);}
+ ball(x,y,angle=-Math.PI/2){const speed=this.speed();return{x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:2.35};}
+ launch(){if(this.status!=='ready')return;const y=this.paddle.y-8,dx=this.pattern.entry.x-this.paddle.x,dy=this.pattern.entry.y+3-y,angle=Math.atan2(dy,Math.abs(dx)<1?5:dx);this.balls=[this.ball(this.paddle.x,y,angle)];this.status='playing';this.emit({type:'launch'});}
  next(){if(this.status!=='won')return;this.level++;this.lives=Math.min(5,this.lives+1);this.stage();}
- damage(brick,chain=true){
-  if(!brick||brick.hp<=0)return;brick.hp=0;this.grid.delete(brick.id);this.remaining--;this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);this.lastHit=this.time;const multiplier=1+Math.min(4,Math.floor(this.combo/20));this.score+=10*multiplier;this.energy=clamp(this.energy+.55,0,100);
-  this.emit({type:'break',x:brick.x+brick.w/2,y:brick.y+brick.h/2,hue:brick.hue,combo:this.combo,bomb:brick.type==='bomb'});
-  if(brick.type==='bomb'&&chain){for(let r=Math.max(0,brick.r-2);r<=Math.min(ROWS-1,brick.r+2);r++)for(let c=Math.max(0,brick.c-2);c<=Math.min(COLS-1,brick.c+2);c++)this.damage(this.grid.get(r*COLS+c),false);}
-  if(brick.type==='core'||this.random()<.012){if(this.drops.length<14)this.drops.push({x:brick.x,y:brick.y,kind:['multi','wide','fire','shield'][Math.floor(this.random()*4)]});}
- }
- power(kind){
-  if(kind==='multi'){const sources=this.balls.slice(0,3);for(const b of sources)for(const angle of [-.3,.3]){if(this.balls.length>=18)break;const a=Math.atan2(b.vy,b.vx)+angle;this.balls.push(this.ball(b.x,b.y,a));}}
-  if(kind==='wide')this.wideUntil=this.time+16;
-  if(kind==='fire')this.fireUntil=this.time+10;
-  if(kind==='shield')this.shield=1;
-  this.emit({type:'power',kind});
- }
- pulse(){if(this.energy<100||this.status!=='playing')return false;this.energy=0;const live=[...this.grid.values()].sort((a,b)=>b.y-a.y);for(const b of live.slice(0,100))this.damage(b);this.emit({type:'pulse'});this.checkWin();return true;}
- checkWin(){if(this.remaining===0&&this.status==='playing'){this.status='won';this.score+=1000+this.level*100;this.balls=[];this.drops=[];this.emit({type:'won'});}}
- step(dt){
-  if(this.status!=='playing')return;dt=clamp(dt,0,1/30);this.time+=dt;this.stageTime+=dt;
-  this.paddle.w=this.time<this.wideUntil?124:86;
-  const dest=clamp(this.target,this.paddle.w/2+5,W-this.paddle.w/2-5);this.paddle.x+=clamp(dest-this.paddle.x,-1100*dt,1100*dt);
-  if(this.time-this.lastHit>2.2)this.combo=0;
-  this.energy=clamp(this.energy+dt*1.8,0,100);
-  const milestone=Math.floor((this.total-this.remaining)/65);
-  if(milestone>this.milestone){this.milestone=milestone;this.power(milestone%2?'multi':'fire');}
-  // A soft rescue removes tedious late-stage hunting without a timer or paywall.
-  if(this.remaining<35&&this.time-this.lastHit>3){const b=this.grid.values().next().value;for(const ball of this.balls){const dx=b.x-ball.x,dy=b.y-ball.y,len=Math.hypot(dx,dy)||1;ball.vx=dx/len*this.speed();ball.vy=dy/len*this.speed();}this.lastHit=this.time-1;}
-  for(const ball of this.balls){
-   ball.trail.unshift({x:ball.x,y:ball.y});ball.trail.length=Math.min(9,ball.trail.length);
-   const steps=Math.ceil(this.speed()*dt/2.5),sub=dt/steps;
-   for(let i=0;i<steps;i++){
-    const oldX=ball.x,oldY=ball.y;ball.x+=ball.vx*sub;ball.y+=ball.vy*sub;
-    if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx);}if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx=-Math.abs(ball.vx);}if(ball.y<ball.r){ball.y=ball.r;ball.vy=Math.abs(ball.vy);}
-    const p=this.paddle;
-    if(ball.vy>0&&oldY+ball.r<=p.y+5&&ball.y+ball.r>=p.y&&Math.abs(ball.x-p.x)<p.w/2+ball.r){const offset=clamp((ball.x-p.x)/(p.w/2),-.95,.95),angle=-Math.PI/2+offset*1.08;ball.vx=Math.cos(angle)*this.speed();ball.vy=Math.sin(angle)*this.speed();ball.y=p.y-ball.r;this.emit({type:'bounce'});}
-    if(ball.y>H-12&&ball.vy>0&&(this.shield||this.mode==='zen')){ball.y=H-13;ball.vy=-Math.abs(ball.vy);if(this.mode!=='zen')this.shield=0;this.emit({type:'save'});}
-    const minC=clamp(Math.floor((ball.x-ball.r-OX)/CELL),0,COLS-1),maxC=clamp(Math.floor((ball.x+ball.r-OX)/CELL),0,COLS-1),minR=clamp(Math.floor((ball.y-ball.r-OY)/CELL),0,ROWS-1),maxR=clamp(Math.floor((ball.y+ball.r-OY)/CELL),0,ROWS-1);
-    let hit=null;for(let r=minR;r<=maxR&&!hit;r++)for(let c=minC;c<=maxC;c++){const b=this.grid.get(r*COLS+c);if(b&&circleRect(ball.x,ball.y,ball.r,b)){hit=b;break;}}
-    if(hit){this.damage(hit);if(this.time>=this.fireUntil){if(oldX+ball.r<=hit.x||oldX-ball.r>=hit.x+hit.w){ball.vx=-ball.vx;ball.x=oldX;}else{ball.vy=-ball.vy;ball.y=oldY;}}}
-    // Prevent near-horizontal loops.
-    if(Math.abs(ball.vy)<65)ball.vy=(ball.vy<0?-1:1)*65;
-   }
-  }
-  this.balls=this.balls.filter(b=>b.y<H+20);
-  for(const drop of this.drops){drop.y+=105*dt;if(drop.y>this.paddle.y-12&&drop.y<this.paddle.y+15&&Math.abs(drop.x-this.paddle.x)<this.paddle.w/2+12){this.power(drop.kind);drop.y=H+50;}}
-  this.drops=this.drops.filter(d=>d.y<H+20);
-  this.checkWin();
-  if(!this.balls.length&&this.status==='playing'){this.lives--;this.combo=0;if(this.lives<=0){this.status='over';this.emit({type:'over'});}else{this.status='ready';this.drops=[];this.emit({type:'lost'});}}
+ spawnDrop(x,y,kind){if(this.drops.length<30)this.drops.push({x,y,kind});}
+ damage(cell){if(!cell||cell.type==='wall'||cell.hp<=0)return false;cell.hp--;if(cell.hp>0){this.emit({type:'hit',x:cell.x+4,y:cell.y+4});return false;}this.grid.delete(cell.id);this.remaining--;this.destroyed++;this.combo=this.time-this.lastHit<2?this.combo+1:1;this.lastHit=this.time;this.score+=10;this.emit({type:'break',x:cell.x+4,y:cell.y+4});const n=this.destroyed;if(n===1)this.spawnDrop(cell.x+4,cell.y+4,'add');else if(n===7||n===18||n===40||n===85)this.spawnDrop(cell.x+4,cell.y+4,'triple');else if(n===25)this.spawnDrop(cell.x+4,cell.y+4,'floor');else if(n%47===0)this.spawnDrop(cell.x+4,cell.y+4,this.random()<.7?'triple':this.random()<.5?'add':'wide');else if(this.random()<.006)this.spawnDrop(cell.x+4,cell.y+4,['triple','add','wide','floor','fire'][Math.floor(this.random()*5)]);return true;}
+ power(kind){if(kind==='triple'){const sources=this.balls.slice();for(const b of sources){for(const turn of[-.17,.17]){if(this.balls.length>=MAX_BALLS)break;this.balls.push(this.ball(b.x,b.y,Math.atan2(b.vy,b.vx)+turn));}if(this.balls.length>=MAX_BALLS)break;}}if(kind==='add'){for(let i=0;i<3&&this.balls.length<MAX_BALLS;i++)this.balls.push(this.ball(this.paddle.x+(i-1)*5,this.paddle.y-9,-Math.PI/2+(i-1)*.2));}if(kind==='wide')this.wideUntil=this.time+20;if(kind==='floor')this.floorUntil=this.time+24;if(kind==='fire')this.fireUntil=this.time+5;this.peakBalls=Math.max(this.peakBalls,this.balls.length);this.emit({type:'power',kind,balls:this.balls.length});}
+ checkWin(){if(!this.remaining&&this.status==='playing'){this.status='won';this.score+=1000;this.balls=[];this.drops=[];this.emit({type:'won'});}}
+ autoTarget(){const p=this.paddle,candidates=this.balls.filter(b=>b.vy>30&&b.y<p.y),next=candidates.sort((a,b)=>(p.y-a.y)/a.vy-(p.y-b.y)/b.vy)[0];let dest=p.x,eta=Infinity;if(next){eta=(p.y-next.y)/next.vy;let x=next.x+next.vx*eta;const span=W-2*next.r;x=((x-next.r)%(2*span)+2*span)%(2*span);const landing=next.r+(x>span?2*span-x:x);const aim=this.pattern.entry.x+Math.sin(this.time*1.73)*2,angle=Math.atan2(aim-landing,p.y-this.pattern.entry.y);dest=landing-clamp(angle/1.12,-.85,.85)*p.w/2;}const drop=this.drops.filter(d=>d.y<p.y).sort((a,b)=>b.y-a.y)[0];if(drop){const catchEta=(p.y-drop.y)/96;if(catchEta<eta-.1||eta>.8)dest=drop.x;}return dest;}
+ step(dt){if(this.status!=='playing')return;dt=clamp(dt,0,1/30);this.time+=dt;this.stageTime+=dt;if(this.mode==='watch')this.target=this.autoTarget();this.paddle.w=this.time<this.wideUntil?118:82;const p=this.paddle;this.target=clamp(this.target,p.w/2+2,W-p.w/2-2);p.x+=clamp(this.target-p.x,-1500*dt,1500*dt);
+  for(const b of this.balls){const substeps=Math.max(1,Math.ceil(this.speed()*dt/1.8)),sub=dt/substeps;for(let step=0;step<substeps;step++){const oldY=b.y;b.x+=b.vx*sub;b.y+=b.vy*sub;if(b.x<b.r){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x>W-b.r){b.x=W-b.r;b.vx=-Math.abs(b.vx);}if(b.y<b.r){b.y=b.r;b.vy=Math.abs(b.vy);}if(b.vy>0&&oldY+b.r<=p.y+4&&b.y+b.r>=p.y&&Math.abs(b.x-p.x)<p.w/2+b.r){const offset=clamp((b.x-p.x)/(p.w/2),-.96,.96),angle=-Math.PI/2+offset*1.12;b.vx=Math.cos(angle)*this.speed();b.vy=Math.sin(angle)*this.speed();b.y=p.y-b.r-.01;this.emit({type:'bounce'});}if(this.time<this.floorUntil&&b.y>H-13&&b.vy>0){b.y=H-13;b.vy=-Math.abs(b.vy);}
+   if(b.y<OY+ROWS*CELL+b.r&&b.y>OY-b.r){const minC=clamp(Math.floor((b.x-b.r-OX)/CELL),0,COLS-1),maxC=clamp(Math.floor((b.x+b.r-OX)/CELL),0,COLS-1),minR=clamp(Math.floor((b.y-b.r-OY)/CELL),0,ROWS-1),maxR=clamp(Math.floor((b.y+b.r-OY)/CELL),0,ROWS-1);let hit;for(let r=minR;r<=maxR&&!hit;r++)for(let c=minC;c<=maxC;c++){const cell=this.grid.get(r*COLS+c);if(cell&&circleRect(b.x,b.y,b.r,cell)){hit=cell;break;}}if(hit){if(hit.type!=='wall')this.damage(hit);if(!(this.time<this.fireUntil&&hit.type==='brick')){let nx=b.x-clamp(b.x,hit.x,hit.x+hit.w),ny=b.y-clamp(b.y,hit.y,hit.y+hit.h),distance=Math.hypot(nx,ny);if(distance>1e-8){nx/=distance;ny/=distance;b.x+=nx*(b.r-distance+.02);b.y+=ny*(b.r-distance+.02);}else{const edges=[{d:Math.abs(b.x-hit.x),x:-1,y:0},{d:Math.abs(hit.x+hit.w-b.x),x:1,y:0},{d:Math.abs(b.y-hit.y),x:0,y:-1},{d:Math.abs(hit.y+hit.h-b.y),x:0,y:1}].sort((a,b)=>a.d-b.d);nx=edges[0].x;ny=edges[0].y;b.x+=nx*(edges[0].d+b.r+.02);b.y+=ny*(edges[0].d+b.r+.02);}const dot=b.vx*nx+b.vy*ny;if(dot<0){b.vx-=2*dot*nx;b.vy-=2*dot*ny;}if(hit.type==='wall'&&this.time-this.lastHit>5){const a=(this.random()-.5)*.09,c=Math.cos(a),s=Math.sin(a),vx=b.vx;b.vx=vx*c-b.vy*s;b.vy=vx*s+b.vy*c;const inward=b.vx*nx+b.vy*ny;if(inward<0){b.vx-=2*inward*nx;b.vy-=2*inward*ny;}}}}}
+   if(Math.abs(b.vy)<35){b.vy=(b.vy<0?-1:1)*35;b.vx=(b.vx<0?-1:1)*Math.sqrt(Math.max(0,this.speed()**2-35**2));}
+   if(Math.abs(b.vx)<18){b.vx=(b.vx<0?-1:1)*18;b.vy=(b.vy<0?-1:1)*Math.sqrt(Math.max(0,this.speed()**2-18**2));}
+  }}this.balls=this.balls.filter(b=>b.y<H+12&&Number.isFinite(b.x+b.y+b.vx+b.vy));for(const d of this.drops){d.y+=96*dt;if(d.y>=p.y-11&&d.y<=p.y+10&&Math.abs(d.x-p.x)<p.w/2+10){this.power(d.kind);d.y=H+40;}}this.drops=this.drops.filter(d=>d.y<H+16);this.checkWin();if(!this.balls.length&&this.status==='playing'){this.lives--;this.drops=[];if(this.lives<=0){this.status='over';this.emit({type:'over'});}else{this.status='ready';this.emit({type:'lost'});}}
  }
 }
