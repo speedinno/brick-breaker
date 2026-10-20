@@ -1,0 +1,1 @@
+{"name":"brick-breaker","version":"1.0.0","private":true,"type":"module","description":"Prism Rush: a mobile-first procedural brick breaker","scripts":{"dev":"node server.mjs","test":"node --test tests/*.test.mjs","check":"node --check dist/engine.js && node --check dist/app.js && node --check dist/sw.js"},"engines":{"node":">=20"}}
