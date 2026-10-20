@@ -1,43 +1,38 @@
-# Red-team and QA report
+# v2 red-team and QA report
 
-Release: Prism Rush 1.0.0 · 20 October 2026
+20 October 2026 · Channel-and-swarm rebuild
 
-## Scope and evidence
+## Evidence
 
-This review covered the browser game, stage generator, physics, persistence, offline shell, static assets, and release configuration. It did not penetrate external services or test accounts belonging to other people.
+Sixteen automated tests pass. They cover 1,000 consecutive distinct layouts; deterministic generation; intact gray walls; open routes from the entrance to every breakable region across 60 generated stages; a normal single-ball first serve; exact +3 and ×3 behavior; pickup catching; high-speed collision; temporary power expiration; loss and win transitions; and finite, bounded swarms. A watch simulation grows beyond 100 balls and clears the T field; all twelve reference motifs clear with the same physics in the tested seed, within the 900-second simulation limit per stage.
 
-`npm test`: 13 passing automated tests. `npm run check`: syntax checks pass for engine, app, and service worker. The pattern test checks 10,000 consecutive stages for seed 8937. A 30-minute fixed-step simulated Zen session uses paddle following, automatic charged pulses, and stage advancement; it checks finite positions, entity limits, and grid consistency. It is a simulation of gameplay time, not 30 minutes of measured physical-device performance.
+This replaces the v1 test claims. The old 10,000-layout test applied to the old generator, not this rebuild. Simulation time is not measured physical-device runtime. Exact non-repetition for infinitely many stages is not claimed.
 
-Browser QA used the available Chromium-based in-app browser: desktop launch and scoring; responsive iframe views at 320 × 568, 390 × 700, and 390 × 844; mode switching; Settings and its focus behavior; and the mobile install entry point. These are responsive browser previews, not physical-device emulation or an iOS Safari test.
+The browser review covered 26 loaded X video results at opening, middle, and late positions. Sixteen results use the dominant channel-and-swarm style, including duplicate uploads. See REFERENCES.md for the full URL inventory and distinctions. No claim is made that every X video worldwide was reviewed or that every clip is the same game.
 
-## Risks challenged and addressed
+## Risks addressed
 
-| Risk / abuse case | Handling and verification |
+| Risk | Handling |
 | --- | --- |
-| Repetitive stages | Twelve procedural families vary their parameters, carving, random voids, and colors by stage seed. Exact duplicates are checked across 10,000 consecutive generated layouts. The live session also remembers up to 256 recent signatures. No infinite uniqueness claim is made. |
-| Ball tunnels through thin bricks | Physics runs at 120 Hz, with additional movement substeps capped at 2.5 logical pixels. Automated high-speed collision and paddle/wall reflection checks pass. |
-| Balls settle into nearly horizontal loops | Minimum vertical velocity and late-stage steering toward remaining bricks provide recovery. Pulse helps clear scattered remnants. |
-| Bomb damage wraps around a row | Explicit row/column bounds prevent a bomb on one edge from damaging unrelated bricks on the opposite edge. Regression test passes. |
-| Entity explosion / slowdown | Eighteen-ball cap, fourteen-drop cap, bounded particle effects, capped ball speed, fixed update budget, and a spatial grid prevent unbounded entity growth. Long-session simulation checks the caps. |
-| Repeated damage scores the same brick twice | Destruction checks hit points before removal; the damage operation is idempotent. Grid size and remaining count are checked throughout simulation. |
-| Loss / win racing | Win detection precedes ball-loss handling. Life loss only runs in the playing state. Tests verify single game-over transitions, preserved stage damage, and stage progression. |
-| App switching causes an unfair loss | Visibility and blur events pause play and clear held input. The player resumes explicitly. Settings also pauses a live game. |
-| Finger scroll interrupts play | The canvas uses pointer capture and `touch-action: none`; cancellation clears dragging. Controls remain regular accessible buttons. |
-| Invalid / stale local saves | Storage access and JSON parsing are guarded; seed, stage, score, lives, and best values are validated and bounded. Failures fall back to a fresh playable game. |
-| Cache grows from arbitrary URLs | Only the explicit same-origin asset allowlist is cached; query-string variations and unrelated paths are ignored. A mock offline test verifies cached script recovery and rejection of unrelated requests. |
-| Third-party tracking or offline font failure | Fonts and their licenses are bundled. Gameplay makes no analytics, account, advertising, or third-party font requests. Browser/hosting providers still operate their own infrastructure. |
-| Stored score manipulation | Best scores are explicitly device-local. There is no global competition, paid reward, or claim of anti-cheat verification. Editing local storage can change local records. |
-| Sensitive data / code injection | No user-generated HTML, credential entry, API keys, remote commands, or backend input surface. Runtime text is generated internally. Service worker scope is relative to the app directory. |
-| Sensory overload | Sound and haptics default off. Reduced effects follows the system preference on first visit and can be changed in Settings. No camera/microphone/location permissions are requested. |
-| Misleading native download claims | The release is clearly described as an installable web app; it is not represented as an APK or an App Store listing. |
-| Promotional spam | No replies or social posts were sent. Launch notes recommend relevant personal replies and creator collaboration, not repetitive bulk link posting. |
+| Wrong genre/feel | The old gradient patterns, bomb grid, opening fireball, 18-ball cap, Pulse, and marketing layout were replaced by the observed dense tiles, gray walls, narrow entries, caps, orange paddle, and hundreds of white balls. |
+| Enclosed colored islands prevent finishing | A graph pass adds the minimum gate connections needed to make every breakable component reachable. Reachability tests cover canonical and generated stages. This is a deliberate progression repair beyond what the unfinished clips establish. |
+| Stable one-ball loops | Minimum nonzero velocity components and small angle perturbations after prolonged non-destructive wall bouncing reduce exact periodic loops. There is no teleportation or invisible mass brick destruction. Some narrow patterns are intentionally slow; 2× / 4× playback is available. |
+| Swarm causes unbounded work | 768-ball cap, 30-drop cap, bounded fixed-step update budget, cached field rendering, and a spatial collision grid. No per-ball trails or particle explosion. Physical low-end phone profiling is still required. |
+| Thin-wall tunneling | 120 Hz fixed simulation plus movement substeps of at most 1.8 logical pixels. High-speed collision regression tests pass. |
+| Walls accidentally destroyed | Walls have separate permanent collision behavior. Damage and fireball tests verify they remain. |
+| Brick damaged twice | Destroyed cells are removed and damage is idempotent; remaining counts are checked during the swarm simulation. |
+| App switch or stuck input loses a life | Visibility/blur handling pauses play and clears held keys and pointer dragging. Lost lives retain the current field damage. |
+| Touch scrolling interrupts game | Pointer capture and canvas `touch-action: none`. Normal HTML buttons and keyboard controls remain available. |
+| Corrupt saves or storage failure | Guarded JSON and storage operations, bounded integer validation, and fresh-game fallback. There is no cloud save or cross-tab synchronization. |
+| Cache growth or unrelated private pages cached | An explicit same-origin asset allowlist ignores query variations and unrelated URLs. The offline fallback test passes. Native builds package local assets and skip service-worker registration. |
+| Dependency vulnerabilities | Native tooling uses pinned Capacitor packages and a lockfile. CLI 8.4.3 avoids the moderate transitive advisory found in CLI 8.5.3; npm audit reports zero advisories at this check. Repeat audits when dependencies change. |
+| Secret leakage | Signing materials are ignored by Git. No signing keys, Apple certificates, provisioning profiles, GitHub tokens, or account credentials belong in the source or public build. |
+| Misleading iPhone download | An unsigned device archive or Simulator app is not presented as an installable signed IPA. Physical iPhone distribution remains dependent on the owner's Apple signing. |
+| Misleading Android release | A debug-signed test APK is distinguished from a production-signed Play Store release; the AAB needs production signing. |
+| Sensory/accessibility limitations | Sound and haptics default off; reduced effects follows system preference. The canvas has keyboard controls and surrounding semantic HTML, but no full nonvisual gameplay equivalent. WCAG conformance is not claimed. |
 
-## Release limits and follow-up
+## Remaining limits
 
-- No guarantee of zero defects or of infinite non-repeating layouts. The automated uniqueness evidence covers the tested sequence, and human fun/balance judgments require actual players.
-- Physical Android and iPhone tests, Safari audio/install/offline behavior, and low-end phone frame-time/battery profiling remain unverified. Browser install, sharing, and vibration support varies.
-- The canvas game conveys score, lives, and controls through surrounding HTML, but the real-time spatial gameplay does not have a nonvisual screen-reader alternative. UI keyboard support is provided; full WCAG conformance is not claimed.
-- Local progress has no cloud backup. A checkpoint resumes the start of a stage, not an in-flight frame. Clearing browser storage removes saves. Two simultaneous tabs are not synchronized.
-- GitHub Pages / Sites availability, browser storage eviction, and first-load network access are outside the game engine. Offline availability begins after a successful cache installation.
-- This release has no monetization, accounts, purchases, ad SDKs, push notifications, or collected player telemetry. Adding those would require a fresh privacy and security review.
-- Before a paid native-store launch: test on physical devices, collect real playtest feedback, review age/content rating and platform policies, and create signed native packages if that distribution is desired.
+Browser validation and native build validation do not substitute for physical Android and iPhone playtests, thermal/battery testing, low-memory handling, or App Store review. The code is an independent recreation of observable mechanics; original timings, hidden rules, and exact source physics cannot be inferred with certainty from recordings. No zero-defect guarantee is made.
+
+Native build outcomes are recorded in GitHub Actions and the release notes. A build should only be called successful once its job completes. A signed physical-device iOS release requires Apple Developer access; a production Android store release requires owner-managed signing.

@@ -3,3 +3,8 @@ node_modules/
 *.log
 .DS_Store
 .openai/local/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+build/

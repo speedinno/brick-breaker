@@ -1,0 +1,72 @@
+name: Native mobile builds
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['dist/**', 'android/**', 'ios/**', 'package*.json', 'capacitor.config.json', '.github/workflows/mobile.yml']
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm test && npm run check
+      - run: npx cap sync android
+      - name: Build installable test APK and release bundle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug bundleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Brick-Breaker-Android
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx cap sync ios
+      - name: Build unsigned device archive for Apple signing
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Release -destination 'generic/platform=iOS'
+          -archivePath build/BrickBreaker.xcarchive
+          CODE_SIGNING_ALLOWED=NO archive
+      - name: Build iPhone simulator app
+        run: >-
+          xcodebuild -project ios/App/App.xcodeproj -scheme App
+          -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/simulator
+          CODE_SIGNING_ALLOWED=NO build
+      - name: Package native iOS deliverables
+        run: |
+          ditto -c -k --keepParent build/BrickBreaker.xcarchive build/BrickBreaker-iOS-unsigned-archive.zip
+          ditto -c -k --keepParent build/simulator/Build/Products/Debug-iphonesimulator/App.app build/BrickBreaker-iOS-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Brick-Breaker-iOS
+          path: |
+            build/BrickBreaker-iOS-unsigned-archive.zip
+            build/BrickBreaker-iOS-simulator.zip
+          if-no-files-found: error

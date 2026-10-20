@@ -1,55 +1,49 @@
-# Brick Breaker · Prism Rush
+# Brick Breaker · Channels & Swarms
 
-A mobile-first arcade game inspired by the satisfying dense-brick and channel-pattern clips circulating on X. Original code, UI, and procedural layouts; no copied video, branding, or assets from those posts.
+A reconstruction of the dense-grid brick breaker shown in the reviewed X videos: permanent gray channel walls, a plain orange paddle, solid colored fields, breakable exit caps, +3 pickups, and ×3 ball multiplication that grows a swarm into hundreds of white balls.
 
-**Play:** https://speedinno.github.io/brick-breaker/
+Requested source repository: https://github.com/SpeedInno-Org/Brick-Breaker
 
-## The game
+Public browser version: https://speedinno.github.io/brick-breaker/
 
-- Twelve geometric pattern families with seeded variations, color changes, and fresh layouts at each stage. A test checks 10,000 consecutive stages for exact layout duplicates. This is extensive variety, not a mathematical promise of infinite unique patterns.
-- Fast, substepped ball physics with spatial-grid collision lookup.
-- Explosive chain reactions, combo multipliers, multiball (up to 18), fireballs, a wider paddle, safety shields, and a charged Pulse.
-- The first serve of a stage gets a short fireball boost. Every 65 bricks broken grants another multiball or fire boost.
-- Arcade: three starting lives, a recovered life after each stage (up to five), and increasingly fast balls, capped for playability.
-- Zen: permanent safety floor, separate progress and best score.
-- Touch, mouse, and keyboard input; automatic pause on app switch; optional sound, haptics, and reduced effects.
-- Installable PWA, offline assets including fonts, stage checkpoints, and local personal bests. No runtime dependencies, ads, accounts, analytics, payments, or network leaderboard.
+## What changed in v2
 
-## Play on your phone
+The earlier Prism Rush interpretation was replaced. This version uses a dense 52 × 52 field; twelve reference-style T / H / M / W / sword / needle / bent / nested / heart / stepped motifs; indestructible gray maze walls; and earned, falling multiplication pickups. There is no automatic opening fireball, random missing-brick noise, bomb grid, Pulse button, or large marketing layout.
 
-Open the play link. On Android, use the browser's **Install app / Add to Home screen** action. On iPhone, open in Safari and use **Share → Add to Home Screen**. The game offers installation help in Settings. Once its offline assets have been cached on a successful first visit, the installed game can run without a connection.
+The first twelve stages reproduce the observed motifs. Later stages generate connected variations. A pattern chooser makes each motif directly playable. Additional small gate tiles ensure enclosed colored regions can be cleared, which is necessary for progressing beyond the clips' unfinished fields. This is newly written code that recreates visible behavior, not the original game's source, branding, or a claim of pixel-identical physics.
 
-This release is a web app, not a signed Android APK or an App Store binary. Browser support for install prompts, haptics, and sharing varies. Progress is stored on the device and can be cleared by the browser.
+## Play
 
-## Controls
+Move the mouse or drag anywhere on the board to steer the paddle. Launch through the entrance and catch falling boosts: **+3** adds three balls; **×3** triples the current swarm, up to a bounded 768 balls; **↔** widens the paddle; **—** adds a temporary safety floor; **♨** enables temporary fireballs. Gray walls remain even for fireballs.
 
-Drag anywhere on the board or move the mouse to steer. Hit the paddle edge for angled shots. Catch falling +2 / fire / wide / shield boosts. At 100% energy, tap Pulse.
+**Watch it unfold / AUTO** controls only the paddle using the same simulation. Watch starts at 2× speed. The speed control cycles through 1×, 2×, and 4×. Keyboard: arrows / A / D move, Space launches or advances, P / Escape pauses. App switching pauses automatically. Stages and local best scores save on this device.
 
-Keyboard: **← / →**, **A / D** move; **Space** launches or continues; **P / Escape** pauses; **X** triggers Pulse. Settings has a restart action. Opening Settings pauses a live game.
+## Android and iPhone
 
-## Run locally
+The game is bundled into native Capacitor Android and iOS projects and runs without a hosted-site connection. Native apps do not use the web service worker. There are no ad SDKs, accounts, payments, or runtime analytics.
 
-Node.js 20 or newer; no installation step or dependencies needed.
+- **Android:** the native CI builds an installable, debug-signed APK and an unsigned release AAB. A debug APK is suitable for direct testing; a release intended for Google Play needs the owner's production signing configuration and store setup.
+- **iPhone:** native CI builds an unsigned device archive and an iPhone Simulator app. The archive must be signed with the owner's Apple Developer team before a physical iPhone/TestFlight/App Store installation. The simulator build is not an installable iPhone IPA.
+- **Browser installation:** Android browser menu → Install app; iPhone Safari → Share → Add to Home Screen. Offline play begins after the first successful web cache installation. This is available separately from the native packages.
+
+See [mobile build instructions](docs/MOBILE.md), [reference review](docs/REFERENCES.md), and [red-team/QA report](docs/RED_TEAM.md).
+
+## Develop and build
+
+Node.js 22+:
 
 ```sh
+npm ci
 npm run dev
-```
-
-Open http://127.0.0.1:4173. Modules and the service worker require HTTP(S); double-clicking the HTML file is not supported. The development server binds to loopback only. `/__mobile?width=390&height=844` is a development-only responsive iframe preview and is not part of the deployed static game.
-
-```sh
 npm test
 npm run check
+npm run mobile:sync
 ```
 
-`dist/` is the complete static build. Deploy it at a site root or subdirectory; all application asset paths are relative. GitHub Pages uses the `gh-pages` branch. The `publish-pages.mjs` helper updates that branch from `dist/` after checks pass.
+Local preview: http://127.0.0.1:4173. `dist/` is the complete static game and supports subdirectory deployment. The development-only `/__mobile?width=390&height=844` route previews a narrow viewport.
 
-## Saves and scoring
+Android: open `android/` in Android Studio, or use `npm run android:open`; Java 21 and Android SDK 36 are needed for command-line builds. iOS: use a Mac with Xcode 26+, open `ios/App/App.xcodeproj`, choose your signing team and target, and build. `npm run ios:open` opens it on a Mac.
 
-Each mode saves the stage seed, stage number, score, and lives at a checkpoint. Reloading restarts that stage's bricks; it does not reconstruct an in-flight ball. Damaged bricks stay broken between lost lives in the same session. Best scores update on loss, stage clear, mode switch, and app switch. Bests are local and are not suitable for competitive verification.
+`.github/workflows/mobile.yml` builds both native platforms. `.github/workflows/test.yml` runs game checks. `publish-pages.mjs` publishes the static `dist/` subtree to the existing public `github` mirror without exposing organization repository settings or changing the organization's private audience.
 
-## Validation and limitations
-
-See [the red-team and QA report](docs/RED_TEAM.md) for test coverage, addressed risks, and device-testing limits. Automated simulation is not a replacement for human testing on physical iOS and Android devices. No software can be guaranteed free of all issues.
-
-Font files are bundled with their SIL Open Font Licenses in `dist/fonts/`. Original game code is under the MIT license.
+Original game code is MIT licensed. Bundled font files retained from v1 include their SIL Open Font Licenses, though the v2 game uses system fonts. No reference video images, third-party watermarks, or app-store branding are bundled.
