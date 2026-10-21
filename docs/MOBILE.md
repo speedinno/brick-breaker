@@ -10,6 +10,7 @@ Project: `android/`. Bundle ID: `com.speedinno.brickbreaker`. Minimum API 24; ta
 npm ci
 npx cap sync android
 cd android
+chmod +x gradlew
 ./gradlew assembleDebug bundleRelease
 ```
 
@@ -35,8 +36,10 @@ CI produces an unsigned `.xcarchive` for later signing plus a Simulator `.app`. 
 
 `.github/workflows/mobile.yml` runs Android on Ubuntu and iOS on macOS. Download the **Brick-Breaker-Android** and **Brick-Breaker-iOS** artifacts from a successful run. Failed or queued jobs are not completed builds. The workflow does not contain signing credentials or automatically submit either app to a store.
 
-The approved public source/build mirror is https://github.com/speedinno/brick-breaker. The primary organization repository remains private. Both native jobs passed in [build 39530188773](https://github.com/speedinno/brick-breaker/actions/runs/39530188773), using game source commit `a20be624496d49799c464808d15dc690f79b78e4`.
+The approved public source/build mirror is https://github.com/speedinno/brick-breaker. The primary organization repository remains private. Both native jobs passed in [build 39532447345](https://github.com/speedinno/brick-breaker/actions/runs/39532447345), using application source commit `8fe6bab067166c106c8fbe9e5d5b1f06f5843a52`. The iOS store icon is exported as RGB without an alpha channel, and CI checks that encoding before compilation.
 
 `.github/workflows/native-smoke.yml` accepts a successful build run ID and tests those exact artifacts, without rebuilding them. Android disables Wi-Fi and cellular data, launches the bundled WebView, checks native execution and painted bricks, starts AUTO, verifies brick destruction and pause/resume, and relaunches the process. iPhone Simulator launches and relaunches the compiled app and captures screenshots for visual inspection. This checks packaging and startup; it does not replace physical-device playtesting.
+
+The final Android and iPhone launch checks both passed in [run 39532730822](https://github.com/speedinno/brick-breaker/actions/runs/39532730822). Download the versioned packages and full source from [release 2.0.0](https://github.com/speedinno/brick-breaker/releases/tag/v2.0.0).
 
 Before store release, verify real-device input, app switching, sound, safe-area layout, Android Back, offline operation, large-swarm performance, and save restoration. No telemetry is collected to replace that testing.

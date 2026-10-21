@@ -8,6 +8,8 @@ Public browser version: https://speedinno.github.io/brick-breaker/
 
 Public source and native build mirror: https://github.com/speedinno/brick-breaker
 
+Android test APK and iOS build downloads: https://github.com/speedinno/brick-breaker/releases/tag/v2.0.0
+
 ## What changed in v2
 
 The earlier Prism Rush interpretation was replaced. This version uses a dense 52 × 52 field; twelve reference-style T / H / M / W / sword / needle / bent / nested / heart / stepped motifs; indestructible gray maze walls; and earned, falling multiplication pickups. There is no automatic opening fireball, random missing-brick noise, bomb grid, Pulse button, or large marketing layout.
