@@ -1,4 +1,4 @@
-const CACHE='brick-breaker-v3.0.0-shooting-final';
+const CACHE='brick-breaker-v3.0.0-native-safe-area';
 const ASSETS=['./','./index.html','./style.css','./app.js','./engine.js','./generated.js','./difficulty.js','./catalog.js','./progress.js','./session.js','./cloud.js','./cloud-config.js','./journey-ui.js','./account-ui.js','./vendor/supabase.js','./vendor/native.js','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable.png','./manifest.webmanifest','./privacy.html','./terms.html','./delete-account.html','./legal.js','./legal.css','./THIRD-PARTY-NOTICES.txt'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>(key.startsWith('prism-rush-')||key.startsWith('brick-breaker-'))&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));

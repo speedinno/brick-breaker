@@ -95,7 +95,7 @@ function pause(){if(!game||loading)return;if(paused){paused=false;$('prompt').hi
 function away(){keys.clear();drag=false;if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();}
 function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}keys.clear();drag=false;saveSession();if(!$(id).open)$(id).showModal();}
 function closeDialog(id){if($(id).open)$(id).close();}
-for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus();});
+for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus({preventScroll:true});});
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
 function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){
