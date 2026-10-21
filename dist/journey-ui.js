@@ -21,7 +21,7 @@ export class JourneyMap {
     for(let level=1;level<=12;level++){
       const d=createDefinition(level),pattern=hydrateDefinition(d),button=document.createElement('button'),mini=document.createElement('canvas'),label=document.createElement('span'),status=document.createElement('small');
       mini.width=416;mini.height=434;const ctx=mini.getContext('2d');ctx.fillStyle='#191919';ctx.fillRect(0,0,416,434);
-      for(const c of pattern.cells){ctx.fillStyle=c.type==='wall'?'#9a9a91':c.type==='gate'?'#e8d530':c.color||pattern.color;ctx.fillRect(c.x+.55,c.y+.55,c.w-1.1,c.h-1.1);}
+      for(const c of pattern.cells){ctx.fillStyle=c.type==='wall'?'#9a9a91':c.type==='gate'?'#e8d530':c.color||pattern.color;const inset=c.type==='wall'?0:.55;ctx.fillRect(c.x+inset,c.y+inset,c.w-inset*2,c.h-inset*2);}
       label.textContent=`${String(level).padStart(2,'0')} ${d.name}`;const complete=isCompleted(p,level);status.textContent=complete?'✓ Completed':'Ready to play';button.classList.toggle('completed',complete);button.classList.toggle('active',p.selected===level);button.append(mini,label,status);button.setAttribute('aria-label',`Stage ${level}, ${d.name}, ${complete?'completed, replay':'ready to play'}`);button.onclick=()=>this.play(level);grid.append(button);
     }
     this.renderJourney();

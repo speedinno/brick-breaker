@@ -36,7 +36,7 @@ Passing that script checks source/configuration, not store approval or live oper
 - All twelve starter stages are playable immediately, in any order. Each real clear gets a persistent **✓ Completed** tick. Manual and AUTO both count.
 - Completing **all twelve** unlocks 13. Completing 13 unlocks 14, and so on. Replaying a completed stage does not unlock extra stages.
 - Future journey cards show a lock, with no pattern preview. Tapping one tells the player which stage(s) to finish and offers the required stage.
-- Generated layouts use graph construction, varied chambers, branches, loops and sixteen architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
+- Generated layouts use graph construction, varied chambers, branches, loops and twenty architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
 - Every eight journey clears completes a chapter. The map shows chapter, challenge label and clears remaining. Ball speed, paddle control and layout complexity change gradually within safe bounds; early breakthrough boosts remain. Sixteen shuffled architecture styles include petals, crystals, arches, ribbons and mandalas. See dist/difficulty.js and docs/ARCHITECTURE.md for the curve. Existing cached guest boards stay stable; newly generated boards use the expanded recipes.
 - Guest progress is local. Optional accounts synchronize completed stages, selected stage and personal history. The exact in-progress field/swarm is a **device-local** snapshot, not cross-device live simulation.
 - Guest detailed history keeps starters plus the most recent 128 generated records. Completion ticks/frontier persist beyond that. Cloud history is paginated and retains per-stage summaries. There is no replay-by-replay event log.
@@ -149,7 +149,7 @@ Review your retention policy first. Expiry is seven days; cleanup is not automat
 
 ## 8. Android production package
 
-Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 3. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
+Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 4. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
 
 1. Create/verify the appropriate organization Google Play Console account, ownership/contact details and payments profile. Use the company's account, not a temporary contractor identity.
 2. Enroll in Play App Signing. Create and securely back up the upload keystore/passwords in the team's secret manager. Never commit keystores. The debug APK uses a different signing key and is for testing only; users may need to uninstall it before installing a differently signed build, so first sync/export test progress if needed.
@@ -160,7 +160,7 @@ Permanent application ID currently `com.speedinno.brickbreaker`; verify availabi
 
 ## 9. iPhone production package
 
-Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 3; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
+Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 4; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
 
 1. Enroll/verify the company's Apple Developer organization (including D-U-N-S and legal authority where applicable), accept required agreements and complete App Store Connect business/trader disclosures.
 2. `npm ci && npm run mobile:sync`; open `ios/App/App.xcodeproj`. Select App target, correct Team and bundle ID, configure signing/provisioning. Archive for a physical iOS device using Release, then Validate/Distribute through Xcode Organizer to App Store Connect.
@@ -217,6 +217,6 @@ If another engineer/agent helps, give them this prompt: "Continue Brick Breaker 
 
 ## Candidate evidence
 
-Application commit: fd824b5df628c24f877999d6a3a22fa307f82f1b. Both native builds passed: https://github.com/speedinno/brick-breaker/actions/runs/39542142668 . The compiled Android/iPhone launch checks also passed: https://github.com/speedinno/brick-breaker/actions/runs/39542592444 . There are 38 current automated tests including the subsequent backend-only generation-budget check. See docs/RELEASE-V3.md and docs/RED_TEAM.md for evidence and limits.
+RC2 adds rangoli, kolam, rosette and starweave motifs, continuous grey outlines, occasional far-left/right narrow entries and directional launch hints. There are 39 automated checks. See docs/RELEASE-RC2.md for exact application/build/launch evidence; RC1 remains preserved separately.
 
-Candidate packages/source: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1 . The Android APK is debug signed; AAB and iOS archive are unsigned. Store signing and real-device/cloud validation remain your responsibility.
+Candidate packages/source: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.2 . The Android APK is debug signed; AAB and iOS archive are unsigned. Store signing and real-device/cloud validation remain your responsibility.

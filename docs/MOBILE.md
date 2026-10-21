@@ -51,3 +51,5 @@ Historical v2 evidence only: Android and iPhone launch checks both passed in [ru
 Before store release, verify real-device input, app switching, sound, safe-area layout, Android Back, offline operation, large-swarm performance, and save restoration. No telemetry is collected to replace that testing.
 
 For the v3 production handoff, use [CHANDRAHAS-LAUNCH-GUIDE.md](../CHANDRAHAS-LAUNCH-GUIDE.md). It includes Supabase, support email, real-device beta, signing, privacy and store steps. Candidate CI artifacts remain unsigned/test-only. See the public Actions page for the latest v3 run.
+
+Current rangoli candidate: version 3.0.0, Android versionCode 4 and iOS build 4. See [RC2 evidence](RELEASE-RC2.md) and [candidate packages](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.2). RC1 and v2 are preserved as historical releases.
