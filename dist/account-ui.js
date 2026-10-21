@@ -15,8 +15,8 @@ export class AccountPanel {
     $('moreHistory').onclick=()=>void this.run(()=>this.history(false));
     $('exportHistory').onclick=()=>void this.run(async()=>{
       if(native){window.open('https://speedinno.github.io/brick-breaker/?account=export','_blank','noopener');this.message('Open Account on the web game to export your history.');return;}
-      let cursor=null,history=[],account,progress;
-      do{const page=await cloud.exportData(cursor);account=page.account;progress=page.progress;history.push(...page.history);cursor=page.nextBefore;if(history.length>100000)throw Error('This export is very large. Contact support for a full data export.');}while(cursor);
+      const owner=cloud.userId;let cursor=null,history=[],account,progress;
+      do{const page=await cloud.exportData(cursor);if(cloud.userId!==owner)throw Error('Your account changed. Start the export again.');account=page.account;progress=page.progress;history.push(...page.history);cursor=page.nextBefore;if(history.length>100000)throw Error('This export is very large. Contact support for a full data export.');}while(cursor);
       const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),account,progress,history},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='brick-breaker-history.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);this.message('Your history export is ready.');
     });
     $('requestDelete').onclick=()=>{$('deleteConfirm').value='';$('deleteError').textContent='';open('deleteDialog');};
@@ -45,6 +45,6 @@ export class AccountPanel {
   async history(reset){
     $('historyPanel').hidden=false;
     if(!this.cloud.signedIn){this.renderHistory(Object.values(this.getProgress().records).sort((a,b)=>b.level-a.level));$('moreHistory').hidden=true;return;}
-    if(reset)this.before=null;const page=await this.cloud.history(this.before);this.renderHistory(page.history,!reset);this.before=page.nextBefore;$('moreHistory').hidden=!this.before;
+    if(reset)this.before=null;const owner=this.cloud.userId,page=await this.cloud.history(this.before);if(owner!==this.cloud.userId)return;this.renderHistory(page.history,!reset);this.before=page.nextBefore;$('moreHistory').hidden=!this.before;
   }
 }

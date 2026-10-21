@@ -39,6 +39,7 @@ Deno.serve(async request=>{
     const text=await request.text();if(text.length>32768)return reply({error:'Request is too large'},413);
     let body;try{body=JSON.parse(text);}catch{return reply({error:'Invalid JSON'},400);}
     if(!body||typeof body!=='object'||Array.isArray(body))return reply({error:'Invalid request'},400);
+    if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
     if(body.action==='state')return reply(await rpc('game_state'));
     if(body.action==='level'||body.action==='start'){
