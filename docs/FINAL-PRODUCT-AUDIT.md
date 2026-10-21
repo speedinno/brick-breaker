@@ -50,3 +50,9 @@ The actual Edge entrypoint is now exercised with the real Supabase SDK over a mo
 Android build 5 passed real native shooting and exact cold-snapshot restoration, replacing the former loading-screen-only restart check. iPhone build 5 is undergoing the new XCTest verification. All 38 runtime assets matched source in APK/AAB/iOS archive/simulator; the Pages-only .nojekyll marker is intentionally excluded by Capacitor.
 
 The native legal links were still relative, which resolves to localhost/capacitor URLs when opened externally. They now use the configured public HTTPS game URL in native apps, including sign-in policy links; web/PWA policy pages stay relative and available offline. Native Android verification asserts those resolved URLs. Native build number advances to 6 for this change. Verify build 6 before handing off final artifacts. iPhone UI tests run serially and export their screenshot attachments for inspection.
+
+### iPhone interaction failure and repair
+
+Build 5’s XCTest compiled and launched the exact package, opened the stage map, scrolled to locked stage 13 and closed the requirement dialog. It then failed: tapping the stage map’s close button left the gallery open. The captured accessibility hierarchy confirms the gallery remained the modal and its close control lay partly above the native content viewport. This was not a green launch-only result.
+
+The app had both native contentInset=always and CSS safe-area padding, plus a negative sticky offset/margin on close buttons. iOS now uses contentInset=never so CSS owns safe areas. Dialog height subtracts safe insets; close controls stay inside with positive offsets and 44px targets; focus restoration prevents a scroll jump. Build number advances to 7. XCTest explicitly requires the scrolled close control to be hittable and the dialog to disappear after one tap. Final native verification remains pending until that repair passes.

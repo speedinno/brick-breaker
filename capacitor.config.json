@@ -1,1 +1,1 @@
-{"appId":"com.speedinno.brickbreaker","appName":"Brick Breaker","webDir":"dist","android":{"backgroundColor":"#191919","allowMixedContent":false},"ios":{"backgroundColor":"#191919","contentInset":"always","preferredContentMode":"mobile"}}
+{"appId":"com.speedinno.brickbreaker","appName":"Brick Breaker","webDir":"dist","android":{"backgroundColor":"#191919","allowMixedContent":false},"ios":{"backgroundColor":"#191919","contentInset":"never","preferredContentMode":"mobile"}}

@@ -24,7 +24,12 @@ final class NativeSmoke: XCTestCase {
         let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
         XCTAssertTrue(locked.waitForExistence(timeout: 10)); locked.tap()
         XCTAssertTrue(button("Close unlock requirement").waitForExistence(timeout: 10))
-        button("Close unlock requirement").tap(); button("Close stages").tap()
+        button("Close unlock requirement").tap()
+        let closeStages = button("Close stages")
+        XCTAssertTrue(closeStages.isHittable, "Scrolled stage-picker close control must remain tappable")
+        closeStages.tap()
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: closeStages)
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed, "One tap must close the scrolled stage picker")
         let watch = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Watch it unfold")).firstMatch
         XCTAssertTrue(watch.waitForExistence(timeout: 10)); watch.tap()
         let destroyed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 && self.remaining() < initial }, object: nil)
