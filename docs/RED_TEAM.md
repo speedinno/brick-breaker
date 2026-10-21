@@ -36,3 +36,9 @@ The browser review covered 26 loaded X video results at opening, middle, and lat
 Browser validation and native build validation do not substitute for physical Android and iPhone playtests, thermal/battery testing, low-memory handling, or App Store review. The code is an independent recreation of observable mechanics; original timings, hidden rules, and exact source physics cannot be inferred with certainty from recordings. No zero-defect guarantee is made.
 
 Native build outcomes are recorded in GitHub Actions and the release notes. A build should only be called successful once its job completes. A signed physical-device iOS release requires Apple Developer access; a production Android store release requires owner-managed signing.
+
+## Native validation · 21 October 2026
+
+Both Android and iOS compilation jobs passed in [run 39530188773](https://github.com/speedinno/brick-breaker/actions/runs/39530188773), building application commit `a20be624496d49799c464808d15dc690f79b78e4`. The APK, simulator app, and unsigned device archive were inspected: their index, engine, controller, styles, and manifest match the current game source after newline normalization.
+
+The Android API 35 emulator test used the exact downloaded APK with Wi-Fi and mobile data disabled. It verified native Capacitor execution, a painted dense field with 2,328 initial breakable cells, AUTO launch, brick count falling to 2,318 with three balls after 20 seconds, pause/resume, and process relaunch. No uncaught JavaScript exception or native fatal exception was reported. The screenshot was visually inspected for field rendering and phone layout. This is a startup and gameplay smoke test, not a low-end device performance benchmark.

@@ -6,6 +6,8 @@ Requested source repository: https://github.com/SpeedInno-Org/Brick-Breaker
 
 Public browser version: https://speedinno.github.io/brick-breaker/
 
+Public source and native build mirror: https://github.com/speedinno/brick-breaker
+
 ## What changed in v2
 
 The earlier Prism Rush interpretation was replaced. This version uses a dense 52 × 52 field; twelve reference-style T / H / M / W / sword / needle / bent / nested / heart / stepped motifs; indestructible gray maze walls; and earned, falling multiplication pickups. There is no automatic opening fireball, random missing-brick noise, bomb grid, Pulse button, or large marketing layout.
@@ -27,6 +29,10 @@ The game is bundled into native Capacitor Android and iOS projects and runs with
 - **Browser installation:** Android browser menu → Install app; iPhone Safari → Share → Add to Home Screen. Offline play begins after the first successful web cache installation. This is available separately from the native packages.
 
 See [mobile build instructions](docs/MOBILE.md), [reference review](docs/REFERENCES.md), and [red-team/QA report](docs/RED_TEAM.md).
+
+Actual Android app running in an API 35 emulator with network access disabled:
+
+<img src="docs/native/android.png" width="270" alt="Native Android brick breaker with a dense red field, gray T channel, orange paddle and multiplying balls">
 
 ## Develop and build
 

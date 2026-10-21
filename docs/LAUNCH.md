@@ -16,6 +16,6 @@ Policy references checked 20 October 2026:
 
 Example for a genuinely relevant conversation, to adapt yourself:
 
-> I got hooked on these channel patterns too, so I built a mobile-friendly brick breaker with fresh stages, explosive chains, and an endless Zen mode. You can play it here: https://speedinno.github.io/brick-breaker/ — feedback on the first few stages would be useful.
+> I got hooked on these channel patterns too, so I built a brick breaker with gray-wall mazes, multiplying ball swarms, and fresh stages. You can play it here: https://speedinno.github.io/brick-breaker/ — feedback on the first few stages would be useful.
 
 No social posts or replies were sent during development. This is a suggested draft, not an automated posting campaign.
