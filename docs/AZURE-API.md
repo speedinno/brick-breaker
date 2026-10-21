@@ -198,8 +198,8 @@ sign-in and account operations on a device.
 SMTP configuration has been applied with sender
 `login@brickbreaker.speedinno.com`. The owner chose a separate game subdomain
 because other Resend accounts use the root domain. The game subdomain has been
-created in the current Resend account; verification and email delivery remain
-pending. Add only its four records to the `speedinno.com` Cloudflare zone:
+created in the current Resend account and verified on 21 October 2026. Its four
+records have been added to the `speedinno.com` Cloudflare zone:
 TXT `resend._domainkey.brickbreaker`, MX/TXT `send.brickbreaker`, and CNAME
 `rsend.brickbreaker`. Use the exact values in
 `.openai/local/resend-game-dns-records.txt` or the game subdomain's Resend page,
@@ -208,6 +208,25 @@ other application DNS records unchanged, including the existing
 `resend._domainkey`, `send`, and root MX records. The earlier root-domain
 verification instructions are superseded; do not replace another account's DKIM
 key or transfer its domain to complete the game setup.
+
+All four records exactly matched Resend's expected values through both Google
+and Cloudflare public DNS. A Cloudflare read-back confirmed that unrelated DNS
+records remained unchanged. Supabase SMTP settings were revalidated, and two
+explicit test-code requests to the owner's configured test inbox received
+Resend's `delivered` event. The production client's code-verification method
+accepted the eight-digit code, and its authenticated Azure `state` request passed.
+The test session was signed out; the owner's account and progress were retained.
+Codes, session tokens, and message bodies were not written to the receipts.
+Resend delivery confirms recipient-server acceptance; inbox/spam placement still
+needs owner confirmation. Receipts are ignored local files:
+`.openai/local/cloudflare-game-dns.json`,
+`.openai/local/email-configuration.json`, and
+`.openai/local/email-flow-acceptance.json`.
+
+The first authenticated API request exceeded the client's 12-second timeout.
+The health check and a subsequent email-login/API test passed. The deployment
+still permits scaling to zero; verify cold-start behavior on devices before
+launch and choose a minimum replica count if required by latency targets.
 
 References: [Resend SMTP](https://resend.com/docs/send-with-smtp),
 [Resend Cloudflare DNS setup](https://resend.com/docs/guides/dns/cloudflare),
