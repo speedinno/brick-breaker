@@ -34,6 +34,10 @@ Actual Android app running in an API 35 emulator with network access disabled:
 
 <img src="docs/native/android.png" width="270" alt="Native Android brick breaker with a dense red field, gray T channel, orange paddle and multiplying balls">
 
+Actual iPhone Simulator app after process relaunch, showing the saved-stage prompt:
+
+<img src="docs/native/iphone.png" width="270" alt="Native iPhone brick breaker showing the dense T field and saved-stage Continue prompt">
+
 ## Develop and build
 
 Node.js 22+:
