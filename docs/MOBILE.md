@@ -52,4 +52,4 @@ Before store release, verify real-device input, app switching, sound, safe-area 
 
 For the v3 production handoff, use [CHANDRAHAS-LAUNCH-GUIDE.md](../CHANDRAHAS-LAUNCH-GUIDE.md). It includes Supabase, support email, real-device beta, signing, privacy and store steps. CI artifacts remain unsigned/test-only. See the public Actions page for the latest v3 run.
 
-Current handoff: version 3.0.0, Android versionCode 7 and iOS build 7. See [final evidence](RELEASE-FINAL.md) and [packages/source/guide](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0). RC1, RC2 and v2 are preserved as historical releases.
+Current handoff: version 3.0.0, Android versionCode 8 and iOS build 8. See [final evidence](RELEASE-FINAL.md) and [packages/source/guide](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0). RC1, RC2 and v2 are preserved as historical releases.

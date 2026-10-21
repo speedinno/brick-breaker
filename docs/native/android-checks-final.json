@@ -1,0 +1,34 @@
+{
+  "initial": {
+    "native": true,
+    "title": "Brick Breaker",
+    "remaining": 2328,
+    "promptHidden": false,
+    "canvas": [
+      115,
+      25,
+      42,
+      255
+    ],
+    "url": "https://localhost/"
+  },
+  "legal": [
+    "https://speedinno.github.io/brick-breaker/privacy.html",
+    "https://speedinno.github.io/brick-breaker/terms.html",
+    "https://speedinno.github.io/brick-breaker/delete-account.html",
+    "https://speedinno.github.io/brick-breaker/terms.html",
+    "https://speedinno.github.io/brick-breaker/privacy.html"
+  ],
+  "journey": {
+    "cards": 12,
+    "locked": "🔒Stage 13Locked",
+    "starter": "0 of 12 starters completed"
+  },
+  "playing": {
+    "hidden": true,
+    "remaining": 2276,
+    "balls": 4,
+    "auto": "true"
+  },
+  "errors": []
+}

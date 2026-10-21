@@ -1,0 +1,44 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "988CD10E-40AB-40CF-BFFA-2424C5497A56.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iPhone-resumed_0_C6F0F55B-74B7-41B5-BB70-DF5A878ED3B5.png",
+        "timestamp" : 1792571127.392
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "0FCE7BCF-D7F5-4BA8-AFEE-4DD9BBB56E4C.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iPhone-restored-field_0_0C0A6C99-082B-452E-81A8-AABB150F7B2E.png",
+        "timestamp" : 1792571122.144
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "2890138E-AC6D-46F3-B3D0-D7BA3F9C1706.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iPhone-paused-gameplay_0_3E4BF325-A48C-4188-8A41-730C84147C1E.png",
+        "timestamp" : 1792571093.051
+      },
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "0183276C-C5F7-4A53-B0AF-C3D9117595F6",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "D8A507DC-F92A-4852-ACE0-8EDB460A2A14.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "iPhone-ready_0_8086B651-E29C-412C-84AD-57260C7F444D.png",
+        "timestamp" : 1792571029.511
+      }
+    ],
+    "testIdentifier" : "NativeSmoke/testPackagedGamePlayAndColdResume()",
+    "testIdentifierURL" : "test://com.apple.xcode/App/NativeVerification/NativeSmoke/testPackagedGamePlayAndColdResume"
+  }
+]

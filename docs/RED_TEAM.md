@@ -4,7 +4,7 @@
 
 ## Automated evidence
 
-npm test: **51 passing Node checks**, plus **6 passing Deno HTTP contract tests**. npm run check: syntax and generated server/client bundle parity pass. Backend passes deno check. Dependency audit: zero reported advisories at this handoff; advisories can change.
+npm test: **53 passing Node checks**, plus **6 passing Deno HTTP contract tests**. npm run check: syntax and generated server/client bundle parity pass. Backend passes deno check. Dependency audit: zero reported advisories at this handoff; advisories can change.
 
 - 1,000 generated layouts are distinct under canonical rotations/reflections, with node/edge diversity. Separate tests cover 1,000 overall layouts and 60 boards' reachability. JSON roundtrip, metadata validation and published-definition mutation isolation pass.
 - Real unmodified watch physics clear the 12 starters and generated stages 13–34 using a representative seed. This is not a universal proof for all levels/seeds. Tests cover permanent walls, exact +3/×3, bounded balls/drops, collision, lives, pickups, effects and win conditions.

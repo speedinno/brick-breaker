@@ -1,21 +1,21 @@
-# Final product audit — active work
+# Final product audit — completed software handoff
 
 Objective: finish the game and release artifacts, leaving owner-managed database/email configuration, domain setup and Apple/Google publication. Keep existing player progress and published layouts stable. Evidence must distinguish local/simulator validation from owner account and real-device launch validation.
 
 ## Requirements and completion evidence
 
-| Requirement | Required evidence | Status |
-| --- | --- | --- |
-| Dense channel game, simple and ornate future patterns, gradual challenge | Reference 27 review, generated previews, uniqueness/reachability, real-physics clears | In progress: add simple architectures |
-| Pink/purple paddle shooting separate from fireballs | Pickup, bounded timed projectiles, piercing columns, permanent walls, expiry, pause/resume tests and browser gameplay | Missing at audit start |
-| Twelve starters, ticks, sequential future unlocks, hidden locked designs | Progress tests and rendered lock/completion interactions | Revalidate final build |
-| Local field/history and offline/native restart | Snapshot validation and cold-restart field assertions on compiled package | Strengthen Android readiness test |
-| Optional email accounts, isolated cloud saves/export/deletion | Actual SQL/RLS tests, client identity/failure tests; hosted configuration procedure | Audit client races and failures |
-| Shared immutable creative catalog | Canonical deduplication, concurrent SQL publish, publication-budget checks | Revalidate expanded recipes |
-| Mobile usability, lifecycle and accessibility | Compact phone, keyboard/dialog/manual/AUTO/pause checks, native launch evidence | Revalidate final build |
-| Secure backend, privacy, bounded resources, dependency licenses | Adversarial request/SQL/save tests, type/parity/dependency checks, package audit | Review again after changes |
-| Android and iPhone source and distributable test/store packages | Matching-source native builds, runtime evidence, checksums | Build final revision |
-| Repositories, web deployment and one owner guide | Equal primary/mirror commits/tags, deployed asset parity, release assets, guide | Publish final revision |
+| Requirement | Evidence and result |
+| --- | --- |
+| Dense channel game, simple and ornate patterns, gradual challenge | Reference 27 full review; 22 inspected design previews; 1,000 canonical unique layouts; real-physics clears of starters, 22 early journey levels and sampled later levels. Passed. |
+| Separate pink/purple paddle shooting | Five regressions cover caught pickup, piercing columns/permanent walls, bounded shots/expiry, pause/loss/win and compatible snapshots. Browser and Android earned shooting observed. Passed. |
+| Twelve starters, completed ticks, sequential future locks | Progress/SQL tests, compact rendered interactions, exact lock explanations and native lock checks. Passed. |
+| Device field/history and cold restart | Validated snapshots, two native-storage regressions, Android exact committed snapshot equality after force-stop; iPhone damaged-field count restored after termination. Passed on emulator/simulator. |
+| Optional email accounts, private cloud saves/export/deletion | Client identity tests, actual SQL/RLS/cascade/concurrency and six real-entrypoint mocked-transport HTTP tests. Integration source complete; hosted project/SMTP acceptance belongs to Chandrahas. |
+| Shared immutable creative catalog | Canonical geometry/distance filtering, stored winner reuse, concurrent publication and resource-budget SQL tests. Passed. |
+| Mobile usability/lifecycle/accessibility | Compact 320×568, keyboard/focus, locks/pause/AUTO; exact packaged Android/iPhone interaction checks. Passed in tested environments; signed physical-device beta remains owner work. |
+| Backend/privacy/bounded resources/dependencies | 53 Node + six Deno tests; syntax/generator parity/type checks; zero reported npm advisories; package/privacy audit. Passed at handoff. |
+| Android and iPhone source/test/store-build artifacts | Build 39566831205 passed both; native verification 39567282464 passed both; all 39 runtime assets match all four packages. |
+| Repositories/web/release/one guide | Final tag v3.0.0 identifies the source and guide; release contains packages/source/guide/checksums. Both repositories are synchronized. Public deployed runtime parity passed for all 39 files. |
 
 ## Review loops
 
@@ -61,3 +61,12 @@ The app had both native contentInset=always and CSS safe-area padding, plus a ne
 
 Build 7 passed native gameplay and legal links, but immediate force-stop exposed a WebView localStorage disk-flush race: 194 cleared bricks were visible before kill and only 100 after restart. Pure snapshot reconstruction preserved all 194, isolating persistence rather than geometry. Build 8 adds a restricted game-key native SharedPreferences bridge using synchronous commit, one-time legacy migration, authoritative native reads and deletion handling, with two regression tests. The native verifier requires the committed snapshot to equal the paused field before kill, then compares the cold-restored snapshot. No arbitrary delay was added to hide the race. Final verification remains pending.
 
+
+
+## Final completion evidence
+
+Application/native source: 6ed13166daf239f148357fd4bee9a878e08df44c, native build 8. Builds: https://github.com/speedinno/brick-breaker/actions/runs/39566831205 . Source/backend checks: https://github.com/speedinno/brick-breaker/actions/runs/39566831185 . Both compiled native interaction jobs passed: https://github.com/speedinno/brick-breaker/actions/runs/39567282464 . Final package parity covers 39 runtime assets, including storage.js, legal pages, icons, offline SDKs and notices. See RELEASE-FINAL.md and native/package-audit-final.json.
+
+Earlier pending statements above are chronological review notes, superseded by this final result. The iPhone close failure and Android disk-flush failure were repaired and retested; neither was suppressed or treated as a successful test. No known failing software/build check remains in the handoff. This is evidence for the tested source/environments, not a guarantee against every future defect or operating condition.
+
+Only owner-managed production setup remains: Supabase/SMTP/support identity, hosted acceptance/operations, domain, developer accounts, signing, signed real-device beta, store declarations/review and rollout. No production credentials, hosted email delivery, store approval or physical-device performance is falsely certified.
