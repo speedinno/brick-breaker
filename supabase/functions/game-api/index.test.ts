@@ -26,7 +26,7 @@ const mockFetch:typeof fetch=async(input,init)=>{
  }
  throw Error('Unexpected transport request: '+url);
 };
-Object.defineProperty(Deno,'serve',{value:(callback:typeof handler)=>{handler=callback;return{};},configurable:true});
+Object.defineProperty(Deno,'serve',{value:(_options:unknown,callback:typeof handler)=>{handler=callback;return{};},configurable:true});
 await import('./index.ts');
 Object.defineProperty(Deno,'serve',{value:originalServe,configurable:true});
 function assert(value:unknown,message='Assertion failed'):asserts value{if(!value)throw Error(message);}
@@ -35,6 +35,13 @@ function reset(){calls=[];authorized=true;rpcError='';signedAt=new Date().toISOS
 function request(body:unknown={action:'state',accountId:owner},headers:Record<string,string>={},method='POST'){
  return new Request('https://game.test/game-api',{method,headers:{Authorization:'Bearer test-token',Origin:'https://speedinno.github.io',...headers},...(method==='POST'?{body:typeof body==='string'?body:JSON.stringify(body)}:{})});
 }
+test('HTTP contract: health probe is public and performs no Auth/database calls',async()=>{
+ reset();const response=await handler(new Request('https://api.test/healthz'));
+ assert(response.status===200);assert((await response.json()).status==='ok');assert(response.headers.get('Cache-Control')==='no-store');assert(calls.length===0);
+});
+test('HTTP contract: native Android and iPhone origins can call the authenticated API',async()=>{
+ reset();for(const Origin of ['https://localhost','capacitor://localhost']){const response=await handler(request(undefined,{Origin}));assert(response.status===200);assert(response.headers.get('Access-Control-Allow-Origin')===Origin);}
+});
 test('HTTP contract: CORS, preflight and method restrictions precede auth',async()=>{
  reset();let r=await handler(request(null,{},'OPTIONS'));assert(r.status===204);assert(r.headers.get('Access-Control-Allow-Origin')==='https://speedinno.github.io');
  r=await handler(request(null,{Origin:'https://evil.test'},'OPTIONS'));assert(r.status===403);

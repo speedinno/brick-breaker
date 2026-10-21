@@ -10,6 +10,8 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Launch handoff:** [CHANDRAHAS-LAUNCH-GUIDE.md](CHANDRAHAS-LAUNCH-GUIDE.md). Supabase provisioning, monitored support email, production signing, real-device beta and store submission remain owner-managed launch gates. This is the version 3.0.0 source/product handoff. Store publication follows owner setup and signed beta acceptance. Cloud is deliberately disabled until real project configuration is supplied; guest play works now.
 
+**Mobile API on Azure:** [Azure CLI deployment](docs/AZURE-API.md) prepares a dedicated API in SpeedInno Org Subscription, with Supabase Auth/Postgres and Resend SMTP. It uses ACR cloud builds without GitHub Actions or publishing a web game. Credentials and hosted acceptance are required before live use.
+
 ## The journey
 
 Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.

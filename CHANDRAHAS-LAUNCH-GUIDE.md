@@ -4,6 +4,8 @@ Prepared 21 October 2026. Code version 3.0.0, product/source handoff (native bui
 
 ## Laptop quick start and remaining owner work
 
+For the mobile-only Azure API deployment, use [docs/AZURE-API.md](docs/AZURE-API.md) instead of the Supabase Edge Function deployment commands below. Supabase Auth/database migrations and SMTP still apply; GitHub Actions and a new web-game deployment are not required for that API path.
+
 Use this one file as the operational handoff. You do not need to recreate the game or write gameplay code. The remaining work uses accounts and public configuration owned by your team. Evidence and any unresolved verification items are listed at the end; do not skip them.
 
 1. Install Git and Node.js 22 or newer. On Windows, use PowerShell. A Mac with Xcode 26+ is needed for local iPhone signing; the public mirror's CI can compile iOS without a local Mac. Keep account access, recovery codes and signing keys in your team's secret manager.

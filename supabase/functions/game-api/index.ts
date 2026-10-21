@@ -25,7 +25,8 @@ async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
   throw Error('A new stage is being prepared. Please try again.');
 }
 const fields='level,best_score,best_seconds,peak_balls,play_mode,clears,source,first_completed_at,last_completed_at';
-Deno.serve(async request=>{
+Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
+  if(request.method==='GET'&&new URL(request.url).pathname==='/healthz')return Response.json({status:'ok'},{headers:{'Cache-Control':'no-store'}});
   const origin=request.headers.get('Origin');
   const headers:Record<string,string>={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin'};
   if(origin&&origins.has(origin))headers['Access-Control-Allow-Origin']=origin;

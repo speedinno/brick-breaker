@@ -2,6 +2,7 @@ const defaultGame='https://speedinno.github.io/brick-breaker/';
 function secureUrl(value,message){let u;try{u=new URL(value);}catch{throw Error(message);}if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash)throw Error(message);return u;}
 export function validatePublicConfig(config){
  const missing=[];
+ if(config.apiUrl)secureUrl(config.apiUrl,'Invalid API URL');
  if(Boolean(config.supabaseUrl)!==Boolean(config.publishableKey))throw Error('Provide both Supabase URL and public key');
  if(config.supabaseUrl){const u=secureUrl(config.supabaseUrl,'Invalid Supabase origin');if(u.pathname!=='/')throw Error('Supabase URL must be an origin');const key=config.publishableKey;
   if(typeof key!=='string'||key.length<21||key.startsWith('sb_secret_'))throw Error('Only a public Supabase publishable/anon key may enter the client');

@@ -16,6 +16,8 @@ session.js restores a validated device-local field, lives, bounded swarm and eff
 
 cloud.js uses email OTP, plus ordinary password login for provisioned reviewer accounts. SDK bearer sessions stay on the device. Public project configuration is disabled until Chandrahas supplies it. No service credential enters a client bundle.
 
+An optional public API_URL sends game requests to an independently hosted Deno API (including Azure Container Apps). Supabase still handles authentication and the database; the client obtains a current bearer session before each API call and rejects stale-account requests/replies. Without API_URL it retains Supabase Edge Functions invocation. See AZURE-API.md for the mobile-only Azure CLI deployment procedure. The standalone service exposes GET /healthz for process health and uses PORT (default 8000).
+
 game-api validates every bearer token with Auth and checks unlock authorization before generation. Postgres unique version/level, unique canonical hash and per-level advisory lock choose one concurrent winner. Published definitions do not change. Unpublished stages are generated on demand by level/start requests after checking the account's generation budget. Completion and its retries do not generate stages; locked users cannot download them.
 
 Private tables use Auth foreign keys with deletion cascade and RLS. Clients read only their records/unlocked catalog and cannot write tables directly. Restricted SQL functions handle transactional advancement, UUID run idempotency, exact score/statistic bounds and expiry. Guest/offline imports are private client-reported progress, not verified competitive results.

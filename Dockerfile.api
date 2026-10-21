@@ -1,0 +1,8 @@
+FROM denoland/deno:2.9.6
+WORKDIR /app
+COPY supabase/functions/ ./supabase/functions/
+RUN deno cache --frozen --config supabase/functions/deno.json supabase/functions/game-api/index.ts
+ENV PORT=8000
+EXPOSE 8000
+USER deno
+CMD ["run", "--cached-only", "--frozen", "--allow-env", "--allow-net", "--config", "supabase/functions/deno.json", "supabase/functions/game-api/index.ts"]

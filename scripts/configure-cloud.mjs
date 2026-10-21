@@ -9,6 +9,8 @@ if(key.startsWith('eyJ')){try{const payload=JSON.parse(Buffer.from(key.split('.'
 const supportEmail=(process.env.SUPPORT_EMAIL||'').trim();if(supportEmail&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportEmail))throw Error('Invalid support email');
 const publicGameUrl=(process.env.PUBLIC_GAME_URL||'https://speedinno.github.io/brick-breaker/').trim();
 const gameUrl=safeUrl(publicGameUrl,'Invalid PUBLIC_GAME_URL');if(gameUrl.protocol!=='https:'||gameUrl.username||gameUrl.password||gameUrl.search||gameUrl.hash||!gameUrl.pathname.endsWith('/'))throw Error('PUBLIC_GAME_URL must be an HTTPS app URL ending in /, without query or fragment');
-const config={publicGameUrl,supabaseUrl:url,publishableKey:key,supportEmail,publisherName:(process.env.PUBLISHER_NAME||'SpeedInno').trim(),privacyDate:'2026-10-21'};
+const apiUrl=(process.env.API_URL||'').trim();
+if(apiUrl){const api=safeUrl(apiUrl,'Invalid API_URL');if(api.protocol!=='https:'||api.username||api.password||api.search||api.hash)throw Error('API_URL must be an HTTPS endpoint without credentials, query or fragment');}
+const config={publicGameUrl,apiUrl,supabaseUrl:url,publishableKey:key,supportEmail,publisherName:(process.env.PUBLISHER_NAME||'SpeedInno').trim(),privacyDate:'2026-10-21'};
 await writeFile('dist/cloud-config.js','// Public configuration only. Generated from deployment environment.\nexport default Object.freeze('+JSON.stringify(config)+');\n');
 console.log(JSON.stringify({cloudEnabled:Boolean(url),supportConfigured:Boolean(supportEmail),publisherConfigured:Boolean(config.publisherName)}));

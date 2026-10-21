@@ -4,6 +4,8 @@ const allowedUrl=url=>{try{const parsed=new URL(url);return parsed.protocol==='h
 async function boundedFetch(input,init={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000),signal=init.signal;const abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});try{return await fetch(input,{...init,signal:controller.signal});}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
 export class CloudAccount {
   constructor(onChange=()=>{},{settings=config,clientFactory=createClient,storage}={}){
+    this.apiUrl=settings.apiUrl||'';
+    if(this.apiUrl){let parsed;try{parsed=new URL(this.apiUrl);}catch{throw Error('Invalid API URL');}if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.search||parsed.hash)throw Error('Invalid API URL');}
     this.configured=allowedUrl(settings.supabaseUrl)&&typeof settings.publishableKey==='string'&&settings.publishableKey.length>20;
     // Use the same adapter as game saves: Android startup reconciles WebView
     // storage with native storage, including this authentication namespace.
@@ -24,10 +26,22 @@ export class CloudAccount {
   async verifyCode(email,token){this.require();const {data,error}=await this.client.auth.verifyOtp({email,token,type:'email'});if(error)throw error;this.session=data.session;await this.onChange(this);}
   async passwordLogin(email,password){this.require();const {data,error}=await this.client.auth.signInWithPassword({email,password});if(error)throw error;this.session=data.session;await this.onChange(this);}
   async signOut(){this.require();const {error}=await this.client.auth.signOut({scope:'local'});if(error)throw error;this.session=null;this.state=null;await this.onChange(this);}
+  async invoke(body){
+    if(!this.apiUrl)return this.client.functions.invoke('game-api',{body});
+    // getSession refreshes expired tokens through Supabase before calling the
+    // independently hosted API. Never send an old account's pending request.
+    const {data,error}=await this.client.auth.getSession();
+    if(error||!data.session)return {error:{context:{status:401,json:async()=>({error:'Your session expired. Sign in again.'})}}};
+    if(data.session.user.id!==body.accountId||this.userId!==body.accountId)return {error:{context:{status:409,json:async()=>({error:'Your account changed. Reopen Account and try again.'})}}};
+    try{
+      const response=await boundedFetch(this.apiUrl,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+data.session.access_token},body:JSON.stringify(body)});
+      return response.ok?{data:await response.json()}:{error:{context:response}};
+    }catch{return {error:{}};}
+  }
   async api(action,body={}){
     this.require();if(!this.signedIn)throw Error('Sign in to use cloud saves.');
     const owner=this.userId;
-    const {data,error}=await this.client.functions.invoke('game-api',{body:{...body,action,accountId:owner}});
+    const {data,error}=await this.invoke({...body,action,accountId:owner});
     if(this.userId!==owner){const failure=Error('Your account changed. Reopen Account and try again.');failure.status=409;failure.network=false;throw failure;}
     if(error){let message='Cloud saving is unavailable. Your device progress is safe.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;throw failure;}
     if(data?.error)throw Error(data.error);return data;

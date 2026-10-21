@@ -1,0 +1,9 @@
+# Allowlist the API sources only. In particular, never upload .env files,
+# native signing material, player saves, or the repository's Git history.
+**
+!Dockerfile.api
+!.dockerignore
+!supabase/
+!supabase/functions/
+!supabase/functions/**
+supabase/functions/**/*.test.ts
