@@ -2,7 +2,7 @@
 // of the twelve reference motifs. Keep this module identical on server/client.
 import {difficultyProfile} from './difficulty.js';
 export const GENERATOR_VERSION = 3;
-export const ARCHITECTURES = ['Circuit', 'Orbit', 'Honeycomb', 'Constellation', 'Atrium', 'Vortex', 'Delta', 'Coral','Lotus','Crystal','Cathedral','Aurora','Mandala','Waterfall','Bloom','Prism'];
+export const ARCHITECTURES = ['Circuit', 'Orbit', 'Honeycomb', 'Constellation', 'Atrium', 'Vortex', 'Delta', 'Coral','Lotus','Crystal','Cathedral','Aurora','Mandala','Waterfall','Bloom','Prism','Rangoli','Kolam','Rosette','Starweave'];
 const SIZE = 52, CELL = 8, OY = 18;
 const PALETTES = [
   ['#ed2856','#f14a38','#df306d'], ['#9fbf27','#d6b72d','#68a742'],
@@ -59,12 +59,12 @@ function makeGraph(sites,random,kind,level) {
   }
   return {paths,degree,edges};
 }
-// Each chapter shuffles a bag of architectures. No fixed eight-stage cycle,
+// Each twenty-stage block shuffles a bag of architectures.
 // and a bag boundary cannot repeat the previous architecture.
 export function architectureForLevel(level){
-  const block=Math.floor((level-13)/16),offset=(level-13)%16;
-  function bag(n){const a=Array.from({length:16},(_,i)=>i),r=seededRandom('architecture-bag:'+n);for(let i=15;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-  const a=bag(block);if(block&&a[0]===bag(block-1)[15])[a[0],a[1]]=[a[1],a[0]];
+  const count=ARCHITECTURES.length,block=Math.floor((level-13)/count),offset=(level-13)%count;
+  function bag(n){const a=Array.from({length:count},(_,i)=>i),r=seededRandom('architecture-bag-rangoli:'+n);for(let i=count-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  const a=bag(block);if(block&&a[0]===bag(block-1)[count-1])[a[0],a[1]]=[a[1],a[0]];
   return a[offset];
 }
 function artisticGraph(kind,random,level){
@@ -72,7 +72,19 @@ function artisticGraph(kind,random,level){
   const point=(radius,angle)=>[clamp(cx+Math.cos(angle+phase)*radius,4,48),clamp(cy+Math.sin(angle+phase)*radius,4,47)];
   const add=points=>{paths.push(points);sites.push(points[Math.floor(points.length/2)]);};
   const petals=4+Math.floor(profile.growth*4)+(random()<.5?0:1);
-  if(kind===8||kind===14){
+  if(kind>=16){
+    const lobes=kind===16?4:kind===17?4:kind===18?6:8,radius=18+random()*3,inner=7+random()*3;
+    const outline=[];
+    if(kind===16){
+      for(let p=0;p<4;p++){const theta=p*Math.PI/2,petal=[point(4,theta-.25),point(12,theta-.43),point(radius,theta),point(12,theta+.43),point(4,theta+.25)];add(petal);}
+    }else{
+      for(let j=0;j<=64;j++){const theta=j*Math.PI*2/64,r=kind===19?(j%8===0?radius:j%8===4?inner:(radius+inner)/2):kind===17?14+5*Math.cos(4*theta):12+7*Math.cos(lobes*theta);outline.push(point(r,theta));}add(outline);
+    }
+    const core=[];for(let j=0;j<=32;j++)core.push(point(kind===19?6:4.5,j*Math.PI/16));add(core);
+    const arms=kind===16?4:kind===18?6:4;
+    for(let j=0;j<arms;j++){const theta=j*Math.PI*2/arms;add([point(4.5,theta),point(kind===16?4:kind===19?inner:19,theta)]);}
+    if(profile.growth>.4){const halo=[];for(let j=0;j<=48;j++)halo.push(point(23,j*Math.PI/24));add(halo);}
+  }else if(kind===8||kind===14){
     // Closed teardrop petals / scalloped bloom, not random jagged polylines.
     for(let p=0;p<petals;p++){const theta=p*Math.PI*2/petals,radius=15+random()*6,curve=[];for(let j=0;j<=14;j++){const t=j/14*Math.PI*2,r=4+(radius-4)*Math.sin(t/2),angle=theta+Math.sin(t)*(kind===8?.32:.48);curve.push(point(r,angle));}add(curve);}
     const ring=[];for(let j=0;j<=32;j++)ring.push(point(kind===8?5:8,j*Math.PI/16));add(ring);
@@ -95,9 +107,9 @@ function artisticGraph(kind,random,level){
     const terraces=3+Math.floor(profile.growth*3),width=25+random()*12;
     for(let j=0;j<terraces;j++){const y=7+j*37/(terraces-1),left=clamp(cx-width/2+(random()-.5)*5,4,16),right=clamp(cx+width/2+(random()-.5)*5,36,48);add([[left,y],[right-3,y],[right,y+3]]);if(j)add([[j%2?left:right,y],[j%2?left:right,y-37/(terraces-1)+3]]);}
   }
-  // Artistic paths can have several contours. Their anchor graph joins them
-  // without replacing the designed silhouette or duplicating a starter motif.
-  const joined=makeGraph(sites,random,kind,level);paths.push(...joined.paths);
+  // Keep the designed contours crisp. Random graph chords would slash through
+  // the petals and destroy their symmetry. Gates connect colored chambers.
+  const joined=makeGraph(sites,random,kind,level);
   return {sites,paths,degree:joined.degree,edges:joined.edges};
 }
 const neighbours=id=>{const c=id%SIZE;return [id-SIZE,id+SIZE,c?id-1:-1,c<SIZE-1?id+1:-1].filter(n=>n>=0&&n<SIZE*SIZE);};
@@ -156,9 +168,9 @@ export function generateDefinition(level,nonce=0) {
   if(!Number.isSafeInteger(level)||level<13||!Number.isSafeInteger(nonce)||nonce<0||nonce>1024)throw Error('Invalid generated stage');
   const kind=architectureForLevel(level);
   for(let attempt=0;attempt<24;attempt++){
-    const random=seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-2:${level}:${nonce}:${attempt}`),profile=difficultyProfile(level),art=kind>=8?artisticGraph(kind,random,level):null,sites=art?.sites||makeSites(kind,random,level),graph=art||makeGraph(sites,random,kind,level),entry=9+Math.floor(random()*34);
-    const bottom=sites.reduce((a,b)=>Math.hypot(b[0]-entry,b[1]-51)<Math.hypot(a[0]-entry,a[1]-51)?b:a),paths=[[[entry,52],[entry,48],bottom],...graph.paths],segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
-    const chambers=sites.filter((_,i)=>graph.degree[i]>1&&random()<.16).map(p=>({p,r:1.4+random()*(kind>=8?.6:1.5)})),layout=[],tones=[],palette=PALETTES[Math.floor(random()*PALETTES.length)],hueMode=Math.floor(random()*4),colorOffset=random()*9;
+    const random=seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-3:${level}:${nonce}:${attempt}`),profile=difficultyProfile(level),art=kind>=8?artisticGraph(kind,random,level):null,sites=art?.sites||makeSites(kind,random,level),graph=art||makeGraph(sites,random,kind,level),roll=random(),entry=roll<.18?3:roll<.36?49:9+Math.floor(random()*34);
+    const bottom=art?art.paths.flat().reduce((a,b)=>b[1]>a[1]+.01||Math.abs(b[1]-a[1])<.01&&Math.abs(b[0]-entry)<Math.abs(a[0]-entry)?b:a):sites.reduce((a,b)=>Math.hypot(b[0]-entry,b[1]-51)<Math.hypot(a[0]-entry,a[1]-51)?b:a),lead=art?[[entry,52],[entry,48],[bottom[0],48],bottom]:[[entry,52],[entry,48],bottom],paths=[lead,...graph.paths],segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
+    const chambers=kind>=8?[]:sites.filter((_,i)=>graph.degree[i]>1&&random()<.16).map(p=>({p,r:1.4+random()*1.5})),layout=[],tones=[],palette=PALETTES[Math.floor(random()*PALETTES.length)],hueMode=kind>=16?2:Math.floor(random()*4),colorOffset=random()*9;
     for(let r=0;r<52;r++)for(let c=0;c<52;c++){
       const x=c+.5,y=r+.5;let d=Infinity;
       for(const [a,b]of segments)d=Math.min(d,distance(x,y,a,b));
@@ -171,8 +183,9 @@ export function generateDefinition(level,nonce=0) {
     }
     // Put visible breakable outlets at leaves and chambers, including one near
     // the entrance. A single distant exit makes a fresh stage needlessly slow.
-    for(let node=0;node<sites.length;node++)if(graph.degree[node]===1||sites[node]===bottom||random()<profile.gateGenerosity){
-      const [x,y]=sites[node],candidates=[];
+    const outlets=[...sites,bottom];
+    for(let node=0;node<outlets.length;node++)if(node===sites.length||graph.degree[node]===1||random()<profile.gateGenerosity){
+      const [x,y]=outlets[node],candidates=[];
       for(let r=Math.max(1,Math.floor(y)-4);r<=Math.min(50,Math.ceil(y)+4);r++)for(let c=Math.max(1,Math.floor(x)-4);c<=Math.min(50,Math.ceil(x)+4);c++){
         const id=r*52+c,near=neighbours(id);if(layout[id]==='w'&&near.some(n=>layout[n]==='.')&&near.some(n=>layout[n]==='b'))candidates.push({id,weight:Math.hypot(c+.5-x,r+.5-y)+random()*.8});
       }
@@ -181,7 +194,7 @@ export function generateDefinition(level,nonce=0) {
     // Colored regions get breakable vents; permanent walls never trap a target.
     if(!connectRegions(layout,entry))continue;
     const mood=['Ember','Moonlit','Sunrise','Jade','Velvet','Golden','Prismatic','Twilight'][Math.floor(random()*8)];
-    const definition={version:3,level,layout:layout.join(''),entry,name:`${mood} ${ARCHITECTURES[kind]}`,color:palette[0],palette,tones:tones.join(''),family:12+kind,recipe:{revision:2,kind,nonce,attempt,nodes:sites.length,edges:graph.edges.length},challenge:{label:profile.label,chapter:profile.chapter,chapterName:profile.chapterName,growth:profile.growth},metrics:{branches:[...graph.degree].filter(n=>n>2).length,loops:graph.edges.length-sites.length+1}};
+    const definition={version:3,level,layout:layout.join(''),entry,entrance:entry<=3?'left':entry>=49?'right':'middle',name:`${mood} ${ARCHITECTURES[kind]}`,color:palette[0],palette,tones:tones.join(''),family:12+kind,recipe:{revision:3,kind,nonce,attempt,nodes:sites.length,edges:graph.edges.length},challenge:{label:profile.label,chapter:profile.chapter,chapterName:profile.chapterName,growth:profile.growth},metrics:{branches:[...graph.degree].filter(n=>n>2).length,loops:graph.edges.length-sites.length+1}};
     try {validateDefinition(definition);return definition;}catch{}
   }
   throw Error(`No valid connected layout for stage ${level}`);
