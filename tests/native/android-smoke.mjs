@@ -62,6 +62,8 @@ try {
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
   assert.ok(initial.canvas[0] > 80, 'The field must be painted, not an empty canvas');
+  const legal=await evaluate(`Array.from(document.querySelectorAll('a[href]')).filter(a=>/privacy\\.html|terms\\.html|delete-account\\.html/.test(a.href)).map(a=>a.href)`);
+  assert(legal.length>=3);assert(legal.every(url=>url.startsWith('https://')&&!url.startsWith('https://localhost/')&&!url.startsWith('capacitor:')),'Native legal links must open the public site');
   const journey=await evaluate(`document.getElementById('journeyButton').click();({cards:document.getElementById('patternGrid').children.length,locked:document.querySelector('#journeyGrid button').textContent,starter:document.getElementById('starterSummary').textContent})`);
   assert.equal(journey.cards,12);assert.match(journey.locked,/Locked/);assert.match(journey.starter,/0 of 12/);
   await evaluate(`document.querySelector('#journeyGrid button').click();true`);
@@ -90,7 +92,7 @@ try {
   assert(saved?.removed.length>0&&saved.balls.length>0,'Save real native gameplay before force stop');
   await writeFile('native-evidence/android-saved-state.json',JSON.stringify(saved,null,2));
   assert.deepEqual(errors, [], 'No uncaught WebView JavaScript errors');
-  await writeFile('native-evidence/android-checks.json', JSON.stringify({initial, journey, playing, errors}, null, 2));
+  await writeFile('native-evidence/android-checks.json', JSON.stringify({initial, legal, journey, playing, errors}, null, 2));
   console.log(JSON.stringify({offlineNativeLaunch: true,gameplay: true,pauseResume: true,initial,playing}));
   }
 } finally {socket.close();}

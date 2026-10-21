@@ -143,7 +143,8 @@ jobs:
           assert hashlib.sha256((source/'App').read_bytes()).digest()==hashlib.sha256((destination/'App').read_bytes()).digest()
           print('UI verification uses the exact packaged game executable')
           PY
-          xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building > native-evidence/ios-gameplay.log 2>&1
+          xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification -parallel-testing-enabled NO -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building > native-evidence/ios-gameplay.log 2>&1
+          xcrun xcresulttool export attachments --path native-evidence/iOS-gameplay.xcresult --output-path native-evidence/ios-ui-attachments
           xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png
       - name: Shut down simulator services
         if: always()

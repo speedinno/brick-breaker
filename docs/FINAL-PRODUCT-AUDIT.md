@@ -44,3 +44,9 @@ Current local full suite: **51 passing**. Syntax/server-client parity and Deno b
 ## HTTP review loop 3
 
 The actual Edge entrypoint is now exercised with the real Supabase SDK over a mocked HTTP transport. Six contract tests cover CORS/method/auth ordering, identity mismatch, locked-stage rejection before generation, private state responses, malformed/oversized bodies, recent-sign-in deletion and exact error allowlisting. SQL/RLS still use actual embedded Postgres in separate tests. The former keyword error filter could return provider diagnostics containing a word such as “stage”; only exact controlled messages now leave the server. Expired/cleaned-up run IDs map to the existing private-progress recovery path. Backend HTTP fetches have a ten-second bound. Hosted SMTP/database configuration is still an owner acceptance step.
+
+## Platform review loop 4
+
+Android build 5 passed real native shooting and exact cold-snapshot restoration, replacing the former loading-screen-only restart check. iPhone build 5 is undergoing the new XCTest verification. All 38 runtime assets matched source in APK/AAB/iOS archive/simulator; the Pages-only .nojekyll marker is intentionally excluded by Capacitor.
+
+The native legal links were still relative, which resolves to localhost/capacitor URLs when opened externally. They now use the configured public HTTPS game URL in native apps, including sign-in policy links; web/PWA policy pages stay relative and available offline. Native Android verification asserts those resolved URLs. Native build number advances to 6 for this change. Verify build 6 before handing off final artifacts. iPhone UI tests run serially and export their screenshot attachments for inspection.
