@@ -9,6 +9,10 @@ import {JourneyMap} from './journey-ui.js';
 import {AccountPanel} from './account-ui.js';
 import {Capacitor,App,Haptics,ImpactStyle} from './vendor/native.js';
 const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false}),native=Capacitor.isNativePlatform(),PUBLIC_URL=config.publicGameUrl||'https://speedinno.github.io/brick-breaker/';
+// A native localhost/capacitor URL cannot be opened by the external browser.
+// Keep web/PWA legal pages relative for offline access; native links use the
+// owner's public HTTPS site, including links inside the sign-in panel.
+if(native)for(const link of document.querySelectorAll('a[href]'))if(link.getAttribute('href').startsWith('./'))link.href=new URL(link.getAttribute('href'),PUBLIC_URL).href;
 let storage;try{storage=localStorage;}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
