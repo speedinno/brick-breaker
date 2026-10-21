@@ -1,0 +1,98 @@
+name: Native launch checks
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Native mobile builds run to test
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      source: ${{ steps.build.outputs.source }}
+    steps:
+      - uses: actions/github-script@v7
+        id: build
+        env:
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        with:
+          script: |
+            const id = process.env.BUILD_RUN_ID;
+            if (!/^\d+$/.test(id)) throw new Error('Invalid build ID');
+            const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id: Number(id)});
+            if (run.name !== 'Native mobile builds' || run.conclusion !== 'success' || run.head_repository.full_name !== `${context.repo.owner}/${context.repo.repo}`) throw new Error('A successful native build from this repository is required');
+            core.setOutput('source', run.head_sha);
+  android:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: Brick-Breaker-Android
+          path: native-build
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          disable-animations: true
+          script: bash tests/native/android-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Brick-Breaker-Android-launch-evidence
+          path: native-evidence/
+          if-no-files-found: warn
+  ios:
+    needs: validate
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Brick-Breaker-iOS
+          path: native-build
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Launch packaged game on an iPhone Simulator
+        run: |
+          set -euo pipefail
+          mkdir -p native-evidence
+          ditto -x -k native-build/BrickBreaker-iOS-simulator.zip native-build/simulator
+          xcrun simctl list devices available -j > native-evidence/available-devices.json
+          DEVICE=$(python3 -c 'import json; d=json.load(open("native-evidence/available-devices.json")); print(next(x["udid"] for group in d["devices"].values() for x in group if x.get("isAvailable") and "iPhone" in x["name"]))')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time 9:41 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$DEVICE" native-build/simulator/App.app
+          xcrun simctl launch "$DEVICE" com.speedinno.brickbreaker
+          sleep 15
+          xcrun simctl spawn "$DEVICE" launchctl list | grep com.speedinno.brickbreaker
+          xcrun simctl io "$DEVICE" screenshot native-evidence/iPhone-native-launch.png
+          xcrun simctl terminate "$DEVICE" com.speedinno.brickbreaker
+          xcrun simctl launch "$DEVICE" com.speedinno.brickbreaker
+          sleep 5
+          xcrun simctl io "$DEVICE" screenshot native-evidence/iPhone-native-relaunch.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Brick-Breaker-iPhone-launch-evidence
+          path: native-evidence/
+          if-no-files-found: warn
