@@ -1,5 +1,6 @@
 import {createDefinition,hydrateDefinition} from './catalog.js';
 import {isCompleted,isUnlocked,nextRequired,lockReason,completedCount} from './progress.js';
+import {difficultyProfile} from './difficulty.js';
 const $=id=>document.getElementById(id);
 export class JourneyMap {
   constructor({getProgress,select,open,close}){
@@ -13,7 +14,8 @@ export class JourneyMap {
   show(){const p=this.getProgress();this.page=p.journeyNext>=13?13+Math.floor((p.journeyNext-13)/12)*12:13;this.render();this.open('gallery');}
   render(){
     const p=this.getProgress();$('starterSummary').textContent=`${p.starters.length} of 12 starters completed`;$('starterMeter').value=p.starters.length;
-    $('journeySummary').textContent=p.starters.length<12?`Complete the starter set to open the journey. Next: stage ${nextRequired(p)}.`:`${completedCount(p).toLocaleString()} stages completed. Stage ${p.journeyNext.toLocaleString()} is ready.`;
+    const chapter=difficultyProfile(p.journeyNext);
+    $('journeySummary').textContent=p.starters.length<12?`Complete the starter set to open the journey. Next: stage ${nextRequired(p)}.`:`${completedCount(p).toLocaleString()} stages completed. Stage ${p.journeyNext.toLocaleString()} is ready. Chapter ${chapter.chapter} · ${chapter.chapterName} · ${chapter.label}. ${8-chapter.chapterClears} clears to the next chapter.`;
     $('playNext').textContent=`Play next · Stage ${nextRequired(p)}`;
     const grid=$('patternGrid');grid.replaceChildren();
     for(let level=1;level<=12;level++){

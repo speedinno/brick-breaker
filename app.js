@@ -1,3 +1,4 @@
+import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
 import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount} from './progress.js';
@@ -28,8 +29,8 @@ function syncHUD(){if(!game)return;$('balls').textContent=game.status==='ready'?
 function suggestedNext(level){if(store.value.starters.length<12){for(let n=level+1;n<=12;n++)if(!isCompleted(store.value,n))return n;}return nextRequired(store.value);}
 function prompt(kind){
   if(!game)return;
-  const next=suggestedNext(game.level),remaining=12-store.value.starters.length;
-  const states={ready:['Find the entrance.','Drag the paddle. Catch the boosts. Grow the swarm.','Launch ↗︎'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue ↗︎'],paused:['Paused.','Your progress is safe on this device.','Resume ▷'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch ↗︎'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry this stage ↻']};
+  const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=difficultyProfile(game.level);
+  const states={ready:['Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):'Drag the paddle. Catch the boosts. Grow the swarm.','Launch ↗︎'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue ↗︎'],paused:['Paused.','Your progress is safe on this device.','Resume ▷'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch ↗︎'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry this stage ↻']};
   const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over'].includes(kind);$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',kind==='paused'?'Resume':'Pause');
 }
 function event(e){
