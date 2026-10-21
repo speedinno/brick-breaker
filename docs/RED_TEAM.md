@@ -4,7 +4,7 @@
 
 ## Automated evidence
 
-npm test: **33 passing checks**. npm run check: syntax and generated server/client bundle parity pass. Backend passes deno check. Dependency audit: zero reported advisories at this handoff; advisories can change.
+npm test: **37 passing checks**. npm run check: syntax and generated server/client bundle parity pass. Backend passes deno check. Dependency audit: zero reported advisories at this handoff; advisories can change.
 
 - 1,000 generated layouts are distinct under canonical rotations/reflections, with node/edge diversity. Separate tests cover 1,000 overall layouts and 60 boards' reachability. JSON roundtrip, metadata validation and published-definition mutation isolation pass.
 - Real unmodified watch physics clear the 12 starters and generated stages 13–28 using a representative seed. This is not a universal proof for all levels/seeds. Tests cover permanent walls, exact +3/×3, bounded balls/drops, collision, lives, pickups, effects and win conditions.
@@ -37,3 +37,5 @@ Native evidence belongs to the linked v3 Actions runs and release artifacts. Pre
 | Store claims | Debug APK/unsigned AAB/archive labeled. No signed IPA, store publication or physical-device guarantee claimed. |
 
 The Chandrahas guide covers actual SMTP, deployment, cleanup/backups, support mailbox, beta, disclosures and submission. Source tests cannot establish those external facts.
+
+The creative update adds monotonic difficulty/bounds tests, checks sixteen-style bags for adjacent repeats, verifies later recipe graphs grow in complexity, and clears later levels 36, 60, 100, 180, 350 and 750 with two simulation seeds each. This supplements the first sixteen generated-stage clear checks and is not an all-level/all-seed guarantee.

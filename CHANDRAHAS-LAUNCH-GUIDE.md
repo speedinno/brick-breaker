@@ -36,7 +36,7 @@ Passing that script checks source/configuration, not store approval or live oper
 - All twelve starter stages are playable immediately, in any order. Each real clear gets a persistent **✓ Completed** tick. Manual and AUTO both count.
 - Completing **all twelve** unlocks 13. Completing 13 unlocks 14, and so on. Replaying a completed stage does not unlock extra stages.
 - Future journey cards show a lock, with no pattern preview. Tapping one tells the player which stage(s) to finish and offers the required stage.
-- Generated layouts use graph construction, varied chambers, branches, loops and eight architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
+- Generated layouts use graph construction, varied chambers, branches, loops and sixteen architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
 - Guest progress is local. Optional accounts synchronize completed stages, selected stage and personal history. The exact in-progress field/swarm is a **device-local** snapshot, not cross-device live simulation.
 - Guest detailed history keeps starters plus the most recent 128 generated records. Completion ticks/frontier persist beyond that. Cloud history is paginated and retains per-stage summaries. There is no replay-by-replay event log.
 - Existing v2 selected-stage state is not treated as evidence of completion; the prior best score can migrate.
@@ -214,6 +214,6 @@ If another engineer/agent helps, give them this prompt: "Continue Brick Breaker 
 
 ## Candidate evidence
 
-Application commit: `838390c2a2fd358d89a6fba44ce7e102ae62c86a`. Both [native builds](https://github.com/speedinno/brick-breaker/actions/runs/39540301794) and [source/backend checks](https://github.com/speedinno/brick-breaker/actions/runs/39540301654) passed. The final package [native launch run](https://github.com/speedinno/brick-breaker/actions/runs/39540575697) passed on both platforms and contains the exact-artifact checks and screenshots. See `docs/RELEASE-V3.md` for evidence and limits. Bundled dependency license notices are included in web/native assets and linked from Terms.
+The creative-pattern and gradual-difficulty update is being revalidated. Final build and launch evidence is recorded in docs/RELEASE-V3.md. Cloud/store owner gates above remain unchanged.
 
 Candidate downloads: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDefinition,hydrateDefinition,validateCatalogDefinition,definitionHash,LevelCache} from '../dist/catalog.js';
+import {createDefinition,hydrateDefinition,validateCatalogDefinition,definitionHash,structuralDistance,LevelCache} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
 import {Game} from '../dist/engine.js';
 test('new synthesis makes 1,000 distinct layouts including rotation and reflection checks',()=>{
@@ -23,4 +23,17 @@ test('guest cache reuses definitions and a signed-in offline user needs a downlo
  const cache=new LevelCache(),a=await cache.load(13),b=await cache.load(13);assert.equal(a,b);
  const descriptor=Object.getOwnPropertyDescriptor(globalThis,'navigator');Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:false}});
  try{await assert.rejects(()=>cache.load(14,{signedIn:true}),/Connect once/);await cache.put({...a,published:true});assert.equal((await cache.load(13,{signedIn:true})).layout,a.layout);}finally{if(descriptor)Object.defineProperty(globalThis,'navigator',descriptor);else delete globalThis.navigator;}
+});
+test('shared-catalog near-duplicate filtering can keep publishing a creative sequence',()=>{
+ const published=[],all=new Set();let retries=0;
+ for(let level=13;level<=268;level++){
+  let accepted=null;
+  for(let nonce=0;nonce<32;nonce++){
+   const d=createDefinition(level,nonce),canonical=canonicalLayout(d.layout);
+   if(all.has(canonical)||published.slice(-48).some(p=>structuralDistance(p,canonical)<.085)){retries++;continue;}
+   accepted=canonical;break;
+  }
+  assert(accepted,`No acceptable shared layout at stage ${level}`);all.add(accepted);published.push(accepted);
+ }
+ assert.equal(all.size,256);
 });

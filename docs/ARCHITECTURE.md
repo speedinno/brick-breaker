@@ -29,3 +29,11 @@ Service worker caching is restricted to listed same-origin static game assets; n
 Uniqueness tests cover 1,000 canonical layouts, not an infinity proof. Reachability is a geometric property, not a proof every stochastic game can be won. Representative real-physics clears are tested. Limits: 768 balls, 30 drops, 120 Hz simulation.
 
 The server catalog bundle is generated from the same client sources; npm run check detects stale parity. Freeze generator version 3 after publishing real catalog data. Future encoding/algorithm changes need a new version plus explicit progress/cache migration. See CHANDRAHAS-LAUNCH-GUIDE.md for operational and launch steps.
+
+## Artistic variety and difficulty pacing
+
+The journey uses sixteen shuffled architecture styles: Circuit, Orbit, Honeycomb, Constellation, Atrium, Vortex, Delta, Coral, Lotus, Crystal, Cathedral, Aurora, Mandala, Waterfall, Bloom and Prism. A full bag visits each style once; adjacent bag boundaries cannot repeat the same style. Each board has fresh geometric parameters and structural canonical deduplication. Designed petals, facets, arches, ribbons and terraces complement the graph layouts. Color fields vary harmoniously across axes, diagonals and radial bands.
+
+Every eight journey clears opens another chapter. difficulty.js uses smooth bounded growth: journey ball speed rises from 350 toward 422 px/s, the normal paddle narrows from 82 toward 66 px, layout anchors/loops grow, and bonus interval/effect durations tighten gently. Guaranteed early +3/×3 breakthrough drops remain. Difficulty grows on average across a varied sequence; different layouts can still feel easier or harder than their neighbors. No endless speed escalation or unavoidable demand for purchases.
+
+Revision 2 was added before owner-managed cloud provisioning. Existing cached guest definitions are retained rather than overwritten. Their completed ticks remain; newly generated stages use the new recipes. Do not change the generator after the real shared production catalog is populated. Later changes require a version/migration plan.

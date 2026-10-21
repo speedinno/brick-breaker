@@ -14,7 +14,7 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.
 
-Beyond the starters, eight graph architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
+Beyond the starters, sixteen graph architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
 
 Drag to steer, launch through the entry and catch boosts. +3 adds three balls; ×3 triples the swarm up to 768; ↔ widens the paddle; — adds a temporary safety floor; ♨ enables temporary fireballs. Gray walls remain. Watch/AUTO steers the paddle through the same simulation, with 1×/2×/4× playback. Keyboard: arrows/A/D move, Space launches/advances, P/Escape pauses.
 
@@ -50,3 +50,7 @@ The original game code is MIT licensed; bundled dependency/font licenses apply t
 Actual compiled Android app under offline emulator gameplay checks:
 
 <img src="docs/native/android-v3.png" width="270" alt="Version 3 Android native app running a dense brick field with hundreds of multiplying white balls">
+
+![Sixteen generated pattern styles, development previews](docs/native/artistic-patterns-v3.png)
+
+The journey grows gently in difficulty and marks progress through eight-stage chapters. Later stages weave more paths and chambers together, with carefully bounded ball speed and paddle control. Early breakthrough boosts remain. Styles are shuffled across chapters, and future patterns stay hidden until entered.
