@@ -3,9 +3,11 @@ import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHas
 import {readLimitedJson,RequestError} from '../_shared/request.js';
 declare const EdgeRuntime: {waitUntil(task:Promise<unknown>):void};
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
-const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
+const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
+const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
+const businessErrors=new Set(['Authentication required','Stage is locked','Run ID already used','Too many attempts. Try again later.','Stage is not ready','This offline attempt expired. Replay the stage to save it online.','Stage version differs. Reconnect and replay this stage.','Attempt is too short','Invalid completion statistics','Invalid stage score','Invalid guest progress','Complete all starter stages first','Invalid history','Too many new stages. Try again later.']);
 async function ensureLevel(level:number,authorize?:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
@@ -37,7 +39,7 @@ Deno.serve(async request=>{
     if(!/^Bearer \S+$/i.test(bearer))return reply({error:'Sign in to use cloud saves'},401);
     const auth=await admin.auth.getUser(bearer.slice(7));
     if(auth.error||!auth.data.user)return reply({error:'Your session expired. Sign in again.'},401);
-    const user=auth.data.user,client=createClient(url,anon,{global:{headers:{Authorization:bearer}},auth:{persistSession:false,autoRefreshToken:false}});
+    const user=auth.data.user,client=createClient(url,anon,{global:{headers:{Authorization:bearer},fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
     const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
@@ -66,7 +68,8 @@ Deno.serve(async request=>{
       return reply({...(body.action==='export'?{account:{id:user.id,email:user.email,createdAt:user.created_at},progress:await rpc('game_state')} : {}),history:rows,nextBefore});
     }
     if(body.action==='delete'){
-      if(!user.last_sign_in_at||Date.now()-Date.parse(user.last_sign_in_at)>15*60*1000)return reply({error:'Sign out, sign in again, then delete your account within 15 minutes.'},409);
+      const signedAt=Date.parse(user.last_sign_in_at||'');
+      if(!Number.isFinite(signedAt)||signedAt>Date.now()+60000||Date.now()-signedAt>15*60*1000)return reply({error:'Sign out, sign in again, then delete your account within 15 minutes.'},409);
       // All private game records have ON DELETE CASCADE; the shared catalog has
       // no creator identifier and is intentionally retained for other players.
       const result=await admin.auth.admin.deleteUser(user.id);
@@ -79,7 +82,10 @@ Deno.serve(async request=>{
     const message=error instanceof Error?error.message:'Cloud request failed';
     // Known SQL/business errors contain no credentials. Do not return stack
     // traces, raw queries, tokens or provider diagnostic objects to the client.
-    const safe=/Stage|stage|Authentication|attempt|Attempt|progress|history|score|statistics|locked|earlier|offline|Too many|Run ID|account|Catalog|catalog|prepared|Invalid|Complete all/.test(message)?message:'Cloud saving is unavailable. Please try again.';
-    return reply({error:safe},/unavailable|Could not publish|being prepared/i.test(message)?503:400);
+    if(message==='Unknown run')return reply({error:'This offline attempt expired. Your device progress can still be linked.'},400);
+    if(businessErrors.has(message))return reply({error:message},400);
+    // Provider errors may contain familiar words such as "stage" plus private
+    // diagnostics. Only exact, controlled business messages leave the server.
+    return reply({error:'Cloud saving is unavailable. Please try again.'},503);
   }
 });

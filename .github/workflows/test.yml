@@ -24,3 +24,4 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno check --config supabase/functions/deno.json supabase/functions/game-api/index.ts
+      - run: deno test --allow-env --config supabase/functions/deno.json supabase/functions/game-api/index.test.ts

@@ -1,6 +1,34 @@
-# Brick Breaker — Chandrahas's launch guide
+# Brick Breaker — final product handoff for Chandrahas
 
 Prepared 21 October 2026. Code version 3.0.0, release candidate. This guide is the handoff requested by the product owner. **You own Supabase, support email, developer accounts, production signing and store submission.** No Supabase project was created for this game during development. No store submission, live email delivery, or physical-device certification is claimed.
+
+## Laptop quick start and remaining owner work
+
+Use this one file as the operational handoff. You do not need to recreate the game or write gameplay code. The remaining work uses accounts and public configuration owned by your team. Evidence and any unresolved verification items are listed at the end; do not skip them.
+
+1. Install Git and Node.js 22 or newer. On Windows, use PowerShell. A Mac with Xcode 26+ is needed for local iPhone signing; the public mirror's CI can compile iOS without a local Mac. Keep account access, recovery codes and signing keys in your team's secret manager.
+2. Clone the primary source and add the approved build mirror:
+
+~~~powershell
+git clone https://github.com/SpeedInno-Org/Brick-Breaker.git
+cd Brick-Breaker
+git remote add organization https://github.com/SpeedInno-Org/Brick-Breaker.git
+git remote add github https://github.com/speedinno/brick-breaker.git
+npm ci
+npm run build:web
+npm test
+npm run check
+npm run dev
+~~~
+
+Open the printed localhost URL to play. Stop the server with Ctrl+C when finished. Do not use a production database for disposable tests. The source has 22 generated architecture families, including simple Perimeter/Gateway boards and ornate rangoli shapes. A separate pink/purple pickup gives eight seconds of piercing paddle shots; fireballs are a different boost. Shots do not remove grey walls.
+
+3. Create a new Brick Breaker Supabase project, a monitored support email if none exists, and a verified SMTP sender. Follow sections 3–5 below; apply **all** migrations, then deploy the Edge Function. No administrator or SMTP secret belongs in the app, a public repository or a browser message.
+4. Register/configure the production domain and HTTPS hosting. Set PUBLIC_GAME_URL, the Supabase Auth Site URL, and the Edge Function ALLOWED_ORIGINS consistently. Follow the domain section below. The current Pages demo can remain live during migration.
+5. Generate the public configuration with the PowerShell commands in section 5. Run the production preflight, tests and mobile sync. Inspect/commit that public config, increment native build numbers for each new store upload, and push the same source to both repositories. Setting GitHub variables alone does not configure the checked-in client.
+6. Run the hosted two-account acceptance checks, configure backups/cleanup/alerts, then use your organization's Play Console and Apple Developer accounts for signing and beta tests. Complete store declarations and submit the signed releases. Real email delivery, hosted account behavior and store approval cannot be certified before your accounts exist.
+
+Do not install a debug APK over an existing signed/store app. CI debug keys can differ between builds; uninstalling removes that device's local game data. Use the web demo for persistent testing until your stable team signing key and cloud account setup are ready. Release AAB/iOS archives are intentionally unsigned; a simulator ZIP is not an installable iPhone IPA.
 
 ## 1. Start here
 
@@ -36,8 +64,8 @@ Passing that script checks source/configuration, not store approval or live oper
 - All twelve starter stages are playable immediately, in any order. Each real clear gets a persistent **✓ Completed** tick. Manual and AUTO both count.
 - Completing **all twelve** unlocks 13. Completing 13 unlocks 14, and so on. Replaying a completed stage does not unlock extra stages.
 - Future journey cards show a lock, with no pattern preview. Tapping one tells the player which stage(s) to finish and offers the required stage.
-- Generated layouts use graph construction, varied chambers, branches, loops and twenty architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
-- Every eight journey clears completes a chapter. The map shows chapter, challenge label and clears remaining. Ball speed, paddle control and layout complexity change gradually within safe bounds; early breakthrough boosts remain. Twenty shuffled architecture styles include petals, crystals, arches, ribbons, mandalas and rangoli motifs. See dist/difficulty.js and docs/ARCHITECTURE.md for the curve. Existing cached guest boards stay stable; newly generated boards use the expanded recipes.
+- Generated layouts use graph construction, varied chambers, branches, loops and twenty-two architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
+- Every eight journey clears completes a chapter. The map shows chapter, challenge label and clears remaining. Ball speed, paddle control and layout complexity change gradually within safe bounds; early breakthrough boosts remain. Twenty-two shuffled architecture styles include petals, crystals, arches, ribbons, mandalas and rangoli motifs. See dist/difficulty.js and docs/ARCHITECTURE.md for the curve. Existing cached guest boards stay stable; newly generated boards use the expanded recipes.
 - Guest progress is local. Optional accounts synchronize completed stages, selected stage and personal history. The exact in-progress field/swarm is a **device-local** snapshot, not cross-device live simulation.
 - Guest detailed history keeps starters plus the most recent 128 generated records. Completion ticks/frontier persist beyond that. Cloud history is paginated and retains per-stage summaries. There is no replay-by-replay event log.
 - Existing v2 selected-stage state is not treated as evidence of completion; the prior best score can migrate.
@@ -93,6 +121,7 @@ $env:SUPABASE_URL='https://YOUR_PROJECT_REF.supabase.co'
 $env:SUPABASE_PUBLISHABLE_KEY='YOUR_PUBLIC_PUBLISHABLE_KEY'
 $env:SUPPORT_EMAIL='support@YOUR_DOMAIN'
 $env:PUBLISHER_NAME='YOUR_LEGAL_PUBLISHER_NAME'
+$env:PUBLIC_GAME_URL='https://YOUR_GAME_DOMAIN/'
 npm run configure:cloud
 npm run build:web
 node scripts/release-preflight.mjs --production
@@ -111,6 +140,18 @@ node publish-pages.mjs
 ```
 
 `publish-pages.mjs` expects a remote named `github` pointing at the public mirror and pushes the `dist` subtree to `gh-pages`. Add that remote in a fresh clone if absent. Primary remote can be named `organization`; verify actual URLs before pushing. The public repository's Pages settings must serve `gh-pages` root. Wait for Pages deployment, then check `cloud-config.js`, privacy/support/deletion URLs, and login on the **deployed** page. Existing service workers update after fetching the new version; increment the cache version when shipping changed assets/config. Rebuild native binaries after cloud config changes; a published website does not update bundled native assets.
+
+## Production domain and preserving existing players
+
+PUBLIC_GAME_URL must be the final HTTPS app URL ending in a slash, such as https://play.YOUR_DOMAIN/ or https://YOUR_DOMAIN/brick-breaker/. It configures sharing and the native history-export web link. All game assets, privacy/terms/deletion links and service-worker paths are relative to the app, so root or subdirectory hosting works. Do not put query strings, fragments or credentials in this value.
+
+If using GitHub Pages, configure the custom domain in the mirror's Pages settings, follow GitHub's current DNS instructions and enable HTTPS when its certificate is ready. If Pages uses a CNAME file, include the domain-only value in dist/CNAME and commit it so subtree publication retains it. For another static host, publish the contents of dist with correct JavaScript MIME types and HTTPS. Domain registration, DNS and account verification are your manual launch work.
+
+Add the exact new origin (scheme + host + optional port, without a path) to ALLOWED_ORIGINS, keeping the native origins https://localhost and capacitor://localhost. During transition, also keep https://speedinno.github.io if the demo remains enabled. Redeploy the function after changing its environment. Set the Supabase Auth Site URL/redirect allowlist to the public game URL. Update store support, privacy and external deletion URLs to that same site. See the official hosting/Supabase documentation linked below and recheck their current console labels.
+
+Browser device saves belong to their original origin. Before retiring an old domain, let existing players sign in there and explicitly link guest progress; then sign in with the same email on the new domain. Cloud carries completions/history, not live ball positions. Never silently discard the old demo or promise that browser storage migrates automatically across domains. Rebuild and sign native packages after final public config/domain changes; existing installed native bundles do not update when a website changes.
+
+Smoke test the final public game URL, privacy.html, terms.html and delete-account.html over HTTPS; verify share/export links use the new domain, OTP delivery works on web/Android/iPhone, offline play still opens downloaded stages and native CORS origins remain allowed.
 
 ## 6. Validate the live backend with two disposable accounts
 
@@ -149,7 +190,7 @@ Review your retention policy first. Expiry is seven days; cleanup is not automat
 
 ## 8. Android production package
 
-Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 4. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
+Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 5. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
 
 1. Create/verify the appropriate organization Google Play Console account, ownership/contact details and payments profile. Use the company's account, not a temporary contractor identity.
 2. Enroll in Play App Signing. Create and securely back up the upload keystore/passwords in the team's secret manager. Never commit keystores. The debug APK uses a different signing key and is for testing only; users may need to uninstall it before installing a differently signed build, so first sync/export test progress if needed.
@@ -160,7 +201,7 @@ Permanent application ID currently `com.speedinno.brickbreaker`; verify availabi
 
 ## 9. iPhone production package
 
-Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 4; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
+Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 5; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
 
 1. Enroll/verify the company's Apple Developer organization (including D-U-N-S and legal authority where applicable), accept required agreements and complete App Store Connect business/trader disclosures.
 2. `npm ci && npm run mobile:sync`; open `ios/App/App.xcodeproj`. Select App target, correct Team and bundle ID, configure signing/provisioning. Archive for a physical iOS device using Release, then Validate/Distribute through Xcode Organizer to App Store Connect.
