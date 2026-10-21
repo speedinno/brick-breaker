@@ -1,0 +1,27 @@
+{
+  "initial": {
+    "native": true,
+    "title": "Brick Breaker",
+    "remaining": 2328,
+    "promptHidden": false,
+    "canvas": [
+      115,
+      25,
+      42,
+      255
+    ],
+    "url": "https://localhost/"
+  },
+  "journey": {
+    "cards": 12,
+    "locked": "🔒Stage 13Locked",
+    "starter": "0 of 12 starters completed"
+  },
+  "playing": {
+    "hidden": true,
+    "remaining": 2237,
+    "balls": 24,
+    "auto": "true"
+  },
+  "errors": []
+}

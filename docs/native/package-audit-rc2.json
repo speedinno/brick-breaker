@@ -1,0 +1,32 @@
+{
+  "Brick-Breaker-3.0.0-rc.2-iOS-simulator.zip": {
+    "version": "3.0.0",
+    "build": "4",
+    "minimumIOS": "15.4",
+    "appPrivacyManifest": true,
+    "embeddedPrivacyManifests": [
+      "App.app/PrivacyInfo.xcprivacy",
+      "App.app/Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy",
+      "App.app/Frameworks/Cordova.framework/PrivacyInfo.xcprivacy"
+    ]
+  },
+  "Brick-Breaker-3.0.0-rc.2-iOS-unsigned-archive.zip": {
+    "version": "3.0.0",
+    "build": "4",
+    "minimumIOS": "15.4",
+    "appPrivacyManifest": true,
+    "embeddedPrivacyManifests": [
+      "BrickBreaker.xcarchive/Products/Applications/App.app/PrivacyInfo.xcprivacy",
+      "BrickBreaker.xcarchive/Products/Applications/App.app/Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy",
+      "BrickBreaker.xcarchive/Products/Applications/App.app/Frameworks/Cordova.framework/PrivacyInfo.xcprivacy"
+    ]
+  },
+  "Brick-Breaker-3.0.0-rc.2-Android-test.apk": {
+    "nativeSoLibraries": [],
+    "native16KBAlignment": "No bundled ELF .so libraries to align; final Play/device checks remain required"
+  },
+  "Brick-Breaker-3.0.0-rc.2-Android-unsigned.aab": {
+    "nativeSoLibraries": [],
+    "native16KBAlignment": "No bundled ELF .so libraries to align; final Play/device checks remain required"
+  }
+}
