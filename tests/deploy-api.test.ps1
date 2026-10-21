@@ -59,6 +59,7 @@ try {
     Assert $rejected 'Sigzio Dev must be rejected before any Azure operation.'
     Assert ($global:brickDeployTestCommands.Count -eq 0) 'Forbidden subscription reached Azure.'
     foreach ($alreadyDeployed in @($false, $true)) {
+        if ($alreadyDeployed) { [IO.File]::WriteAllText($secretsPath, "SUPABASE_URL=https://project.example.test`nSUPABASE_PUBLISHABLE_KEY=public-test-key`nSUPABASE_SECRET_KEY=server-test-key`n") }
         $global:brickDeployTestExisting = $alreadyDeployed
         $global:brickDeployTestCommands.Clear()
         & $deployScript -SecretsFile $secretsPath | Out-Null

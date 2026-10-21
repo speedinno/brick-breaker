@@ -55,6 +55,9 @@ SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVER_SECRET_OR_SERVICE_ROLE_KEY
 ALLOWED_ORIGINS=https://localhost,capacitor://localhost
 ```
 
+The newer names `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` are also
+accepted in place of `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+
 `.env.api` is Git-ignored. The Docker build context uses an allowlist containing
 only the Dockerfile and API sources, so credentials, Git history, and native
 signing files are not uploaded to the build service. The script loads keys

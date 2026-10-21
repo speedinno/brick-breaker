@@ -49,6 +49,10 @@ foreach ($line in Get-Content -LiteralPath $SecretsFile) {
     if ($value.Length -ge 2 -and (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'")))) { $value = $value.Substring(1, $value.Length - 2) }
     $settings[$name] = $value
 }
+# Supabase's newer dashboard uses publishable/secret names. Map these to the
+# server's existing environment names without modifying the owner's file.
+if (!$settings.SUPABASE_ANON_KEY) { $settings.SUPABASE_ANON_KEY = $settings.SUPABASE_PUBLISHABLE_KEY }
+if (!$settings.SUPABASE_SERVICE_ROLE_KEY) { $settings.SUPABASE_SERVICE_ROLE_KEY = $settings.SUPABASE_SECRET_KEY }
 foreach ($name in @('SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY')) {
     if (!$settings[$name] -or $settings[$name] -match '^YOUR_') { throw "Missing deployment setting: $name" }
 }
