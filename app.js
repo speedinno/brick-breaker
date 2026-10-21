@@ -4,6 +4,7 @@ import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
 import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount} from './progress.js';
 import {snapshotGame,restoreGame} from './session.js';
+import {durableStorage} from './storage.js';
 import {CloudAccount} from './cloud.js';
 import {JourneyMap} from './journey-ui.js';
 import {AccountPanel} from './account-ui.js';
@@ -13,7 +14,7 @@ const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('
 // Keep web/PWA legal pages relative for offline access; native links use the
 // owner's public HTTPS site, including links inside the sign-in panel.
 if(native)for(const link of document.querySelectorAll('a[href]'))if(link.getAttribute('href').startsWith('./'))link.href=new URL(link.getAttribute('href'),PUBLIC_URL).href;
-let storage;try{storage=localStorage;}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
+let storage;try{storage=durableStorage(localStorage,native?window.BrickBreakerStorage:null);}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,sound=false,audio=null,lastSound=0;
