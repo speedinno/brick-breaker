@@ -1,14 +1,16 @@
 {
   "name": "brick-breaker",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "Dense channel-and-swarm brick breaker for web, Android, and iPhone",
   "scripts": {
     "dev": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check dist/engine.js && node --check dist/app.js && node --check dist/sw.js",
-    "mobile:sync": "npx cap sync",
+    "check": "node scripts/check.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "configure:cloud": "node scripts/configure-cloud.mjs",
+    "mobile:sync": "npm run build:web && npx cap sync",
     "android:open": "npx cap open android",
     "ios:open": "npx cap open ios"
   },
@@ -17,10 +19,15 @@
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
-    "@capacitor/ios": "8.5.3"
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3",
+    "@supabase/supabase-js": "2.118.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.4.3"
+    "@capacitor/cli": "8.4.3",
+    "@electric-sql/pglite": "0.5.10",
+    "esbuild": "0.28.2"
   }
 }

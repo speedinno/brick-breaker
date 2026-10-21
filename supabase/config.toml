@@ -1,0 +1,5 @@
+project_id = "brick-breaker"
+[functions.game-api]
+# The handler verifies the bearer token with Auth.getUser. This supports modern
+# Supabase asymmetric signing keys instead of trusting a client-decoded JWT.
+verify_jwt = false

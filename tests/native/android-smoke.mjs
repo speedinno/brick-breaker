@@ -42,6 +42,11 @@ try {
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
   assert.ok(initial.canvas[0] > 80, 'The field must be painted, not an empty canvas');
+  const journey=await evaluate(`document.getElementById('journeyButton').click();({cards:document.getElementById('patternGrid').children.length,locked:document.querySelector('#journeyGrid button').textContent,starter:document.getElementById('starterSummary').textContent})`);
+  assert.equal(journey.cards,12);assert.match(journey.locked,/Locked/);assert.match(journey.starter,/0 of 12/);
+  await evaluate(`document.querySelector('#journeyGrid button').click();true`);
+  assert.match(await evaluate(`document.getElementById('lockMessage').textContent`),/Finish all 12 starter stages first/);
+  await evaluate(`document.getElementById('lockDialog').close();document.getElementById('closeGallery').click();true`);
   await evaluate(`document.getElementById('watch').click(); true`);
   await wait(20000);
   const playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed')})`);
@@ -54,6 +59,6 @@ try {
   await evaluate(`document.getElementById('launch').click(); true`);
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`), true);
   assert.deepEqual(errors, [], 'No uncaught WebView JavaScript errors');
-  await writeFile('native-evidence/android-checks.json', JSON.stringify({initial, playing, errors}, null, 2));
+  await writeFile('native-evidence/android-checks.json', JSON.stringify({initial, journey, playing, errors}, null, 2));
   console.log(JSON.stringify({offlineNativeLaunch: true,gameplay: true,pauseResume: true,initial,playing}));
 } finally {socket.close();}

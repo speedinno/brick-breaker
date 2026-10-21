@@ -1,48 +1,39 @@
-# v2 red-team and QA report
+# v3 QA and red-team record
 
-20 October 2026 · Channel-and-swarm rebuild
+21 October 2026. Tested properties and limits; not a zero-defect certification.
 
-## Evidence
+## Automated evidence
 
-Sixteen automated tests pass. They cover 1,000 consecutive distinct layouts; deterministic generation; intact gray walls; open routes from the entrance to every breakable region across 60 generated stages; a normal single-ball first serve; exact +3 and ×3 behavior; pickup catching; high-speed collision; temporary power expiration; loss and win transitions; and finite, bounded swarms. A watch simulation grows beyond 100 balls and clears the T field; all twelve reference motifs clear with the same physics in the tested seed, within the 900-second simulation limit per stage.
+npm test: **33 passing checks**. npm run check: syntax and generated server/client bundle parity pass. Backend passes deno check. Dependency audit: zero reported advisories at this handoff; advisories can change.
 
-This replaces the v1 test claims. The old 10,000-layout test applied to the old generator, not this rebuild. Simulation time is not measured physical-device runtime. Exact non-repetition for infinitely many stages is not claimed.
+- 1,000 generated layouts are distinct under canonical rotations/reflections, with node/edge diversity. Separate tests cover 1,000 overall layouts and 60 boards' reachability. JSON roundtrip, metadata validation and published-definition mutation isolation pass.
+- Real unmodified watch physics clear the 12 starters and generated stages 13–28 using a representative seed. This is not a universal proof for all levels/seeds. Tests cover permanent walls, exact +3/×3, bounded balls/drops, collision, lives, pickups, effects and win conditions.
+- Progress tests enforce all twelve before 13, one-at-a-time advancement, replay idempotency, corrupt-save normalization, isolated account namespaces and monotonic merge.
+- Session tests restore broken bricks/swarm/lives/effects and reject wall deletion, NaN and malformed state.
+- Embedded Postgres tests apply the actual migration with representative Supabase auth roles. RLS prevents cross-user reads/direct writes; catalog publication is idempotent/unique; stage skips, cross-user runs, forged scores and replayed advancement fail. Import validates starter requirements. Auth deletion cascades private records while keeping shared stages.
+- Static offline-cache tests confirm required assets exist and unrelated routes are ignored.
 
-The browser review covered 26 loaded X video results at opening, middle, and late positions. Sixteen results use the dominant channel-and-swarm style, including duplicate uploads. See REFERENCES.md for the full URL inventory and distinctions. No claim is made that every X video worldwide was reviewed or that every clip is the same game.
+## Browser evidence
 
-## Risks addressed
+Development UI checked on an isolated localhost origin. Eleven starter completions were seeded with an explicitly labeled development-only fixture. The remaining twelfth stage was cleared through real AUTO gameplay: a completion tick appeared, stage 13 opened, and 14 stayed locked. Before that clear, the lock prompt correctly named the one missing starter. Compact 320×568 layout/generated field inspected visually. Fixture data is not evidence of twelve human-earned completions.
 
-| Risk | Handling |
+Native evidence belongs to the linked v3 Actions runs and release artifacts. Previous v2 emulator/simulator results must not be called v3 results. Native CI checks the bundled privacy resource and compiled app separately. Physical devices and hosted auth are not covered by local browser/SQL checks.
+
+## Threats and boundaries
+
+| Risk | Handling and remaining limits |
 | --- | --- |
-| Wrong genre/feel | The old gradient patterns, bomb grid, opening fireball, 18-ball cap, Pulse, and marketing layout were replaced by the observed dense tiles, gray walls, narrow entries, caps, orange paddle, and hundreds of white balls. |
-| Enclosed colored islands prevent finishing | A graph pass adds the minimum gate connections needed to make every breakable component reachable. Reachability tests cover canonical and generated stages. This is a deliberate progression repair beyond what the unfinished clips establish. |
-| Stable one-ball loops | Minimum nonzero velocity components and small angle perturbations after prolonged non-destructive wall bouncing reduce exact periodic loops. There is no teleportation or invisible mass brick destruction. Some narrow patterns are intentionally slow; 2× / 4× playback is available. |
-| Swarm causes unbounded work | 768-ball cap, 30-drop cap, bounded fixed-step update budget, cached field rendering, and a spatial collision grid. No per-ball trails or particle explosion. Physical low-end phone profiling is still required. |
-| Thin-wall tunneling | 120 Hz fixed simulation plus movement substeps of at most 1.8 logical pixels. High-speed collision regression tests pass. |
-| Walls accidentally destroyed | Walls have separate permanent collision behavior. Damage and fireball tests verify they remain. |
-| Brick damaged twice | Destroyed cells are removed and damage is idempotent; remaining counts are checked during the swarm simulation. |
-| App switch or stuck input loses a life | Visibility/blur handling pauses play and clears held keys and pointer dragging. Lost lives retain the current field damage. |
-| Touch scrolling interrupts game | Pointer capture and canvas `touch-action: none`. Normal HTML buttons and keyboard controls remain available. |
-| Corrupt saves or storage failure | Guarded JSON and storage operations, bounded integer validation, and fresh-game fallback. There is no cloud save or cross-tab synchronization. |
-| Cache growth or unrelated private pages cached | An explicit same-origin asset allowlist ignores query variations and unrelated URLs. The offline fallback test passes. Native builds package local assets and skip service-worker registration. |
-| Dependency vulnerabilities | Native tooling uses pinned Capacitor packages and a lockfile. CLI 8.4.3 avoids the moderate transitive advisory found in CLI 8.5.3; npm audit reports zero advisories at this check. Repeat audits when dependencies change. |
-| Secret leakage | Signing materials are ignored by Git. No signing keys, Apple certificates, provisioning profiles, GitHub tokens, or account credentials belong in the source or public build. |
-| Misleading iPhone download | An unsigned device archive or Simulator app is not presented as an installable signed IPA. Physical iPhone distribution remains dependent on the owner's Apple signing. |
-| Misleading Android release | A debug-signed test APK is distinguished from a production-signed Play Store release; the AAB needs production signing. |
-| Sensory/accessibility limitations | Sound and haptics default off; reduced effects follows system preference. The canvas has keyboard controls and surrounding semantic HTML, but no full nonvisual gameplay equivalent. WCAG conformance is not claimed. |
+| Another account's data | Auth validation, RLS, separate device namespaces, history reset on identity change. Hosted two-account tests still required. |
+| Catalog races/duplicates | Transaction/advisory lock, unique canonical hash, bounded retry and stored winner reuse. Recent structural distance adds near-duplicate filtering. |
+| Locked pattern disclosure | Auth/unlock check before generation; DB catalog policy. Guest device owners can inspect their own generator. |
+| Replay/skip/fake result | Audited UUID/hash/expiry/score bounds and idempotent finish. No server-authoritative replay verification. |
+| Fake imported progress | Accepted private client-reported history, bounded import. No leaderboards/prizes/economy. Add replay verification before competitive features. |
+| Async sign-in race | Identity/load epochs and captured game references; separate account field snapshots. |
+| Network failure | Bounded fetch, published cache, pending retries/idempotent completion; expired runs can import personal progress. No fake successful authentication. |
+| Corrupt local state | Normalized progress, validated snapshots and cloned catalog. Device owner can still edit their private save. |
+| Secrets | Public settings only in client; service role only server. No API/auth service-worker cache; no request bodies/tokens logged. |
+| Deletion | Fresh sign-in plus DELETE; live Auth/private cascade. Shared anonymous catalog retained. Other offline devices/backups require documented handling. |
+| Resource abuse | 768 balls, 30 drops, bounded histories/cache/requests/retries, start rate limit. Infrastructure quotas/alerts are owner configuration. |
+| Store claims | Debug APK/unsigned AAB/archive labeled. No signed IPA, store publication or physical-device guarantee claimed. |
 
-## Remaining limits
-
-Browser validation and native build validation do not substitute for physical Android and iPhone playtests, thermal/battery testing, low-memory handling, or App Store review. The code is an independent recreation of observable mechanics; original timings, hidden rules, and exact source physics cannot be inferred with certainty from recordings. No zero-defect guarantee is made.
-
-Native build outcomes are recorded in GitHub Actions and the release notes. A build should only be called successful once its job completes. A signed physical-device iOS release requires Apple Developer access; a production Android store release requires owner-managed signing.
-
-## Native validation · 21 October 2026
-
-Both Android and iOS compilation jobs passed in [run 39532447345](https://github.com/speedinno/brick-breaker/actions/runs/39532447345), building application commit `8fe6bab067166c106c8fbe9e5d5b1f06f5843a52`. The APK, simulator app, and unsigned device archive were inspected: their index, engine, controller, styles, and manifest match the current game source after newline normalization. The iOS store icon uses RGB without an alpha channel; a CI guard verifies its encoding.
-
-The Android API 35 emulator test used the exact downloaded APK with Wi-Fi and mobile data disabled. It verified native Capacitor execution, a painted dense field with 2,328 initial breakable cells, AUTO launch, brick count falling to 1,990 with 108 balls after 20 seconds, pause/resume, and process relaunch. No uncaught JavaScript exception or native fatal exception was reported. The screenshot was visually inspected for field rendering and phone layout. This is a startup and gameplay smoke test, not a low-end device performance benchmark.
-
-The iPhone Simulator app was installed, launched, terminated and relaunched. Screenshots show the dense T field, game controls, safe-area layout, and the saved-stage Continue prompt after relaunch. Both screenshots were visually inspected. The workflow separates startup, launch, relaunch and simulator shutdown with explicit time limits. Native touch gameplay on a physical iPhone remains unverified.
-
-Both final native launch jobs passed in [run 39532730822](https://github.com/speedinno/brick-breaker/actions/runs/39532730822), using the artifacts from the successful build above. The screenshots in `docs/native/` come from this run. Later release documentation commits do not change application files.
+The Chandrahas guide covers actual SMTP, deployment, cleanup/backups, support mailbox, beta, disclosures and submission. Source tests cannot establish those external facts.

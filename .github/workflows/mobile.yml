@@ -24,6 +24,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
+      - run: npm run build:web
       - run: npm test && npm run check
       - run: npx cap sync android
       - name: Build installable test APK and release bundle
@@ -48,6 +49,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build:web
       - run: npx cap sync ios
       - name: Validate opaque App Store icon
         run: node -e "const b=require('fs').readFileSync('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png');if(b[25]!==2)throw Error('The iOS icon must use RGB without an alpha channel')"
@@ -64,6 +66,10 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           -derivedDataPath build/simulator
           CODE_SIGNING_ALLOWED=NO build
+      - name: Validate bundled privacy manifest
+        run: |
+          test -f build/BrickBreaker.xcarchive/Products/Applications/App.app/PrivacyInfo.xcprivacy
+          plutil -lint build/BrickBreaker.xcarchive/Products/Applications/App.app/PrivacyInfo.xcprivacy
       - name: Package native iOS deliverables
         run: |
           ditto -c -k --keepParent build/BrickBreaker.xcarchive build/BrickBreaker-iOS-unsigned-archive.zip

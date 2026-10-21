@@ -1,0 +1,13 @@
+import config from '../dist/cloud-config.js';
+import {readFile} from 'node:fs/promises';
+const production=process.argv.includes('--production');
+const pending=[];
+if(!config.supabaseUrl||!config.publishableKey)pending.push('Owner-managed Supabase project and public configuration');
+if(!config.supportEmail)pending.push('Monitored public support email');
+if(!config.publisherName?.trim())pending.push('Legal publisher name');
+const android=await readFile('android/app/build.gradle','utf8'),ios=await readFile('ios/App/App.xcodeproj/project.pbxproj','utf8');
+if(!android.includes('versionName "3.0.0"')||!ios.includes('MARKETING_VERSION = 3.0.0'))throw Error('Native/web versions differ');
+const manifest=await readFile('ios/App/App/PrivacyInfo.xcprivacy','utf8');
+if(!manifest.includes('NSPrivacyCollectedDataTypeEmailAddress')||!ios.includes('PrivacyInfo.xcprivacy in Resources'))throw Error('Missing app privacy resource');
+console.log(JSON.stringify({candidateSourceChecks:true,productionConfigurationComplete:pending.length===0,pending,manualGates:['Real SMTP/account/deletion tests','Production signing','Physical-device and beta testing','Store disclosures, publisher verification and review']},null,2));
+if(production&&pending.length)process.exitCode=1;

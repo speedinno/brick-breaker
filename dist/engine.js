@@ -1,3 +1,4 @@
+import {generateDefinition,patternFromLayout} from './generated.js';
 export const W=416,H=660,COLS=52,ROWS=52,CELL=8,OX=0,OY=18,MAX_BALLS=768;
 export const FAMILIES=['T channel','Switchback','H chamber','M channel','Needle','W channel','Sword','Bent channel','Nested squares','Twin hearts','Step chamber','Fork'];
 export const COLORS=['#e71840','#8fab18','#527d24','#a31973','#47a91b','#a6a11a','#c61724','#df8a27','#c215a7','#df2942','#9bbb36','#89a623'];
@@ -5,6 +6,7 @@ export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function rng(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function segmentDistance(x,y,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);}
 export function makePattern(level,seed=1){
+ if(level>12)return patternFromLayout(generateDefinition(level));
  const family=(Math.max(1,level)-1)%12,random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
  const path=(points,gate=true)=>{paths.push(points);if(gate){const a=points.at(-2),b=points.at(-1),len=Math.hypot(b[0]-a[0],b[1]-a[1]);gates.push({x:b[0],y:b[1],dx:(b[0]-a[0])/len,dy:(b[1]-a[1])/len});}};
  switch(family){
@@ -22,7 +24,6 @@ export function makePattern(level,seed=1){
   case 11:path([[26,52],[26,33],[15,22],[15,12]]);path([[26,33],[37,22],[37,12]]);break;
  }
  // Preserve the reference motifs first; later fields vary connected geometry.
- if(level>12){const shift=Math.floor(random()*9)-4,sx=.74+random()*.35,sy=.70+random()*.28,flip=random()<.5?-1:1;const transform=([x,y])=>[clamp(26+(x-26)*sx*flip+shift,3,49),clamp(51-(51-y)*sy,3,52)];paths=paths.map(p=>p.map(transform));gates=gates.map(g=>{const p=transform([g.x,g.y]);return{...g,x:p[0],y:p[1],dx:g.dx*flip};});holes=holes.map(p=>p.map(transform));entry=transform(entry);entry[1]=52;paths[0][0]=entry;const join=paths[0][Math.min(1,paths[0].length-1)],branch=[join];let x=join[0],y=join[1];for(let i=0;i<3+Math.floor(random()*4);i++){x=clamp(x+(random()<.5?-1:1)*(4+Math.floor(random()*11)),4,48);y=clamp(y-3-Math.floor(random()*7),5,46);branch.push([x,y]);}path(branch);}
  const segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
  function insidePolygon(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
  const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<.86?'empty':distance<1.8?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<.86)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
@@ -41,8 +42,8 @@ export function makePattern(level,seed=1){
 }
 export function circleRect(x,y,r,b){const nx=clamp(x,b.x,b.x+b.w),ny=clamp(y,b.y,b.y+b.h);return(x-nx)**2+(y-ny)**2<=r*r;}
 export class Game{
- constructor({seed=1,level=1,mode='play',onEvent=()=>{}}={}){this.seed=seed>>>0;this.level=clamp(Math.floor(level)||1,1,1000000);this.random=rng(this.seed^7523);this.emit=onEvent;this.mode=mode;this.score=0;this.lives=3;this.time=0;this.paddle={x:W/2+20,y:584,w:82};this.target=this.paddle.x;this.balls=[];this.drops=[];this.seen=new Set();this.stage();}
- stage(){let p=makePattern(this.level,this.seed),tries=0;while(this.seen.has(p.signature)&&tries<50)p=makePattern(this.level,(this.seed+ ++tries*7919)>>>0);this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.peakBalls=1;this.combo=0;this.paddle.w=82;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
+ constructor({seed=1,level=1,mode='play',onEvent=()=>{},patternFactory=makePattern}={}){this.seed=seed>>>0;this.level=Number.isSafeInteger(level)&&level>0?level:1;this.patternFactory=patternFactory;this.random=rng(this.seed^7523);this.emit=onEvent;this.mode=mode;this.score=0;this.lives=3;this.time=0;this.paddle={x:W/2+20,y:584,w:82};this.target=this.paddle.x;this.balls=[];this.drops=[];this.seen=new Set();this.stage();}
+ stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.peakBalls=1;this.combo=0;this.paddle.w=82;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
  speed(){return Math.min(430,320+this.level*2);}
  ball(x,y,angle=-Math.PI/2){const speed=this.speed();return{x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:2.35};}
  launch(){if(this.status!=='ready')return;const y=this.paddle.y-8,dx=this.pattern.entry.x-this.paddle.x,dy=this.pattern.entry.y+3-y,angle=Math.atan2(dy,Math.abs(dx)<1?5:dx);this.balls=[this.ball(this.paddle.x,y,angle)];this.status='playing';this.emit({type:'launch'});}

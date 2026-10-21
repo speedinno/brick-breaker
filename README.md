@@ -1,61 +1,44 @@
 # Brick Breaker · Channels & Swarms
 
-A reconstruction of the dense-grid brick breaker shown in the reviewed X videos: permanent gray channel walls, a plain orange paddle, solid colored fields, breakable exit caps, +3 pickups, and ×3 ball multiplication that grows a swarm into hundreds of white balls.
+Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
-Requested source repository: https://github.com/SpeedInno-Org/Brick-Breaker
+**Play:** https://speedinno.github.io/brick-breaker/
 
-Public browser version: https://speedinno.github.io/brick-breaker/
+**Primary private source:** https://github.com/SpeedInno-Org/Brick-Breaker
 
-Public source and native build mirror: https://github.com/speedinno/brick-breaker
+**Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-Android test APK and iOS build downloads: https://github.com/speedinno/brick-breaker/releases/tag/v2.0.0
+**Launch handoff:** [CHANDRAHAS-LAUNCH-GUIDE.md](CHANDRAHAS-LAUNCH-GUIDE.md). Supabase provisioning, monitored support email, production signing, real-device beta and store submission remain owner-managed launch gates. This is a release candidate, not a store-published product. Cloud is deliberately disabled until real project configuration is supplied; guest play works now.
 
-## What changed in v2
+## The journey
 
-The earlier Prism Rush interpretation was replaced. This version uses a dense 52 × 52 field; twelve reference-style T / H / M / W / sword / needle / bent / nested / heart / stepped motifs; indestructible gray maze walls; and earned, falling multiplication pickups. There is no automatic opening fireball, random missing-brick noise, bomb grid, Pulse button, or large marketing layout.
+Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.
 
-The first twelve stages reproduce the observed motifs. Later stages generate connected variations. A pattern chooser makes each motif directly playable. Additional small gate tiles ensure enclosed colored regions can be cleared, which is necessary for progressing beyond the clips' unfinished fields. This is newly written code that recreates visible behavior, not the original game's source, branding, or a claim of pixel-identical physics.
+Beyond the starters, eight graph architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
 
-## Play
+Drag to steer, launch through the entry and catch boosts. +3 adds three balls; ×3 triples the swarm up to 768; ↔ widens the paddle; — adds a temporary safety floor; ♨ enables temporary fireballs. Gray walls remain. Watch/AUTO steers the paddle through the same simulation, with 1×/2×/4× playback. Keyboard: arrows/A/D move, Space launches/advances, P/Escape pauses.
 
-Move the mouse or drag anywhere on the board to steer the paddle. Launch through the entrance and catch falling boosts: **+3** adds three balls; **×3** triples the current swarm, up to a bounded 768 balls; **↔** widens the paddle; **—** adds a temporary safety floor; **♨** enables temporary fireballs. Gray walls remain even for fireballs.
+Guest progress and the current field save on the device. Optional email accounts synchronize completed stages and personal history after Supabase is deployed. A current swarm is local to its device. Importing guest progress is explicit. Accounts have separate local namespaces, export and in-app/web deletion flows. There are no ads, purchases, tracking SDKs or competitive rewards.
 
-**Watch it unfold / AUTO** controls only the paddle using the same simulation. Watch starts at 2× speed. The speed control cycles through 1×, 2×, and 4×. Keyboard: arrows / A / D move, Space launches or advances, P / Escape pauses. App switching pauses automatically. Stages and local best scores save on this device.
+## Development
 
-## Android and iPhone
-
-The game is bundled into native Capacitor Android and iOS projects and runs without a hosted-site connection. Native apps do not use the web service worker. There are no ad SDKs, accounts, payments, or runtime analytics.
-
-- **Android:** the native CI builds an installable, debug-signed APK and an unsigned release AAB. A debug APK is suitable for direct testing; a release intended for Google Play needs the owner's production signing configuration and store setup.
-- **iPhone:** native CI builds an unsigned device archive and an iPhone Simulator app. The archive must be signed with the owner's Apple Developer team before a physical iPhone/TestFlight/App Store installation. The simulator build is not an installable iPhone IPA.
-- **Browser installation:** Android browser menu → Install app; iPhone Safari → Share → Add to Home Screen. Offline play begins after the first successful web cache installation. This is available separately from the native packages.
-
-See [mobile build instructions](docs/MOBILE.md), [reference review](docs/REFERENCES.md), and [red-team/QA report](docs/RED_TEAM.md).
-
-Actual Android app running in an API 35 emulator with network access disabled:
-
-<img src="docs/native/android.png" width="270" alt="Native Android brick breaker with a dense red field, gray T channel, orange paddle and multiplying balls">
-
-Actual iPhone Simulator app after process relaunch, showing the saved-stage prompt:
-
-<img src="docs/native/iphone.png" width="270" alt="Native iPhone brick breaker showing the dense T field and saved-stage Continue prompt">
-
-## Develop and build
-
-Node.js 22+:
+Node 22+:
 
 ```sh
 npm ci
-npm run dev
+npm run build:web
 npm test
 npm run check
+npm run dev
 npm run mobile:sync
 ```
 
-Local preview: http://127.0.0.1:4173. `dist/` is the complete static game and supports subdirectory deployment. The development-only `/__mobile?width=390&height=844` route previews a narrow viewport.
+Preview http://127.0.0.1:4173. Development-only `/__mobile?width=320&height=568` provides a compact viewport. `QA_FIXTURES=1` enables explicitly labeled disposable progression fixtures on the dev server; these routes are not shipped in `dist` or native assets.
 
-Android: open `android/` in Android Studio, or use `npm run android:open`; Java 21 and Android SDK 36 are needed for command-line builds. iOS: use a Mac with Xcode 26+, open `ios/App/App.xcodeproj`, choose your signing team and target, and build. `npm run ios:open` opens it on a Mac.
+`dist/` is the complete static app. `supabase/` contains the migration and authenticated Edge Function. `npm run configure:cloud` generates public configuration from environment variables; see the handoff. `node scripts/release-preflight.mjs --production` checks required public configuration. Do not put administrator keys in a client build.
 
-`.github/workflows/mobile.yml` builds both native platforms. `.github/workflows/test.yml` runs game checks. `publish-pages.mjs` publishes the static `dist/` subtree to the existing public `github` mirror without exposing organization repository settings or changing the organization's private audience.
+CI runs game/database tests, generator parity and backend type checking, then creates a debug Android APK, unsigned Android AAB, unsigned iOS archive and simulator app. Signing and physical-device testing are separate. Android uses Java 21, SDK 36/min 24. iOS uses Xcode 26+, minimum 15.4. The simulator app is not an installable iPhone IPA. See [mobile builds](docs/MOBILE.md), [architecture](docs/ARCHITECTURE.md), [QA/red-team evidence](docs/RED_TEAM.md), and [reference review](docs/REFERENCES.md).
 
-Original game code is MIT licensed. Bundled font files retained from v1 include their SIL Open Font Licenses, though the v2 game uses system fonts. No reference video images, third-party watermarks, or app-store branding are bundled.
+Public native artifacts/releases: https://github.com/speedinno/brick-breaker/releases
+
+The original game code is MIT licensed; bundled dependency/font licenses apply to their files. Reference clips, third-party branding and watermarks are not bundled. Newly written behavior inspired by reviewed clips is not the original game's source or a claim of pixel-identical physics.
