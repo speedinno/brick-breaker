@@ -195,13 +195,19 @@ sends only to `TEST_EMAIL`. A successful request alone does not prove delivery;
 check Resend delivery events and confirm the message arrives, then exercise
 sign-in and account operations on a device.
 
-SMTP configuration has been applied. At the latest DNS check on 21 October,
-`speedinno.com` had verified `send` MX/TXT records, but its DKIM TXT value differed
-from Resend's expected value and `rsend` CNAME was absent from both Google and
-Cloudflare DNS. Email delivery has not been tested. Correct those records using
-the current values from Resend (also saved locally in
-`.openai/local/resend-dns-records.txt`), keep CNAME proxying disabled, and retry
-domain verification. Do not change the root MX records for the support mailbox.
+SMTP configuration has been applied with sender
+`login@brickbreaker.speedinno.com`. The owner chose a separate game subdomain
+because other Resend accounts use the root domain. The game subdomain has been
+created in the current Resend account; verification and email delivery remain
+pending. Add only its four records to the `speedinno.com` Cloudflare zone:
+TXT `resend._domainkey.brickbreaker`, MX/TXT `send.brickbreaker`, and CNAME
+`rsend.brickbreaker`. Use the exact values in
+`.openai/local/resend-game-dns-records.txt` or the game subdomain's Resend page,
+keep CNAME proxying disabled, and verify that subdomain. Leave root-domain and
+other application DNS records unchanged, including the existing
+`resend._domainkey`, `send`, and root MX records. The earlier root-domain
+verification instructions are superseded; do not replace another account's DKIM
+key or transfer its domain to complete the game setup.
 
 References: [Resend SMTP](https://resend.com/docs/send-with-smtp),
 [Resend Cloudflare DNS setup](https://resend.com/docs/guides/dns/cloudflare),
