@@ -4,6 +4,33 @@ This deployment hosts only the game API. Android and iPhone continue to use
 bundled game assets, Supabase Auth/Postgres, and Supabase SMTP backed by Resend.
 It does not publish a web game or use GitHub Actions.
 
+## Verified deployment: 21 October 2026
+
+- API: https://ca-brick-breaker-api.braverock-ed05a525.centralindia.azurecontainerapps.io
+- Health: https://ca-brick-breaker-api.braverock-ed05a525.centralindia.azurecontainerapps.io/healthz
+- Active revision: `ca-brick-breaker-api--0000001`, Healthy/Provisioned.
+- Deployed API source: `9e7502738184`.
+- Image: `acrbrickbreakercb69a440.azurecr.io/brick-breaker-api:9e7502738184-20261021152840`.
+- Both SQL migrations were applied by the owner in Supabase's SQL Editor.
+  Before a future CLI `db push`, reconcile its migration history with those
+  already-applied versions; do not run the initial schema again.
+
+Hosted acceptance passed using two disposable password accounts: authenticated
+state/saves, starter completion/retry idempotency, locked/generated stage access,
+guest import, cross-account SQL/RLS isolation, export, fresh-sign-in deletion,
+private-record cascades, and shared-catalog preservation. Both test accounts were
+removed. Completion statistics were synthetic API test input, not a claim of
+manual gameplay. SMTP/OTP delivery and signed physical-device builds were not
+tested in this deployment. Mobile public configuration is still to be bundled.
+
+The acceptance harness can be run explicitly after deployment. It creates two
+disposable accounts without sending email, deletes their private data, and keeps
+the normal anonymous stage definitions published during the test:
+
+```powershell
+node --env-file=.env.api scripts/smoke-hosted-api.mjs https://YOUR_API_HOST
+```
+
 ## Selected Azure target
 
 - Subscription: **SpeedInno Org Subscription** (`cb69a440-eed5-4854-a89b-588dc241fc68`).
