@@ -1,5 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.118.0';
 import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHash,structuralDistance} from '../_shared/catalog.js';
+import {readLimitedJson,RequestError} from '../_shared/request.js';
 declare const EdgeRuntime: {waitUntil(task:Promise<unknown>):void};
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -37,9 +38,7 @@ Deno.serve(async request=>{
     const auth=await admin.auth.getUser(bearer.slice(7));
     if(auth.error||!auth.data.user)return reply({error:'Your session expired. Sign in again.'},401);
     const user=auth.data.user,client=createClient(url,anon,{global:{headers:{Authorization:bearer}},auth:{persistSession:false,autoRefreshToken:false}});
-    const text=await request.text();if(text.length>32768)return reply({error:'Request is too large'},413);
-    let body;try{body=JSON.parse(text);}catch{return reply({error:'Invalid JSON'},400);}
-    if(!body||typeof body!=='object'||Array.isArray(body))return reply({error:'Invalid request'},400);
+    const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
     if(body.action==='state')return reply(await rpc('game_state'));
@@ -76,6 +75,7 @@ Deno.serve(async request=>{
     }
     return reply({error:'Unknown action'},400);
   }catch(error){
+    if(error instanceof RequestError)return reply({error:error.message},error.status);
     const message=error instanceof Error?error.message:'Cloud request failed';
     // Known SQL/business errors contain no credentials. Do not return stack
     // traces, raw queries, tokens or provider diagnostic objects to the client.

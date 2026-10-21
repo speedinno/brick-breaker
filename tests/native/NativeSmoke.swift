@@ -1,0 +1,40 @@
+import XCTest
+
+final class NativeSmoke: XCTestCase {
+    let game = XCUIApplication(bundleIdentifier: "com.speedinno.brickbreaker")
+    func button(_ label: String) -> XCUIElement { game.buttons[label].firstMatch }
+    func remaining() -> Int {
+        let item = game.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "^[0-9]+ bricks remaining$")).firstMatch
+        guard item.exists else { return -1 }
+        return Int(item.label.split(separator: " ").first ?? "") ?? -1
+    }
+    func waitForField() {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 60), .completed, "Bundled field must finish loading")
+    }
+    func shot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: game.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    func testPackagedGamePlayAndColdResume() {
+        continueAfterFailure = false
+        game.launch(); waitForField(); shot("iPhone-ready")
+        let initial = remaining(); XCTAssertGreaterThan(initial, 1000)
+        button("Open stage journey").tap()
+        let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
+        XCTAssertTrue(locked.waitForExistence(timeout: 10)); locked.tap()
+        XCTAssertTrue(button("Close unlock requirement").waitForExistence(timeout: 10))
+        button("Close unlock requirement").tap(); button("Close stages").tap()
+        let watch = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Watch it unfold")).firstMatch
+        XCTAssertTrue(watch.waitForExistence(timeout: 10)); watch.tap()
+        let destroyed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 && self.remaining() < initial }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [destroyed], timeout: 45), .completed, "Native physics must break real bricks")
+        button("Pause").tap(); let saved = remaining(); XCTAssertGreaterThan(saved, 0); XCTAssertLessThan(saved, initial)
+        shot("iPhone-paused-gameplay")
+        game.terminate(); game.launch(); waitForField()
+        XCTAssertEqual(remaining(), saved, "Cold restart must restore the damaged field")
+        let resume = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continue")).firstMatch
+        XCTAssertTrue(resume.waitForExistence(timeout: 15)); shot("iPhone-restored-field"); resume.tap()
+        XCTAssertTrue(button("Pause").waitForExistence(timeout: 10)); shot("iPhone-resumed")
+    }
+}

@@ -13,10 +13,12 @@ APP_PID=$(adb shell pidof com.speedinno.brickbreaker | tr -d '\r')
 test -n "$APP_PID"
 adb forward tcp:9222 "localabstract:webview_devtools_remote_$APP_PID"
 node tests/native/android-smoke.mjs
-adb exec-out screencap -p > native-evidence/Android-native-playing.png
 adb shell am force-stop com.speedinno.brickbreaker
 adb shell am start -W -n com.speedinno.brickbreaker/.MainActivity
-sleep 5
+APP_PID=$(adb shell pidof com.speedinno.brickbreaker | tr -d '\r')
+test -n "$APP_PID"
+adb forward tcp:9222 "localabstract:webview_devtools_remote_$APP_PID"
+node tests/native/android-smoke.mjs --relaunch
 adb exec-out screencap -p > native-evidence/Android-native-relaunch.png
 adb logcat -d > native-evidence/android-logcat.txt
 if grep -q 'FATAL EXCEPTION' native-evidence/android-logcat.txt; then

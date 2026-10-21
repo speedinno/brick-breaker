@@ -22,7 +22,7 @@ function difficultyProfile(level) {
 
 // dist/generated.js
 var GENERATOR_VERSION = 3;
-var ARCHITECTURES = ["Circuit", "Orbit", "Honeycomb", "Constellation", "Atrium", "Vortex", "Delta", "Coral", "Lotus", "Crystal", "Cathedral", "Aurora", "Mandala", "Waterfall", "Bloom", "Prism", "Rangoli", "Kolam", "Rosette", "Starweave"];
+var ARCHITECTURES = ["Circuit", "Orbit", "Honeycomb", "Constellation", "Atrium", "Vortex", "Delta", "Coral", "Lotus", "Crystal", "Cathedral", "Aurora", "Mandala", "Waterfall", "Bloom", "Prism", "Rangoli", "Kolam", "Rosette", "Starweave", "Perimeter", "Gateway"];
 var SIZE = 52;
 var PALETTES = [
   ["#ed2856", "#f14a38", "#df306d"],
@@ -160,7 +160,15 @@ function artisticGraph(kind, random, level) {
     sites.push(points[Math.floor(points.length / 2)]);
   };
   const petals = 4 + Math.floor(profile.growth * 4) + (random() < 0.5 ? 0 : 1);
-  if (kind >= 16) {
+  if (kind >= 20) {
+    const left = 4 + Math.floor(random() * 10), right = 38 + Math.floor(random() * 10), top = 4 + Math.floor(random() * 12), bottom = 35 + Math.floor(random() * 12);
+    if (kind === 20) add([[left, bottom], [left, top], [right, top], [right, bottom], [left, bottom]]);
+    else {
+      add([[left, bottom], [left, top], [right, top], [right, bottom]]);
+      if (profile.growth > 0.55) add([[left, (top + bottom) / 2], [left + (right - left) * (0.35 + random() * 0.3), (top + bottom) / 2]]);
+    }
+    sites.splice(0, sites.length, [left, top], [right, top], [right, bottom], [left, bottom]);
+  } else if (kind >= 16) {
     const lobes = kind === 16 ? 4 : kind === 17 ? 4 : kind === 18 ? 6 : 8, radius = 18 + random() * 3, inner = 7 + random() * 3;
     const outline = [];
     if (kind === 16) {
@@ -345,9 +353,9 @@ function generateDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 13 || !Number.isSafeInteger(nonce) || nonce < 0 || nonce > 1024) throw Error("Invalid generated stage");
   const kind = architectureForLevel(level);
   for (let attempt = 0; attempt < 24; attempt++) {
-    const random = seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-3:${level}:${nonce}:${attempt}`), profile = difficultyProfile(level), art = kind >= 8 ? artisticGraph(kind, random, level) : null, sites = art?.sites || makeSites(kind, random, level), graph = art || makeGraph(sites, random, kind, level), roll = random(), entry = roll < 0.18 ? 3 : roll < 0.36 ? 49 : 9 + Math.floor(random() * 34);
+    const random = seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-4:${level}:${nonce}:${attempt}`), profile = difficultyProfile(level), art = kind >= 8 ? artisticGraph(kind, random, level) : null, sites = art?.sites || makeSites(kind, random, level), graph = art || makeGraph(sites, random, kind, level), roll = random(), entry = roll < 0.18 ? 3 : roll < 0.36 ? 49 : 9 + Math.floor(random() * 34);
     const bottom = art ? art.paths.flat().reduce((a, b) => b[1] > a[1] + 0.01 || Math.abs(b[1] - a[1]) < 0.01 && Math.abs(b[0] - entry) < Math.abs(a[0] - entry) ? b : a) : sites.reduce((a, b) => Math.hypot(b[0] - entry, b[1] - 51) < Math.hypot(a[0] - entry, a[1] - 51) ? b : a), lead = art ? [[entry, 52], [entry, 48], [bottom[0], 48], bottom] : [[entry, 52], [entry, 48], bottom], paths = [lead, ...graph.paths], segments = paths.flatMap((points) => points.slice(1).map((b, i) => [points[i], b]));
-    const chambers = kind >= 8 ? [] : sites.filter((_, i) => graph.degree[i] > 1 && random() < 0.16).map((p) => ({ p, r: 1.4 + random() * 1.5 })), layout = [], tones = [], palette = PALETTES[Math.floor(random() * PALETTES.length)], hueMode = kind >= 16 ? 2 : Math.floor(random() * 4), colorOffset = random() * 9;
+    const chambers = kind >= 8 ? [] : sites.filter((_, i) => graph.degree[i] > 1 && random() < 0.16).map((p) => ({ p, r: 1.4 + random() * 1.5 })), layout = [], tones = [], palette = PALETTES[Math.floor(random() * PALETTES.length)], hueMode = kind >= 20 ? 4 : kind >= 16 ? 2 : Math.floor(random() * 4), colorOffset = random() * 9;
     for (let r = 0; r < 52; r++) for (let c = 0; c < 52; c++) {
       const x = c + 0.5, y = r + 0.5;
       let d = Infinity;
@@ -358,7 +366,7 @@ function generateDefinition(level, nonce = 0) {
       if (r >= 48 && Math.abs(x - entry) < profile.channelRadius) type = ".";
       const colorField = hueMode === 0 ? x : hueMode === 1 ? y : hueMode === 2 ? Math.hypot(x - 26, y - 25) * 1.6 : (x + y) * 0.7;
       layout.push(type);
-      tones.push(String(Math.floor((colorField + colorOffset) / 18) % palette.length));
+      tones.push(hueMode === 4 ? "0" : String(Math.floor((colorField + colorOffset) / 18) % palette.length));
     }
     const outlets = [...sites, bottom];
     for (let node = 0; node < outlets.length; node++) if (node === sites.length || graph.degree[node] === 1 || random() < profile.gateGenerosity) {
@@ -372,7 +380,7 @@ function generateDefinition(level, nonce = 0) {
     }
     if (!connectRegions(layout, entry)) continue;
     const mood = ["Ember", "Moonlit", "Sunrise", "Jade", "Velvet", "Golden", "Prismatic", "Twilight"][Math.floor(random() * 8)];
-    const definition = { version: 3, level, layout: layout.join(""), entry, entrance: entry <= 3 ? "left" : entry >= 49 ? "right" : "middle", name: `${mood} ${ARCHITECTURES[kind]}`, color: palette[0], palette, tones: tones.join(""), family: 12 + kind, recipe: { revision: 3, kind, nonce, attempt, nodes: sites.length, edges: graph.edges.length }, challenge: { label: profile.label, chapter: profile.chapter, chapterName: profile.chapterName, growth: profile.growth }, metrics: { branches: [...graph.degree].filter((n) => n > 2).length, loops: graph.edges.length - sites.length + 1 } };
+    const definition = { version: 3, level, layout: layout.join(""), entry, entrance: entry <= 3 ? "left" : entry >= 49 ? "right" : "middle", name: `${mood} ${ARCHITECTURES[kind]}`, color: palette[0], palette, tones: tones.join(""), family: 12 + kind, recipe: { revision: 4, kind, nonce, attempt, nodes: sites.length, edges: graph.edges.length }, challenge: { label: profile.label, chapter: profile.chapter, chapterName: profile.chapterName, growth: profile.growth }, metrics: { branches: [...graph.degree].filter((n) => n > 2).length, loops: graph.edges.length - sites.length + 1 } };
     try {
       validateDefinition(definition);
       return definition;

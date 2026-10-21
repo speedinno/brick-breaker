@@ -14,7 +14,7 @@ export class AccountPanel {
     $('showHistory').onclick=()=>void this.run(()=>this.history(true));
     $('moreHistory').onclick=()=>void this.run(()=>this.history(false));
     $('exportHistory').onclick=()=>void this.run(async()=>{
-      if(native){window.open('https://speedinno.github.io/brick-breaker/?account=export','_blank','noopener');this.message('Open Account on the web game to export your history.');return;}
+      if(native){window.open((config.publicGameUrl||'https://speedinno.github.io/brick-breaker/')+'?account=export','_blank','noopener');this.message('Open Account on the web game to export your history.');return;}
       const owner=cloud.userId;let cursor=null,history=[],account,progress;
       do{const page=await cloud.exportData(cursor);if(cloud.userId!==owner)throw Error('Your account changed. Start the export again.');account=page.account;progress=page.progress;history.push(...page.history);cursor=page.nextBefore;if(history.length>100000)throw Error('This export is very large. Contact support for a full data export.');}while(cursor);
       const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),account,progress,history},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='brick-breaker-history.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);this.message('Your history export is ready.');

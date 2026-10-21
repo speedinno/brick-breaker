@@ -10,7 +10,7 @@ test('difficulty grows gradually within safe control and physics limits',()=>{
  let early=0,later=0;for(let n=0;n<ARCHITECTURES.length;n++){const a=createDefinition(13+n),b=createDefinition(413+n);early+=a.recipe.nodes+a.recipe.edges;later+=b.recipe.nodes+b.recipe.edges;}assert(later>early*1.5,'Later recipe graphs should become substantially more interwoven');
 });
 test('architecture bags contain all styles without adjacent repeats',()=>{
- assert.equal(ARCHITECTURES.length,20);let prior=-1;
+ assert.equal(ARCHITECTURES.length,22);let prior=-1;
  for(let block=0;block<40;block++){const bag=[];for(let n=0;n<ARCHITECTURES.length;n++){const kind=architectureForLevel(13+block*ARCHITECTURES.length+n);assert.notEqual(kind,prior);prior=kind;bag.push(kind);}assert.equal(new Set(bag).size,ARCHITECTURES.length);}
 });
 test('representative later difficulty bands remain clearable with the real simulation',()=>{

@@ -73,8 +73,25 @@ jobs:
     needs: validate
     if: inputs.platform != 'android'
     runs-on: macos-26
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.source }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Prepare native UI verification target
+        run: |
+          npm ci
+          npm run build:web
+          npx cap sync ios
+          gem install xcodeproj -v 1.27.0 --no-document
+          ruby tests/native/add-ios-tests.rb
       - uses: actions/download-artifact@v4
         with:
           name: Brick-Breaker-iOS
@@ -110,6 +127,24 @@ jobs:
           xcrun simctl launch "$DEVICE_GUID" com.speedinno.brickbreaker
           sleep 5
           xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-relaunch.png
+      - name: Build UI test runner and test the exact packaged app
+        timeout-minutes: 18
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification CODE_SIGNING_ALLOWED=NO build-for-testing > native-evidence/ios-test-build.log 2>&1
+          python3 - <<'PY'
+          import pathlib, shutil, hashlib
+          source=pathlib.Path('native-build/simulator/App.app').resolve()
+          destination=pathlib.Path('build/native-verification/Build/Products/Debug-iphonesimulator/App.app').resolve()
+          root=pathlib.Path('build/native-verification').resolve()
+          assert destination.is_relative_to(root) and destination.name=='App.app'
+          shutil.rmtree(destination)
+          shutil.copytree(source,destination,symlinks=True)
+          assert hashlib.sha256((source/'App').read_bytes()).digest()==hashlib.sha256((destination/'App').read_bytes()).digest()
+          print('UI verification uses the exact packaged game executable')
+          PY
+          xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building > native-evidence/ios-gameplay.log 2>&1
+          xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png
       - name: Shut down simulator services
         if: always()
         timeout-minutes: 2
