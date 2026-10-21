@@ -49,6 +49,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx cap sync ios
+      - name: Validate opaque App Store icon
+        run: node -e "const b=require('fs').readFileSync('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png');if(b[25]!==2)throw Error('The iOS icon must use RGB without an alpha channel')"
       - name: Build unsigned device archive for Apple signing
         run: >-
           xcodebuild -project ios/App/App.xcodeproj -scheme App
