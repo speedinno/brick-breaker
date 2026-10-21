@@ -28,10 +28,29 @@ export function structuralDistance(a,b) {
 // IndexedDB holds downloaded definitions, not account tokens. Versions are part
 // of every key so a future generator cannot silently change a published level.
 export class LevelCache {
-  constructor(){this.memory=new Map();this.database=null;}
-  async db(){if(!globalThis.indexedDB)return null;if(!this.database)this.database=new Promise(resolve=>{const r=indexedDB.open('brick-breaker-catalog',1);r.onupgradeneeded=()=>r.result.createObjectStore('levels');r.onsuccess=()=>resolve(r.result);r.onerror=()=>resolve(null);});return this.database;}
-  async get(level){const key=`${GENERATOR_VERSION}:${level}`;if(this.memory.has(key))return this.memory.get(key);const db=await this.db();if(!db)return null;return new Promise(resolve=>{const r=db.transaction('levels').objectStore('levels').get(key);r.onsuccess=()=>{if(r.result)this.memory.set(key,r.result);resolve(r.result||null);};r.onerror=()=>resolve(null);});}
-  async put(definition){validateCatalogDefinition(definition);const key=`${GENERATOR_VERSION}:${definition.level}`;this.memory.set(key,definition);if(this.memory.size>24)this.memory.delete(this.memory.keys().next().value);const db=await this.db();if(!db)return;await new Promise(resolve=>{const tx=db.transaction('levels','readwrite');tx.objectStore('levels').put(definition,key);tx.oncomplete=resolve;tx.onerror=resolve;});}
+  constructor({timeoutMs=2500}={}){this.memory=new Map();this.database=null;this.timeoutMs=timeoutMs;this.storageUnavailable=false;}
+  remember(key,value){this.memory.delete(key);this.memory.set(key,value);if(this.memory.size>24)this.memory.delete(this.memory.keys().next().value);}
+  async db(){
+    if(!globalThis.indexedDB){this.storageUnavailable=true;return null;}
+    if(!this.database)this.database=new Promise(resolve=>{
+      let settled=false;const finish=value=>{if(settled){value?.close();return;}settled=true;clearTimeout(timer);if(!value)this.storageUnavailable=true;resolve(value);},timer=setTimeout(()=>finish(null),this.timeoutMs);
+      try{const r=indexedDB.open('brick-breaker-catalog',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('levels'))r.result.createObjectStore('levels');};r.onsuccess=()=>{const db=r.result;db.onversionchange=()=>{db.close();this.database=null;};finish(db);};r.onerror=()=>finish(null);}catch{finish(null);}
+    });return this.database;
+  }
+  valid(value,level){try{validateCatalogDefinition(value);return value.level===level;}catch{return false;}}
+  async get(level){
+    const key=`${GENERATOR_VERSION}:${level}`,memory=this.memory.get(key);if(memory&&this.valid(memory,level))return memory;
+    const db=await this.db();if(!db)return null;
+    return new Promise(resolve=>{let settled=false;const finish=value=>{if(settled)return;settled=true;clearTimeout(timer);if(value&&this.valid(value,level)){this.remember(key,value);resolve(value);}else resolve(null);},timer=setTimeout(()=>{this.storageUnavailable=true;finish(null);},this.timeoutMs);
+      try{const r=db.transaction('levels').objectStore('levels').get(key);r.onsuccess=()=>finish(r.result);r.onerror=()=>{this.storageUnavailable=true;finish(null);};}catch{this.storageUnavailable=true;finish(null);}
+    });
+  }
+  async put(definition){
+    validateCatalogDefinition(definition);const key=`${GENERATOR_VERSION}:${definition.level}`;this.remember(key,definition);const db=await this.db();if(!db)return;
+    await new Promise(resolve=>{let settled=false;const finish=failed=>{if(settled)return;settled=true;clearTimeout(timer);if(failed)this.storageUnavailable=true;resolve();},timer=setTimeout(()=>finish(true),this.timeoutMs);
+      try{const tx=db.transaction('levels','readwrite');tx.objectStore('levels').put(definition,key);tx.oncomplete=()=>finish(false);tx.onerror=tx.onabort=()=>finish(true);}catch{finish(true);}
+    });
+  }
   async load(level,cloud=null){
     const cached=await this.get(level);
     // A live shared catalog is authoritative; offline users can reuse only an

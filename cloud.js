@@ -3,9 +3,9 @@ import config from './cloud-config.js';
 const allowedUrl=url=>{try{const parsed=new URL(url);return parsed.protocol==='https:'&&parsed.pathname==='/'&&!parsed.username&&!parsed.password;}catch{return false;}};
 async function boundedFetch(input,init={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000),signal=init.signal;const abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});try{return await fetch(input,{...init,signal:controller.signal});}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
 export class CloudAccount {
-  constructor(onChange=()=>{}){
-    this.configured=allowedUrl(config.supabaseUrl)&&typeof config.publishableKey==='string'&&config.publishableKey.length>20;
-    this.client=this.configured?createClient(config.supabaseUrl,config.publishableKey,{global:{fetch:boundedFetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'brick-breaker-auth-v3'}}):null;
+  constructor(onChange=()=>{},{settings=config,clientFactory=createClient}={}){
+    this.configured=allowedUrl(settings.supabaseUrl)&&typeof settings.publishableKey==='string'&&settings.publishableKey.length>20;
+    this.client=this.configured?clientFactory(settings.supabaseUrl,settings.publishableKey,{global:{fetch:boundedFetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'brick-breaker-auth-v3'}}):null;
     this.session=null;this.onChange=onChange;this.state=null;this.unsubscribe=null;
   }
   get signedIn(){return Boolean(this.session?.user);}
@@ -14,7 +14,7 @@ export class CloudAccount {
   async init(){
     if(!this.client)return;
     const {data,error}=await this.client.auth.getSession();if(error)throw error;this.session=data.session;
-    this.unsubscribe=this.client.auth.onAuthStateChange((_event,session)=>{const prior=this.userId;this.session=session;if(prior!==this.userId)queueMicrotask(()=>this.onChange(this));}).data.subscription;
+    this.unsubscribe=this.client.auth.onAuthStateChange((_event,session)=>{const prior=this.userId;this.session=session;if(prior!==this.userId){this.state=null;queueMicrotask(()=>Promise.resolve(this.onChange(this)).catch(()=>{}));}}).data.subscription;
     if(this.session)await this.onChange(this);
   }
   require(){if(!this.client)throw Error('Cloud saving is not available yet. Your progress stays on this device.');}
@@ -24,7 +24,9 @@ export class CloudAccount {
   async signOut(){this.require();const {error}=await this.client.auth.signOut({scope:'local'});if(error)throw error;this.session=null;this.state=null;await this.onChange(this);}
   async api(action,body={}){
     this.require();if(!this.signedIn)throw Error('Sign in to use cloud saves.');
-    const {data,error}=await this.client.functions.invoke('game-api',{body:{action,accountId:this.userId,...body}});
+    const owner=this.userId;
+    const {data,error}=await this.client.functions.invoke('game-api',{body:{...body,action,accountId:owner}});
+    if(this.userId!==owner){const failure=Error('Your account changed. Reopen Account and try again.');failure.status=409;failure.network=false;throw failure;}
     if(error){let message='Cloud saving is unavailable. Your device progress is safe.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;throw failure;}
     if(data?.error)throw Error(data.error);return data;
   }

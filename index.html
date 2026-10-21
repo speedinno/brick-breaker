@@ -10,7 +10,7 @@
   <section class="playfield" aria-label="Brick breaker game">
     <canvas id="game" width="416" height="660" tabindex="0" aria-label="Drag to move the paddle. Arrows or A and D also move. Space launches. P pauses."></canvas>
     <div id="prompt" class="prompt"><h1 id="promptTitle">Getting your stage ready.</h1><p id="promptText">Your journey starts here.</p><div class="prompt-buttons"><button id="launch" class="launch">Launch ↗︎</button><button id="watch" class="watch">Watch it unfold ▷</button></div></div>
-    <div id="toast" role="status"></div>
+    <span id="activeEffect" class="sr-only" role="status"></span><div id="toast" role="status"></div>
   </section>
   <footer><span><b id="balls">1</b> BALLS</span><span><b id="remaining">0</b> BRICKS</span><span id="lives">● ● ●</span><button id="share" aria-label="Share game"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 19 19 5M7 5h12v12"/></svg></button></footer><div class="progress"><i id="progress"></i></div>
 </main>
@@ -23,7 +23,7 @@
 <dialog id="lockDialog" aria-labelledby="lockTitle"><button class="close" data-close="lockDialog" aria-label="Close unlock requirement">×</button><p class="eyebrow">NEXT DISCOVERY</p><h2 id="lockTitle">Stage locked</h2><p id="lockMessage"></p><button id="playRequired" class="primary full">Play the next required stage</button></dialog>
 <dialog id="menu" aria-labelledby="settingsTitle">
   <button id="closeMenu" class="close" aria-label="Close settings">×</button><h2 id="settingsTitle">Brick Breaker</h2><p class="sub">Narrow channels. Enormous swarms.</p><p>Gray tiles stay. Colored tiles break. Catch the falling boosts to grow your swarm.</p>
-  <div class="legend"><span class="drop add">+3</span><span>Three extra balls</span><span class="drop triple">×3</span><span>Triple the current swarm</span><span class="drop wide">↔</span><span>Wider paddle for 20 seconds</span><span class="drop floor">—</span><span>Safety floor for 24 seconds</span><span class="drop fire">♨</span><span>Fireballs for 5 seconds</span></div>
+  <div class="legend"><span class="drop add">+3</span><span>Three extra balls</span><span class="drop triple">×3</span><span>Triple the current swarm</span><span class="drop wide">↔</span><span>Wider paddle for up to 20 seconds</span><span class="drop floor">—</span><span>Safety floor for up to 24 seconds</span><span class="drop fire">♨</span><span>Fireballs for 5 seconds</span><span class="drop laser">↑</span><span>Paddle shoots piercing columns for 8 seconds</span></div>
   <p>Drag anywhere on the board. AUTO steers the paddle with the same physics. Use 1× / 2× / 4× to change speed. Both manual and AUTO clears earn completion ticks.</p><p class="sub">Keyboard: ← → or A/D · Space launch/continue · P/Escape pause.</p>
   <div class="setting-row"><span>Sound</span><button id="sound" class="toggle" aria-label="Enable sound" aria-pressed="false">Off</button></div><label>Reduced effects<input id="reduced" type="checkbox"></label><label>Haptics<input id="haptics" type="checkbox"></label><p id="record" class="sub"></p>
   <div class="menu-actions"><button id="install">Install / play offline</button><button id="restart">Restart this stage</button></div><p id="installHelp" hidden>Android: browser menu → Install app. iPhone: Safari → Share → Add to Home Screen. Open a stage once to make it available offline.</p><p id="nativeOffline" hidden>Offline game assets are included in this app. Download cloud stages once before playing them offline.</p>

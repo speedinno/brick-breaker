@@ -2,7 +2,7 @@
 // of the twelve reference motifs. Keep this module identical on server/client.
 import {difficultyProfile} from './difficulty.js';
 export const GENERATOR_VERSION = 3;
-export const ARCHITECTURES = ['Circuit', 'Orbit', 'Honeycomb', 'Constellation', 'Atrium', 'Vortex', 'Delta', 'Coral','Lotus','Crystal','Cathedral','Aurora','Mandala','Waterfall','Bloom','Prism','Rangoli','Kolam','Rosette','Starweave'];
+export const ARCHITECTURES = ['Circuit', 'Orbit', 'Honeycomb', 'Constellation', 'Atrium', 'Vortex', 'Delta', 'Coral','Lotus','Crystal','Cathedral','Aurora','Mandala','Waterfall','Bloom','Prism','Rangoli','Kolam','Rosette','Starweave','Perimeter','Gateway'];
 const SIZE = 52, CELL = 8, OY = 18;
 const PALETTES = [
   ['#ed2856','#f14a38','#df306d'], ['#9fbf27','#d6b72d','#68a742'],
@@ -59,7 +59,7 @@ function makeGraph(sites,random,kind,level) {
   }
   return {paths,degree,edges};
 }
-// Each twenty-stage block shuffles a bag of architectures.
+// Each full block shuffles a bag of architectures, including restrained stages.
 // and a bag boundary cannot repeat the previous architecture.
 export function architectureForLevel(level){
   const count=ARCHITECTURES.length,block=Math.floor((level-13)/count),offset=(level-13)%count;
@@ -72,7 +72,15 @@ function artisticGraph(kind,random,level){
   const point=(radius,angle)=>[clamp(cx+Math.cos(angle+phase)*radius,4,48),clamp(cy+Math.sin(angle+phase)*radius,4,47)];
   const add=points=>{paths.push(points);sites.push(points[Math.floor(points.length/2)]);};
   const petals=4+Math.floor(profile.growth*4)+(random()<.5?0:1);
-  if(kind>=16){
+  if(kind>=20){
+    // Quiet stages between ornate ones: broad solid fields, a clear frame and
+    // one small entrance. Geometry varies; no transformed starter is reused.
+    const left=4+Math.floor(random()*10),right=38+Math.floor(random()*10),top=4+Math.floor(random()*12),bottom=35+Math.floor(random()*12);
+    if(kind===20)add([[left,bottom],[left,top],[right,top],[right,bottom],[left,bottom]]);
+    else{add([[left,bottom],[left,top],[right,top],[right,bottom]]);if(profile.growth>.55)add([[left,(top+bottom)/2],[left+(right-left)*(.35+random()*.3),(top+bottom)/2]]);}
+    // Use the visible corners as gate sites rather than an invisible graph.
+    sites.splice(0,sites.length,[left,top],[right,top],[right,bottom],[left,bottom]);
+  }else if(kind>=16){
     const lobes=kind===16?4:kind===17?4:kind===18?6:8,radius=18+random()*3,inner=7+random()*3;
     const outline=[];
     if(kind===16){
@@ -168,9 +176,9 @@ export function generateDefinition(level,nonce=0) {
   if(!Number.isSafeInteger(level)||level<13||!Number.isSafeInteger(nonce)||nonce<0||nonce>1024)throw Error('Invalid generated stage');
   const kind=architectureForLevel(level);
   for(let attempt=0;attempt<24;attempt++){
-    const random=seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-3:${level}:${nonce}:${attempt}`),profile=difficultyProfile(level),art=kind>=8?artisticGraph(kind,random,level):null,sites=art?.sites||makeSites(kind,random,level),graph=art||makeGraph(sites,random,kind,level),roll=random(),entry=roll<.18?3:roll<.36?49:9+Math.floor(random()*34);
+    const random=seededRandom(`brick-breaker:${GENERATOR_VERSION}:art-4:${level}:${nonce}:${attempt}`),profile=difficultyProfile(level),art=kind>=8?artisticGraph(kind,random,level):null,sites=art?.sites||makeSites(kind,random,level),graph=art||makeGraph(sites,random,kind,level),roll=random(),entry=roll<.18?3:roll<.36?49:9+Math.floor(random()*34);
     const bottom=art?art.paths.flat().reduce((a,b)=>b[1]>a[1]+.01||Math.abs(b[1]-a[1])<.01&&Math.abs(b[0]-entry)<Math.abs(a[0]-entry)?b:a):sites.reduce((a,b)=>Math.hypot(b[0]-entry,b[1]-51)<Math.hypot(a[0]-entry,a[1]-51)?b:a),lead=art?[[entry,52],[entry,48],[bottom[0],48],bottom]:[[entry,52],[entry,48],bottom],paths=[lead,...graph.paths],segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
-    const chambers=kind>=8?[]:sites.filter((_,i)=>graph.degree[i]>1&&random()<.16).map(p=>({p,r:1.4+random()*1.5})),layout=[],tones=[],palette=PALETTES[Math.floor(random()*PALETTES.length)],hueMode=kind>=16?2:Math.floor(random()*4),colorOffset=random()*9;
+    const chambers=kind>=8?[]:sites.filter((_,i)=>graph.degree[i]>1&&random()<.16).map(p=>({p,r:1.4+random()*1.5})),layout=[],tones=[],palette=PALETTES[Math.floor(random()*PALETTES.length)],hueMode=kind>=20?4:kind>=16?2:Math.floor(random()*4),colorOffset=random()*9;
     for(let r=0;r<52;r++)for(let c=0;c<52;c++){
       const x=c+.5,y=r+.5;let d=Infinity;
       for(const [a,b]of segments)d=Math.min(d,distance(x,y,a,b));
@@ -179,7 +187,7 @@ export function generateDefinition(level,nonce=0) {
       if(!r||r===51||!c||c===51)type='w';
       if(r>=48&&Math.abs(x-entry)<profile.channelRadius)type='.';
       const colorField=hueMode===0?x:hueMode===1?y:hueMode===2?Math.hypot(x-26,y-25)*1.6:(x+y)*.7;
-      layout.push(type);tones.push(String(Math.floor((colorField+colorOffset)/18)%palette.length));
+      layout.push(type);tones.push(hueMode===4?'0':String(Math.floor((colorField+colorOffset)/18)%palette.length));
     }
     // Put visible breakable outlets at leaves and chambers, including one near
     // the entrance. A single distant exit makes a fresh stage needlessly slow.
@@ -194,7 +202,7 @@ export function generateDefinition(level,nonce=0) {
     // Colored regions get breakable vents; permanent walls never trap a target.
     if(!connectRegions(layout,entry))continue;
     const mood=['Ember','Moonlit','Sunrise','Jade','Velvet','Golden','Prismatic','Twilight'][Math.floor(random()*8)];
-    const definition={version:3,level,layout:layout.join(''),entry,entrance:entry<=3?'left':entry>=49?'right':'middle',name:`${mood} ${ARCHITECTURES[kind]}`,color:palette[0],palette,tones:tones.join(''),family:12+kind,recipe:{revision:3,kind,nonce,attempt,nodes:sites.length,edges:graph.edges.length},challenge:{label:profile.label,chapter:profile.chapter,chapterName:profile.chapterName,growth:profile.growth},metrics:{branches:[...graph.degree].filter(n=>n>2).length,loops:graph.edges.length-sites.length+1}};
+    const definition={version:3,level,layout:layout.join(''),entry,entrance:entry<=3?'left':entry>=49?'right':'middle',name:`${mood} ${ARCHITECTURES[kind]}`,color:palette[0],palette,tones:tones.join(''),family:12+kind,recipe:{revision:4,kind,nonce,attempt,nodes:sites.length,edges:graph.edges.length},challenge:{label:profile.label,chapter:profile.chapter,chapterName:profile.chapterName,growth:profile.growth},metrics:{branches:[...graph.degree].filter(n=>n>2).length,loops:graph.edges.length-sites.length+1}};
     try {validateDefinition(definition);return definition;}catch{}
   }
   throw Error(`No valid connected layout for stage ${level}`);

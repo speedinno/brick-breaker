@@ -1,3 +1,4 @@
+import config from './cloud-config.js';
 import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
@@ -7,14 +8,14 @@ import {CloudAccount} from './cloud.js';
 import {JourneyMap} from './journey-ui.js';
 import {AccountPanel} from './account-ui.js';
 import {Capacitor,App,Haptics,ImpactStyle} from './vendor/native.js';
-const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false}),native=Capacitor.isNativePlatform(),PUBLIC_URL='https://speedinno.github.io/brick-breaker/';
+const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false}),native=Capacitor.isNativePlatform(),PUBLIC_URL=config.publicGameUrl||'https://speedinno.github.io/brick-breaker/';
 let storage;try{storage=localStorage;}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,sound=false,audio=null,lastSound=0;
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastTime=0,accumulator=0,lastSnapshot=0,drag=false,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1;
 const keys=new Set(),focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
-const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'}};
+const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'},laser:{color:'#ce79e7',label:'↑'}};
 const cloud=new CloudAccount(accountChanged);
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
@@ -25,10 +26,18 @@ function saveSession(){if(!game||loading)return;const snapshot=snapshotGame(game
 function clearSession(id=store.accountId){try{storage.removeItem(sessionKey(id));}catch{}}
 function tone(freq=500,duration=.03){if(!sound)return;try{audio ||=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')void audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.frequency.setValueAtTime(freq,audio.currentTime);gain.gain.setValueAtTime(.012,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);osc.connect(gain);gain.connect(audio.destination);osc.start();osc.stop(audio.currentTime+duration);}catch{sound=false;}}
 function updateStatus(){const p=store.value;$('journeyStatus').textContent=p.starters.length<12?`${p.starters.length}/12 starters completed`:`${completedCount(p).toLocaleString()} completed · Next ${p.journeyNext}`;$('saveStatus').textContent=store.storageError?'Storage full':cloud.signedIn?p.pending.length?`${p.pending.length} pending save${p.pending.length===1?'':'s'}`:cloud.state?'Cloud save':'Device save':'Device save';$('saveStatus').classList.toggle('pending',store.storageError||p.pending.length>0);if(game)$('completedIndicator').hidden=!isCompleted(p,game.level);}
-function syncHUD(){if(!game)return;$('balls').textContent=game.status==='ready'?1:game.balls.length;$('remaining').textContent=game.remaining;$('lives').textContent='● '.repeat(game.lives).trim();$('lives').setAttribute('aria-label',`${game.lives} lives`);$('progress').style.width=`${(1-game.remaining/game.total)*100}%`;}
+function syncHUD(){
+  if(!game)return;
+  const balls=String(game.status==='ready'?1:game.balls.length),remaining=String(game.remaining),lives='● '.repeat(game.lives).trim();
+  if($('balls').textContent!==balls)$('balls').textContent=balls;
+  if($('remaining').textContent!==remaining||!$('remaining').hasAttribute('aria-label')){$('remaining').textContent=remaining;$('remaining').setAttribute('aria-label',remaining+' bricks remaining');}
+  if($('lives').textContent!==lives||!$('lives').hasAttribute('aria-label')){$('lives').textContent=lives;$('lives').setAttribute('aria-label',`${game.lives} lives`);}
+  const width=`${Math.round((1-game.remaining/game.total)*1e6)/1e4}%`;if($('progress').style.width!==width)$('progress').style.width=width;
+}
 function suggestedNext(level){if(store.value.starters.length<12){for(let n=level+1;n<=12;n++)if(!isCompleted(store.value,n))return n;}return nextRequired(store.value);}
 function prompt(kind){
   if(!game)return;
+  clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=difficultyProfile(game.level);
   const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):'Drag the paddle. Catch the boosts. Grow the swarm.','Launch ↗︎'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue ↗︎'],paused:['Paused.','Your progress is safe on this device.','Resume ▷'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch ↗︎'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry this stage ↻']};
   const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over'].includes(kind);$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',kind==='paused'?'Resume':'Pause');
@@ -36,7 +45,7 @@ function prompt(kind){
 function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
   if((e.type==='break'||e.type==='hit')&&performance.now()-lastSound>55){lastSound=performance.now();tone(620+Math.min(100,game?.combo||0)*5);}
-  if(e.type==='power'){toast({add:'+3 BALLS',triple:`×3 · ${e.balls} BALLS`,wide:'WIDE PADDLE',floor:'SAFETY FLOOR',fire:'FIREBALLS'}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
+  if(e.type==='power'){toast({add:'+3 BALLS',triple:`×3 · ${e.balls} BALLS`,wide:'WIDE PADDLE',floor:'SAFETY FLOOR',fire:'FIREBALLS',laser:'PADDLE SHOOTER · 8s'}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
   if(e.type==='lost'){saveSession();prompt('lost');tone(140,.2);}
   if(e.type==='over'){clearSession();prompt('over');tone(140,.2);}
   if(e.type==='won'){
@@ -49,7 +58,7 @@ function event(e){
 }
 async function start(level=store.value.selected,{resume=false}={}){
   if(!isUnlocked(store.value,level)){toast('Finish earlier stages to unlock this stage.');return;}
-  saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;keys.clear();drag=false;$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
+  saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;keys.clear();drag=false;clearTimeout(toastTimer);$('toast').classList.remove('show');$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
   try{
     if(cloud.signedIn&&navigator.onLine!==false)await syncPending().catch(()=>{});
     const nextDefinition=await cache.load(level,cloud),hash=nextDefinition.hash||await definitionHash(nextDefinition);
@@ -59,7 +68,7 @@ async function start(level=store.value.selected,{resume=false}={}){
     game=restored||new Game({level,seed:crypto.getRandomValues(new Uint32Array(1))[0],mode:auto?'watch':'play',patternFactory:()=>pattern,onEvent:event});
     run=restored?snapshot.run:null;auto=restored?Boolean(snapshot.auto):auto;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&snapshot.assisted||auto);
     game.mode=auto?'watch':'play';paused=Boolean(restored&&game.status==='playing');paintVersion='';accumulator=0;
-    store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
+    store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('name').title=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
     prompt(restored?'resume':'ready');syncHUD();updateStatus();
   }catch(error){if(epoch===loadEpoch){$('prompt').classList.remove('loading');$('promptTitle').textContent='Your stage is safe.';$('promptText').textContent=error.message||'Please try again.';$('launch').textContent='Try again';$('watch').hidden=true;loading='failed';toast(error.message||'Could not open this stage.');}}
   finally{if(epoch===loadEpoch&&loading!=='failed'){loading=false;saveSession();}}
@@ -89,6 +98,10 @@ function draw(){
   if(!game){ctx.fillStyle='#191919';ctx.fillRect(0,0,W,H);return;}
   const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#191919';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color);paintVersion=version;}ctx.drawImage(background,0,0);
   const p=game.paddle;if(game.time<game.floorUntil){ctx.fillStyle='#ff8251';ctx.fillRect(0,H-11,W,4);}ctx.fillStyle='#ff8050';ctx.fillRect(p.x-p.w/2,p.y,p.w,7);ctx.fillStyle='#ff9b6c';ctx.fillRect(p.x-p.w/2,p.y,p.w,1);ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
+  if(game.shots.length){ctx.fillStyle='#d98aef';if(!reduced){ctx.shadowColor='#b754d9';ctx.shadowBlur=5;}for(const shot of game.shots)ctx.fillRect(shot.x-1.4,shot.y-9,2.8,15);ctx.shadowBlur=0;}
+  const shooting=game.status==='playing'&&game.time<game.shootUntil;
+  if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
+  if($('activeEffect').textContent!==(shooting?'Paddle shooter active':''))$('activeEffect').textContent=shooting?'Paddle shooter active':'';
   if(game.status==='ready'){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y-8,2.35,0,Math.PI*2);ctx.fill();const dx=game.pattern.entry.x-p.x,dy=game.pattern.entry.y+3-(p.y-8);for(let i=1;i<=11;i++){const t=i/11;ctx.fillStyle=`rgba(230,230,230,${.45*(1-t*.6)})`;ctx.beginPath();ctx.arc(p.x+dx*t,p.y-8+dy*t,1.15,0,Math.PI*2);ctx.fill();}}
   for(const drop of game.drops){const spec=boosts[drop.kind];if(!reduced){ctx.shadowColor=spec.color;ctx.shadowBlur=5;}ctx.fillStyle=spec.color;ctx.beginPath();ctx.arc(drop.x,drop.y,9,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText(spec.label,drop.x,drop.y+3);}
 }
@@ -112,7 +125,7 @@ $('settings').onclick=()=>{$('reduced').checked=reduced;$('haptics').checked=hap
 $('reduced').onchange=e=>{reduced=e.target.checked;persistOptions();};$('haptics').onchange=e=>{haptics=e.target.checked;persistOptions();};$('restart').onclick=()=>{closeDialog('menu');clearSession();run=null;void start(game?.level||store.value.selected);};
 $('patterns').onclick=() =>journey.show();$('journeyButton').onclick=()=>journey.show();$('accountButton').onclick=()=>account.show();$('openAccount').onclick=()=>{closeDialog('menu');account.show();};
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});$('install').onclick=async()=>{if(installPrompt){await installPrompt.prompt();installPrompt=null;}else $('installHelp').hidden=false;};$('install').hidden=native;$('nativeOffline').hidden=!native;
-$('share').onclick=async()=>{const data={title:'Brick Breaker',text:`Narrow channels. Huge swarms. Stage ${game?.level||1}.`,url:PUBLIC_URL};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(`${data.text} ${data.url}`);toast('LINK COPIED');}}catch(e){if(e.name!=='AbortError')toast('Share the game at speedinno.github.io/brick-breaker/.');}};
+$('share').onclick=async()=>{const data={title:'Brick Breaker',text:`Narrow channels. Huge swarms. Stage ${game?.level||1}.`,url:PUBLIC_URL};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(`${data.text} ${data.url}`);toast('LINK COPIED');}}catch(e){if(e.name!=='AbortError')toast('Game link: '+PUBLIC_URL);}};
 
 async function accountChanged(){
   const id=cloud.userId;if(id===accountIdentity&&!booting){account.render();return;}
