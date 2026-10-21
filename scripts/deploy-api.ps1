@@ -74,12 +74,15 @@ $origins = $configuredOrigins -join ','
 
 # Fail before provisioning if the supplied keys do not reach the project.
 # Values are passed only in headers and are never printed or written to receipts.
-$healthHeaders = @{ apikey = $settings.SUPABASE_SERVICE_ROLE_KEY; Authorization = "Bearer $($settings.SUPABASE_SERVICE_ROLE_KEY)" }
-$backend = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth/v1/admin/users?page=1&per_page=1') -Headers $healthHeaders -SkipHttpErrorCheck -TimeoutSec 20
+$healthHeaders = @{ apikey = $settings.SUPABASE_SERVICE_ROLE_KEY }
+if ($settings.SUPABASE_SERVICE_ROLE_KEY.StartsWith('eyJ')) { $healthHeaders.Authorization = "Bearer $($settings.SUPABASE_SERVICE_ROLE_KEY)" }
+# PowerShell's default browser-like User-Agent is rejected for sb_secret keys.
+$deploymentAgent = 'brick-breaker-deployment/1.0'
+$backend = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth/v1/admin/users?page=1&per_page=1') -Headers $healthHeaders -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
 if ($backend.StatusCode -ne 200) { throw 'Supabase server credential validation failed. Check the project URL and server secret/service-role key.' }
-$publicSettings = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth/v1/settings') -Headers @{ apikey = $settings.SUPABASE_ANON_KEY } -SkipHttpErrorCheck -TimeoutSec 20
+$publicSettings = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth/v1/settings') -Headers @{ apikey = $settings.SUPABASE_ANON_KEY } -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
 if ($publicSettings.StatusCode -ne 200) { throw 'Supabase public key validation failed.' }
-$schema = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/rest/v1/game_players?select=user_id,catalog_window,catalog_requests&limit=0') -Headers $healthHeaders -SkipHttpErrorCheck -TimeoutSec 20
+$schema = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/rest/v1/game_players?select=user_id,catalog_window,catalog_requests&limit=0') -Headers $healthHeaders -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
 if ($schema.StatusCode -ne 200) { throw 'Apply both Supabase migrations before deploying the API. Required player/quota columns were not accessible.' }
 
 foreach ($provider in @('Microsoft.App', 'Microsoft.ContainerRegistry', 'Microsoft.ManagedIdentity')) {

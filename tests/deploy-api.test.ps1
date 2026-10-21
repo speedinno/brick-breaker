@@ -36,8 +36,8 @@ function az {
     }
 }
 function Invoke-WebRequest {
-    param($Uri, $Headers, $Method, $ContentType, $Body, [switch]$SkipHttpErrorCheck, $TimeoutSec)
-    if ($Uri -like 'https://project.example.test/*') { return @{ StatusCode = 200 } }
+    param($Uri, $Headers, $Method, $ContentType, $Body, $UserAgent, [switch]$SkipHttpErrorCheck, $TimeoutSec)
+    if ($Uri -like 'https://project.example.test/*') { Assert ($UserAgent -eq 'brick-breaker-deployment/1.0') 'Secret-key checks must identify a server, not a browser.'; return @{ StatusCode = 200 } }
     if ($Method -eq 'Post') { return @{ StatusCode = 401 } }
     if ($Method -eq 'Options') { return @{ StatusCode = 204; Headers = @{ 'Access-Control-Allow-Origin' = $Headers.Origin } } }
     throw 'Unexpected HTTP operation in deployment test.'
