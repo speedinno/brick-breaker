@@ -5,9 +5,10 @@ const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY'
 const admin=createClient(url,service,{auth:{persistSession:false,autoRefreshToken:false}});
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
-async function ensureLevel(level:number){
+async function ensureLevel(level:number,authorize?:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
+  if(authorize)await authorize();
   const recent=await admin.from('game_catalog').select('canonical_layout').eq('version',3).order('level',{ascending:false}).limit(48);
   for(let nonce=0;nonce<32;nonce++){
     const definition=createDefinition(level,nonce);validateCatalogDefinition(definition);
@@ -46,7 +47,7 @@ Deno.serve(async request=>{
       if(!safeLevel(body.level))return reply({error:'Invalid stage'},400);
       const state=await rpc('game_state');
       if(body.level>Math.max(12,Number(state.highest_unlocked)))return reply({error:'Finish earlier stages to unlock this one'},403);
-      const stage=await ensureLevel(body.level);
+      const stage=await ensureLevel(body.level,()=>rpc('game_prepare_level',{p_level:body.level}));
       if(body.action==='level')return reply(stage);
       if(typeof body.requestId!=='string'||!/^[a-f\d-]{36}$/i.test(body.requestId))return reply({error:'Invalid attempt ID'},400);
       return reply(await rpc('game_start',{p_level:body.level,p_request_id:body.requestId}));

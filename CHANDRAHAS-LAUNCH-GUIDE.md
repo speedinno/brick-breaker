@@ -55,7 +55,7 @@ npm run build:web
 npx supabase functions deploy game-api --no-verify-jwt
 ```
 
-`db push` applies `supabase/migrations/202610210001_game.sql`. Read it first. Do not run it twice manually through SQL Editor or reset a production database. For future changes, add new migrations. The function has `verify_jwt=false` because it explicitly validates every request bearer token through `auth.getUser`; this supports current signing-key formats. **Do not remove that explicit check.**
+`db push` applies every committed migration, including `202610210001_game.sql` and the new-catalog generation budget in `202610210002_catalog_budget.sql`. Read it first. Do not run it twice manually through SQL Editor or reset a production database. For future changes, add new migrations. The function has `verify_jwt=false` because it explicitly validates every request bearer token through `auth.getUser`; this supports current signing-key formats. **Do not remove that explicit check.**
 
 Supabase supplies the function's `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` environment variables. The service-role key exists only server-side. It must never enter `dist/`, native assets, screenshots, GitHub variables, browser storage, or a public guide. No Azure Blob account is needed: these small level definitions and player records belong in Postgres.
 

@@ -11,6 +11,7 @@ async function publish(level){const d=createDefinition(level);return (await db.q
 before(async()=>{
  db=new PGlite();await db.exec(`create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;insert into auth.users values('${alice}'),('${bob}');`);
  await db.exec(await readFile(new URL('../supabase/migrations/202610210001_game.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/202610210002_catalog_budget.sql',import.meta.url),'utf8'));
  for(let n=1;n<=14;n++)await publish(n);
 });
 after(async()=>{await db?.close();});
@@ -54,4 +55,18 @@ test('deleting an auth identity cascades private history but keeps shared stages
  assert.equal((await db.query('select count(*) as n from public.game_completions where user_id=$1',[alice])).rows[0].n,0);
  assert.equal((await db.query('select count(*) as n from public.game_runs where user_id=$1',[alice])).rows[0].n,0);
  assert.equal((await db.query('select count(*) as n from public.game_catalog')).rows[0].n,14);
+});
+test('imported frontiers cannot request unlimited unpublished layouts or reset the quota',async()=>{
+ await asUser(bob,"select public.game_import_progress(array[1,2,3,4,5,6,7,8,9,10,11,12],9999,'[]')");
+ await assert.rejects(()=>asUser(bob,'select public.game_prepare_level(10000)'),/locked/);
+ for(let n=0;n<120;n++)await asUser(bob,'select public.game_prepare_level(9000)');
+ await assert.rejects(()=>asUser(bob,'select public.game_prepare_level(9001)'),/Too many new stages/);
+ // Existing shared designs remain available, and an importer cannot reset the
+ // budget through normal progress import or direct row updates.
+ await asUser(bob,'select public.game_prepare_level(13)');
+ await asUser(bob,"select public.game_import_progress(array[1,2,3,4,5,6,7,8,9,10,11,12],9999,'[]')");
+ await assert.rejects(()=>asUser(bob,'select public.game_prepare_level(9001)'),/Too many new stages/);
+ await assert.rejects(()=>asUser(bob,'update public.game_players set catalog_requests=0'),/permission denied/);
+ await db.query("update public.game_players set catalog_window=now()-interval '11 minutes' where user_id=$1",[bob]);
+ await asUser(bob,'select public.game_prepare_level(9001)');
 });
