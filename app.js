@@ -132,7 +132,7 @@ async function syncPending(){
     if(store.accountId===id){updateStatus();account.render();}
   })();syncTask={id,promise};try{await promise;}finally{if(syncTask?.promise===promise)syncTask=null;updateStatus();}
 }
-async function importGuest(){if(!cloud.signedIn)return;const state=await cloud.importGuest(new ProgressStore(storage).value);store.save(mergeProgress(store.value,cloudProgress(state)));account.render();updateStatus();journey.render();}
+async function importGuest(){if(!cloud.signedIn)return;const id=cloud.userId,state=await cloud.importGuest(new ProgressStore(storage).value);if(cloud.userId!==id||store.accountId!==id)return;store.save(mergeProgress(store.value,cloudProgress(state)));account.render();updateStatus();journey.render();}
 async function deleteAccount(){const id=cloud.userId;if(!id)return;await cloud.deleteAccount();new ProgressStore(storage,id).clear();clearSession(id);account.render();updateStatus();}
 window.addEventListener('online',()=>{if(cloud.signedIn)void syncPending().catch(()=>toast('Your device saves will upload when the connection returns.'));});
 window.addEventListener('storage',e=>{if(e.key===store.key){store.save(mergeProgress(store.value,store.read()));updateStatus();if($('gallery').open)journey.render();}});

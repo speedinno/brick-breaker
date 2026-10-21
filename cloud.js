@@ -24,7 +24,7 @@ export class CloudAccount {
   async signOut(){this.require();const {error}=await this.client.auth.signOut({scope:'local'});if(error)throw error;this.session=null;this.state=null;await this.onChange(this);}
   async api(action,body={}){
     this.require();if(!this.signedIn)throw Error('Sign in to use cloud saves.');
-    const {data,error}=await this.client.functions.invoke('game-api',{body:{action,...body}});
+    const {data,error}=await this.client.functions.invoke('game-api',{body:{action,accountId:this.userId,...body}});
     if(error){let message='Cloud saving is unavailable. Your device progress is safe.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;throw failure;}
     if(data?.error)throw Error(data.error);return data;
   }
