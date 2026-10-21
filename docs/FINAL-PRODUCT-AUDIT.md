@@ -56,3 +56,8 @@ The native legal links were still relative, which resolves to localhost/capacito
 Build 5’s XCTest compiled and launched the exact package, opened the stage map, scrolled to locked stage 13 and closed the requirement dialog. It then failed: tapping the stage map’s close button left the gallery open. The captured accessibility hierarchy confirms the gallery remained the modal and its close control lay partly above the native content viewport. This was not a green launch-only result.
 
 The app had both native contentInset=always and CSS safe-area padding, plus a negative sticky offset/margin on close buttons. iOS now uses contentInset=never so CSS owns safe areas. Dialog height subtracts safe insets; close controls stay inside with positive offsets and 44px targets; focus restoration prevents a scroll jump. Build number advances to 7. XCTest explicitly requires the scrolled close control to be hittable and the dialog to disappear after one tap. Final native verification remains pending until that repair passes.
+
+### Android disk-flush finding
+
+Build 7 passed native gameplay and legal links, but immediate force-stop exposed a WebView localStorage disk-flush race: 194 cleared bricks were visible before kill and only 100 after restart. Pure snapshot reconstruction preserved all 194, isolating persistence rather than geometry. Build 8 adds a restricted game-key native SharedPreferences bridge using synchronous commit, one-time legacy migration, authoritative native reads and deletion handling, with two regression tests. The native verifier requires the committed snapshot to equal the paused field before kill, then compares the cold-restored snapshot. No arbitrary delay was added to hide the race. Final verification remains pending.
+

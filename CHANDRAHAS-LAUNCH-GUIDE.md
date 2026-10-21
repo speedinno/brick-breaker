@@ -1,6 +1,6 @@
 # Brick Breaker — final product handoff for Chandrahas
 
-Prepared 21 October 2026. Code version 3.0.0, release candidate. This guide is the handoff requested by the product owner. **You own Supabase, support email, developer accounts, production signing and store submission.** No Supabase project was created for this game during development. No store submission, live email delivery, or physical-device certification is claimed.
+Prepared 21 October 2026. Code version 3.0.0, product/source handoff (native build 7). This guide is the handoff requested by the product owner. **You own Supabase, support email, developer accounts, production signing and store submission.** No Supabase project was created for this game during development. No store submission, live email delivery, or physical-device certification is claimed.
 
 ## Laptop quick start and remaining owner work
 
@@ -190,7 +190,7 @@ Review your retention policy first. Expiry is seven days; cleanup is not automat
 
 ## 8. Android production package
 
-Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 5. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
+Permanent application ID currently `com.speedinno.brickbreaker`; verify availability/ownership before the first store upload. Source version is 3.0.0, versionCode 7. Increase versionCode for each subsequent upload. Android min SDK 24, target/compile SDK 36; Java 21. CI builds a **debug-signed test APK** and **unsigned release AAB**. Neither is a signed production store release.
 
 1. Create/verify the appropriate organization Google Play Console account, ownership/contact details and payments profile. Use the company's account, not a temporary contractor identity.
 2. Enroll in Play App Signing. Create and securely back up the upload keystore/passwords in the team's secret manager. Never commit keystores. The debug APK uses a different signing key and is for testing only; users may need to uninstall it before installing a differently signed build, so first sync/export test progress if needed.
@@ -201,7 +201,7 @@ Permanent application ID currently `com.speedinno.brickbreaker`; verify availabi
 
 ## 9. iPhone production package
 
-Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 5; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
+Bundle ID currently `com.speedinno.brickbreaker`; verify/register it in the correct Apple Developer team. Source is 3.0.0 build 7; use a new build number per upload. Minimum iOS 15.4. Use a Mac and **Xcode 26+ with iOS 26 SDK or newer** for submission requirements current at this handoff.
 
 1. Enroll/verify the company's Apple Developer organization (including D-U-N-S and legal authority where applicable), accept required agreements and complete App Store Connect business/trader disclosures.
 2. `npm ci && npm run mobile:sync`; open `ios/App/App.xcodeproj`. Select App target, correct Team and bundle ID, configure signing/provisioning. Archive for a physical iOS device using Release, then Validate/Distribute through Xcode Organizer to App Store Connect.
@@ -228,7 +228,7 @@ Privacy URLs after Pages publication:
 - Account deletion: https://speedinno.github.io/brick-breaker/delete-account.html
 - Support URL: https://speedinno.github.io/brick-breaker/terms.html — its Support section uses the configured monitored mailbox. A dedicated company support page can replace this later. The repository's issues page can handle public bugs, not private account requests.
 
-For Data safety/App Privacy, optional email/user identifier and saved gameplay/history are collected when an account is used; they are linked to that account for app functionality. Assess IP/device/security logs with Supabase, hosting and SMTP providers. Do not select blanket "no data collected" for the cloud-enabled app. No ads, tracking, purchases or analytics SDKs are in this candidate. Reconcile the declarations whenever adding any SDK. Review the intended age audience, regional consent and child-directed obligations before enabling accounts for the selected audience; this code is not a parental consent platform.
+For Data safety/App Privacy, optional email/user identifier and saved gameplay/history are collected when an account is used; they are linked to that account for app functionality. Assess IP/device/security logs with Supabase, hosting and SMTP providers. Do not select blanket "no data collected" for the cloud-enabled app. No ads, tracking, purchases or analytics SDKs are in this handoff. Reconcile the declarations whenever adding any SDK. Review the intended age audience, regional consent and child-directed obligations before enabling accounts for the selected audience; this code is not a parental consent platform.
 
 Select distribution territories deliberately. "Worldwide" does not bypass regional game registration, licensing, consumer/privacy laws or EU trader requirements. Get an appropriate legal review for the publisher, audience, terms and launch regions. No document here guarantees legal/store compliance.
 
@@ -246,7 +246,7 @@ Before public store release record the final source SHA/tag, signed artifact has
 - [ ] Owner verification, fees, agreements and signing ownership are complete.
 - [ ] Store reviews approve the binaries; rollout is enabled by the owner.
 
-Do not describe the release candidate as globally launched before the final steps complete. GitHub builds are development deliverables. Launch with a staged rollout, watch crashes/auth failures/support reports, and pause rollout if completion saves or deletion fail.
+Do not describe the product handoff as globally launched before the final steps complete. GitHub builds are development deliverables. Launch with a staged rollout, watch crashes/auth failures/support reports, and pause rollout if completion saves or deletion fail.
 
 If another engineer/agent helps, give them this prompt: "Continue Brick Breaker from CHANDRAHAS-LAUNCH-GUIDE.md in SpeedInno-Org/Brick-Breaker. Supabase/store setup belongs to Chandrahas. Inspect current source and test evidence; preserve catalog version 3 and player progress. Never publish secrets. Complete the remaining checklist with owner-managed accounts and report verified evidence versus pending gates."
 
@@ -256,10 +256,16 @@ If another engineer/agent helps, give them this prompt: "Continue Brick Breaker 
 - [Apple review guidelines](https://developer.apple.com/app-store/review/guidelines/), [SDK requirements](https://developer.apple.com/news/upcoming-requirements/), [in-app deletion](https://developer.apple.com/support/offering-account-deletion-in-your-app/), [App Privacy](https://developer.apple.com/app-store/app-privacy-details/), [privacy manifests](https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk), [TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
 - [Google target SDK](https://developer.android.com/google/play/requirements/target-sdk), [16 KB page sizes](https://developer.android.com/guide/practices/page-sizes), [account deletion](https://support.google.com/googleplay/android-developer/answer/13327111?hl=en), [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-GB), [testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en-en), [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en-en), [reviewer access](https://support.google.com/googleplay/android-developer/answer/15748846?hl=en-en).
 
-## Candidate evidence
+## Final product evidence and downloads
 
-RC2 adds rangoli, kolam, rosette and starweave motifs, continuous grey outlines, occasional far-left/right narrow entries and directional launch hints. There are 39 automated checks. Application commit: cd54b50286a1087be69275e31f5d88f6f2704e46. Both native builds passed in https://github.com/speedinno/brick-breaker/actions/runs/39544090523 and both compiled native launch checks passed in https://github.com/speedinno/brick-breaker/actions/runs/39544368440 . See docs/RELEASE-RC2.md for exact evidence and limits; RC1 remains preserved separately. Android versionCode and iOS build number are 4.
+Version 3.0.0 includes 22 architecture families, simple solid-colour Perimeter/Gateway patterns, ornate rangoli shapes, occasional extreme-side narrow entries, gradual bounded difficulty, completion ticks and sequential unlocks. The earned pink/purple pickup gives separate piercing paddle shots for eight seconds. Existing saved layouts/progress remain stable.
 
-Candidate packages/source: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.2 . The Android APK is debug signed; AAB and iOS archive are unsigned. Store signing and real-device/cloud validation remain your responsibility.
+Application/native build source: `1903e9ce7ce80c81812ac4e3513cdbdb7fc4d445`. Both native builds passed: https://github.com/speedinno/brick-breaker/actions/runs/39565249698 . Source checks passed: https://github.com/speedinno/brick-breaker/actions/runs/39565249672 . There are 51 Node game/SQL/client tests and six Deno HTTP contract tests. All 38 runtime assets in APK, AAB, simulator app and device archive match the application source; iOS app/SDK privacy manifests are included. Android versionCode and iOS build number are 7.
 
-The native Android relaunch screenshot caught the stage-loading screen. CI verifies process restart/no native crash; it does not assert the field has finished restoring. Before rollout, cold-restart the signed app on physical Android/iPhone devices, wait until the field is ready, and compare remaining bricks, lives, effects and progress. See docs/RELEASE-RC2.md for this evidence boundary.
+Final compiled native verification: https://github.com/speedinno/brick-breaker/actions/runs/39565819769 . Consult docs/RELEASE-FINAL.md for the recorded result and evidence. Android tests real earned shooting, pause/resume and exact paused-snapshot restoration after process death. iPhone XCTest tests locked stages, closing the scrolled picker, real brick destruction, pause and cold damaged-field restoration. These emulator/simulator checks do not replace your signed physical-device beta or hosted SMTP/Auth checks.
+
+Packages, complete source, this guide and SHA-256 checksums: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0 . The Android APK is debug signed; the AAB and iOS archive are unsigned. The simulator ZIP is not an iPhone IPA. Prefer this final release over the historical RC1/RC2 files. The release tag identifies the exact source and documentation; later owner configuration must produce a new signed build and source tag.
+
+## What to send back to the product owner
+
+Record the production URL, Supabase project reference/region (no secret keys), support mailbox, successful hosted acceptance results, signed build numbers/hashes, internal-test/TestFlight links, and final Play/App Store links when approved. Record who owns signing recovery, billing, support and monitoring. If a launch gate fails, report that concrete gate and keep rollout paused until repaired. Never send passwords, OTPs, service-role keys, signing keys or reviewer credentials in a public GitHub issue.

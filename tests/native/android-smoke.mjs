@@ -58,6 +58,7 @@ try {
   }else{
   const initial = await evaluate(`({native:window.Capacitor.isNativePlatform(),title:document.title,remaining:Number(document.getElementById('remaining').textContent),promptHidden:document.getElementById('prompt').hidden,canvas:Array.from(document.getElementById('game').getContext('2d').getImageData(50,50,1,1).data),url:location.href})`);
   assert.equal(initial.native, true);
+  assert.equal(await evaluate(`Boolean(window.BrickBreakerStorage&&JSON.parse(window.BrickBreakerStorage.snapshot()).initialized)`),true,'Android game storage must use committed native persistence');
   assert.equal(initial.title, 'Brick Breaker');
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
@@ -90,6 +91,8 @@ try {
   await evaluate(`document.getElementById('pause').click();true`);
   const saved=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest'))`);
   assert(saved?.removed.length>0&&saved.balls.length>0,'Save real native gameplay before force stop');
+  const committed=await evaluate(`JSON.parse(JSON.parse(window.BrickBreakerStorage.snapshot()).values['brick-breaker-session-v3:guest'])`);
+  assert.deepEqual(committed,saved,'Native disk commit must match the paused field before force stop');
   await writeFile('native-evidence/android-saved-state.json',JSON.stringify(saved,null,2));
   assert.deepEqual(errors, [], 'No uncaught WebView JavaScript errors');
   await writeFile('native-evidence/android-checks.json', JSON.stringify({initial, legal, journey, playing, errors}, null, 2));

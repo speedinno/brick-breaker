@@ -4,7 +4,7 @@ Both native projects package the complete `dist/` game for local offline executi
 
 ## Current v3 evidence
 
-See [RELEASE-V3.md](RELEASE-V3.md) for final builds, launch checks and package audit. The v2 links below are explicitly historical.
+See [RELEASE-FINAL.md](RELEASE-FINAL.md) for final builds, launch checks and package audit. The v2 links below are explicitly historical.
 
 ## Android
 
@@ -44,12 +44,12 @@ CI produces an unsigned `.xcarchive` for later signing plus a Simulator `.app`. 
 
 The approved public source/build mirror is https://github.com/speedinno/brick-breaker. The primary organization repository remains private. Historical v2 evidence only: both native jobs passed in [build 39532447345](https://github.com/speedinno/brick-breaker/actions/runs/39532447345), using application source commit `8fe6bab067166c106c8fbe9e5d5b1f06f5843a52`. The iOS store icon is exported as RGB without an alpha channel, and CI checks that encoding before compilation.
 
-`.github/workflows/native-smoke.yml` accepts a successful build run ID and tests those exact artifacts, without rebuilding them. Android disables Wi-Fi and cellular data, launches the bundled WebView, checks native execution and painted bricks, starts AUTO, verifies brick destruction and pause/resume, and relaunches the process. iPhone Simulator launches and relaunches the compiled app and captures screenshots for visual inspection. This checks packaging and startup; it does not replace physical-device playtesting.
+`.github/workflows/native-smoke.yml` accepts a successful build run ID and tests those exact artifacts, without rebuilding them. Android disables Wi-Fi and cellular data, launches the bundled WebView, checks native execution and painted bricks, starts AUTO, verifies brick destruction and pause/resume, and relaunches the process. Android also requires an earned shooting effect and compares the exact paused snapshot after a cold process restart. iPhone XCTest drives the exact packaged simulator executable through stage locks, the scrolled picker close control, brick destruction, pause and cold damaged-field restoration. Screenshot attachments are exported. These checks do not replace physical-device playtesting.
 
 Historical v2 evidence only: Android and iPhone launch checks both passed in [run 39532730822](https://github.com/speedinno/brick-breaker/actions/runs/39532730822). Download the versioned packages and full source from [release 2.0.0](https://github.com/speedinno/brick-breaker/releases/tag/v2.0.0).
 
 Before store release, verify real-device input, app switching, sound, safe-area layout, Android Back, offline operation, large-swarm performance, and save restoration. No telemetry is collected to replace that testing.
 
-For the v3 production handoff, use [CHANDRAHAS-LAUNCH-GUIDE.md](../CHANDRAHAS-LAUNCH-GUIDE.md). It includes Supabase, support email, real-device beta, signing, privacy and store steps. Candidate CI artifacts remain unsigned/test-only. See the public Actions page for the latest v3 run.
+For the v3 production handoff, use [CHANDRAHAS-LAUNCH-GUIDE.md](../CHANDRAHAS-LAUNCH-GUIDE.md). It includes Supabase, support email, real-device beta, signing, privacy and store steps. CI artifacts remain unsigned/test-only. See the public Actions page for the latest v3 run.
 
-Current rangoli candidate: version 3.0.0, Android versionCode 4 and iOS build 4. See [RC2 evidence](RELEASE-RC2.md) and [candidate packages](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.2). RC1 and v2 are preserved as historical releases.
+Current handoff: version 3.0.0, Android versionCode 7 and iOS build 7. See [final evidence](RELEASE-FINAL.md) and [packages/source/guide](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0). RC1, RC2 and v2 are preserved as historical releases.
