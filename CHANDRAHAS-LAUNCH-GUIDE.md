@@ -37,6 +37,7 @@ Passing that script checks source/configuration, not store approval or live oper
 - Completing **all twelve** unlocks 13. Completing 13 unlocks 14, and so on. Replaying a completed stage does not unlock extra stages.
 - Future journey cards show a lock, with no pattern preview. Tapping one tells the player which stage(s) to finish and offers the required stage.
 - Generated layouts use graph construction, varied chambers, branches, loops and sixteen architecture families. They are not transformations of the starter twelve. A finite grid cannot honestly guarantee mathematically infinite different boards; describe this as an expanding, procedurally generated journey.
+- Every eight journey clears completes a chapter. The map shows chapter, challenge label and clears remaining. Ball speed, paddle control and layout complexity change gradually within safe bounds; early breakthrough boosts remain. Sixteen shuffled architecture styles include petals, crystals, arches, ribbons and mandalas. See dist/difficulty.js and docs/ARCHITECTURE.md for the curve. Existing cached guest boards stay stable; newly generated boards use the expanded recipes.
 - Guest progress is local. Optional accounts synchronize completed stages, selected stage and personal history. The exact in-progress field/swarm is a **device-local** snapshot, not cross-device live simulation.
 - Guest detailed history keeps starters plus the most recent 128 generated records. Completion ticks/frontier persist beyond that. Cloud history is paginated and retains per-stage summaries. There is no replay-by-replay event log.
 - Existing v2 selected-stage state is not treated as evidence of completion; the prior best score can migrate.
@@ -134,6 +135,8 @@ Do not delete a real player's account to test. Use explicit disposable test acco
 
 There is no competitive leaderboard, currency, purchase, prize, or server-authoritative replay verification. An account owner can forge their own client-reported progress/import. Hash checks, run IDs, score bounds and rate limits stop some mistakes/abuse, but are **not anti-cheat certification**. Add server replay validation before any competitive or monetary feature. Import is bounded to a frontier of 1,000,000 in this version; normal audited advancement uses safe integer levels. "Unlimited" is product shorthand for an expanding catalog, not infinite storage or a mathematical guarantee.
 
+Unpublished catalog generation is budgeted per account at 120 authorizations per ten minutes through the second migration. Importing progress does not reset this quota; existing shared stages remain available. This is an abuse limit, not a paid unlock or a change to normal progression.
+
 Monitor function failures/latency, auth send failures, database size and catalog prefetch failures. Never log tokens, email codes, passwords or full request bodies. Configure alerts and a support response process. Retain/expire infrastructure logs consistently with the final privacy notice. Record the selected region, subprocessors, email provider, backup retention and deletion policy. Review RLS after each migration.
 
 Schedule a daily owner-side cleanup (Supabase Cron or another controlled job) for old attempts:
@@ -214,6 +217,6 @@ If another engineer/agent helps, give them this prompt: "Continue Brick Breaker 
 
 ## Candidate evidence
 
-The creative-pattern and gradual-difficulty update is being revalidated. Final build and launch evidence is recorded in docs/RELEASE-V3.md. Cloud/store owner gates above remain unchanged.
+Application commit: fd824b5df628c24f877999d6a3a22fa307f82f1b. Both native builds passed: https://github.com/speedinno/brick-breaker/actions/runs/39542142668 . The compiled Android/iPhone launch checks also passed: https://github.com/speedinno/brick-breaker/actions/runs/39542592444 . There are 38 current automated tests including the subsequent backend-only generation-budget check. See docs/RELEASE-V3.md and docs/RED_TEAM.md for evidence and limits.
 
-Candidate downloads: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1.
+Candidate packages/source: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1 . The Android APK is debug signed; AAB and iOS archive are unsigned. Store signing and real-device/cloud validation remain your responsibility.
