@@ -42,3 +42,11 @@ CI runs game/database tests, generator parity and backend type checking, then cr
 Public native artifacts/releases: https://github.com/speedinno/brick-breaker/releases
 
 The original game code is MIT licensed; bundled dependency/font licenses apply to their files. Reference clips, third-party branding and watermarks are not bundled. Newly written behavior inspired by reviewed clips is not the original game's source or a claim of pixel-identical physics.
+
+## Candidate downloads and evidence
+
+[Version 3 candidate packages and source](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1) · [build/test evidence](docs/RELEASE-V3.md).
+
+Actual compiled Android app under offline emulator gameplay checks:
+
+<img src="docs/native/android-v3.png" width="270" alt="Version 3 Android native app running a dense brick field with hundreds of multiplying white balls">

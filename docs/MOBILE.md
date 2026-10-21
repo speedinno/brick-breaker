@@ -2,12 +2,17 @@
 
 Both native projects package the complete `dist/` game for local offline execution. They share the same game engine as the browser version.
 
+## Current v3 evidence
+
+See [RELEASE-V3.md](RELEASE-V3.md) for final builds, launch checks and package audit. The v2 links below are explicitly historical.
+
 ## Android
 
 Project: `android/`. Bundle ID: `com.speedinno.brickbreaker`. Minimum API 24; target/compile API 36. Java 21.
 
 ```sh
 npm ci
+npm run build:web
 npx cap sync android
 cd android
 chmod +x gradlew
@@ -24,6 +29,7 @@ Project: `ios/App/App.xcodeproj`. Bundle ID: `com.speedinno.brickbreaker`. Deplo
 
 ```sh
 npm ci
+npm run build:web
 npx cap sync ios
 npx cap open ios
 ```

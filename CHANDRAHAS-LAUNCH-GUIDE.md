@@ -182,7 +182,7 @@ Privacy URLs after Pages publication:
 
 - Privacy: https://speedinno.github.io/brick-breaker/privacy.html
 - Account deletion: https://speedinno.github.io/brick-breaker/delete-account.html
-- Support: use the actual monitored mailbox plus a stable support page/URL. The repository's issues page can handle public bugs, not private account requests.
+- Support URL: https://speedinno.github.io/brick-breaker/terms.html — its Support section uses the configured monitored mailbox. A dedicated company support page can replace this later. The repository's issues page can handle public bugs, not private account requests.
 
 For Data safety/App Privacy, optional email/user identifier and saved gameplay/history are collected when an account is used; they are linked to that account for app functionality. Assess IP/device/security logs with Supabase, hosting and SMTP providers. Do not select blanket "no data collected" for the cloud-enabled app. No ads, tracking, purchases or analytics SDKs are in this candidate. Reconcile the declarations whenever adding any SDK. Review the intended age audience, regional consent and child-directed obligations before enabling accounts for the selected audience; this code is not a parental consent platform.
 
@@ -211,3 +211,9 @@ If another engineer/agent helps, give them this prompt: "Continue Brick Breaker 
 - [Supabase CLI migrations](https://supabase.com/docs/guides/deployment/database-migrations), [email OTP](https://supabase.com/docs/guides/auth/auth-email-passwordless), [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Edge Functions](https://supabase.com/docs/guides/functions).
 - [Apple review guidelines](https://developer.apple.com/app-store/review/guidelines/), [SDK requirements](https://developer.apple.com/news/upcoming-requirements/), [in-app deletion](https://developer.apple.com/support/offering-account-deletion-in-your-app/), [App Privacy](https://developer.apple.com/app-store/app-privacy-details/), [privacy manifests](https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk), [TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
 - [Google target SDK](https://developer.android.com/google/play/requirements/target-sdk), [16 KB page sizes](https://developer.android.com/guide/practices/page-sizes), [account deletion](https://support.google.com/googleplay/android-developer/answer/13327111?hl=en), [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-GB), [testing requirements](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en-en), [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842756?hl=en-en), [reviewer access](https://support.google.com/googleplay/android-developer/answer/15748846?hl=en-en).
+
+## Candidate evidence
+
+Application commit: `838390c2a2fd358d89a6fba44ce7e102ae62c86a`. Both [native builds](https://github.com/speedinno/brick-breaker/actions/runs/39540301794) and [source/backend checks](https://github.com/speedinno/brick-breaker/actions/runs/39540301654) passed. The final package [native launch run](https://github.com/speedinno/brick-breaker/actions/runs/39540575697) passed on both platforms and contains the exact-artifact checks and screenshots. See `docs/RELEASE-V3.md` for evidence and limits. Bundled dependency license notices are included in web/native assets and linked from Terms.
+
+Candidate downloads: https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0-rc.1.
