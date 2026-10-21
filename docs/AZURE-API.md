@@ -21,7 +21,8 @@ guest import, cross-account SQL/RLS isolation, export, fresh-sign-in deletion,
 private-record cascades, and shared-catalog preservation. Both test accounts were
 removed. Completion statistics were synthetic API test input, not a claim of
 manual gameplay. SMTP/OTP delivery and signed physical-device builds were not
-tested in this deployment. Mobile public configuration is still to be bundled.
+tested in this deployment. The subsequent mobile build described below bundles
+the public configuration.
 
 The acceptance harness can be run explicitly after deployment. It creates two
 disposable accounts without sending email, deletes their private data, and keeps
@@ -131,6 +132,23 @@ before public production. Do not log bearer tokens, codes, keys, or request bodi
 
 ## Connect mobile builds
 
+The current Android/iOS assets contain the deployed Azure endpoint, public
+Supabase URL/key, and support contact. Both native build numbers are now **9**
+(version **3.0.0**). Android `assembleDebug` and `bundleRelease` succeeded locally
+with JDK 21, Android SDK 36, and Gradle 8.14.3. The debug APK signature was verified;
+the release AAB is unsigned and requires production signing before store upload.
+Both archives contain the current public config, and scans of the archives and
+native assets found none of the supplied server credentials. iOS assets were
+synced; an iOS archive still requires macOS/Xcode and signing.
+
+Local outputs (ignored by Git):
+
+- `android/app/build/outputs/apk/debug/app-debug.apk`: device testing.
+- `android/app/build/outputs/bundle/release/app-release.aab`: unsigned release bundle.
+
+All 62 Node tests, JavaScript/server parity checks, and production configuration
+preflight passed after these changes. Physical-device testing remains required.
+
 Set public client configuration using the deployed endpoint:
 
 ```powershell
@@ -155,6 +173,39 @@ support, terms, and account-deletion pages available for mobile store requiremen
 hosting an interactive web game is not required for the API deployment. Native
 export/deletion browser flows currently use the configured public game URL and
 must be reviewed separately if that browser game will be retired.
+
+## Configure email codes
+
+Add `SUPABASE_ACCESS_TOKEN`, `RESEND_API_KEY`, `AUTH_SENDER_EMAIL`,
+`SUPPORT_EMAIL`, and the owned `TEST_EMAIL` to the ignored `.env.api`.
+The access token is a Supabase account token with permission to update Auth
+configuration. These credentials must never be bundled into mobile assets.
+
+```powershell
+node --env-file=.env.api scripts/configure-email.mjs
+# After the sender domain is verified, explicitly request one test code:
+node --env-file=.env.api scripts/configure-email.mjs --send-test
+```
+
+The setup uses Resend SMTP over TLS, enables confirmed email signup, and installs
+code-only signup/login templates with an eight-digit code valid for ten minutes.
+It checks persisted settings, preserves unrelated Auth settings, and refuses to
+replace an active email hook. The test option refuses an unverified sender and
+sends only to `TEST_EMAIL`. A successful request alone does not prove delivery;
+check Resend delivery events and confirm the message arrives, then exercise
+sign-in and account operations on a device.
+
+SMTP configuration has been applied. At the latest DNS check on 21 October,
+`speedinno.com` had verified `send` MX/TXT records, but its DKIM TXT value differed
+from Resend's expected value and `rsend` CNAME was absent from both Google and
+Cloudflare DNS. Email delivery has not been tested. Correct those records using
+the current values from Resend (also saved locally in
+`.openai/local/resend-dns-records.txt`), keep CNAME proxying disabled, and retry
+domain verification. Do not change the root MX records for the support mailbox.
+
+References: [Resend SMTP](https://resend.com/docs/send-with-smtp),
+[Resend Cloudflare DNS setup](https://resend.com/docs/guides/dns/cloudflare),
+[Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
 ## Inspect and roll back
 

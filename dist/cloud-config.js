@@ -1,3 +1,2 @@
-// Public configuration only. Run scripts/configure-cloud.mjs and commit its
-// public output before rebuilding packages. Never put a secret key here.
-export default Object.freeze({publicGameUrl:'https://speedinno.github.io/brick-breaker/',supabaseUrl:'',publishableKey:'',supportEmail:'',publisherName:'SpeedInno',privacyDate:'2026-10-21'});
+// Public configuration only. Generated from deployment environment.
+export default Object.freeze({"publicGameUrl":"https://speedinno.github.io/brick-breaker/","apiUrl":"https://ca-brick-breaker-api.braverock-ed05a525.centralindia.azurecontainerapps.io","supabaseUrl":"https://aemdjnguquaosvhytagy.supabase.co","publishableKey":"sb_publishable_TuqbJNO0Z4NJ0SUZT6KLug_lux76xeu","supportEmail":"kunche.subhadramma@speedinno.com","publisherName":"SpeedInno","privacyDate":"2026-10-21"});
