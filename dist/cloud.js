@@ -3,9 +3,11 @@ import config from './cloud-config.js';
 const allowedUrl=url=>{try{const parsed=new URL(url);return parsed.protocol==='https:'&&parsed.pathname==='/'&&!parsed.username&&!parsed.password;}catch{return false;}};
 async function boundedFetch(input,init={}){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000),signal=init.signal;const abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});try{return await fetch(input,{...init,signal:controller.signal});}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}}
 export class CloudAccount {
-  constructor(onChange=()=>{},{settings=config,clientFactory=createClient}={}){
+  constructor(onChange=()=>{},{settings=config,clientFactory=createClient,storage}={}){
     this.configured=allowedUrl(settings.supabaseUrl)&&typeof settings.publishableKey==='string'&&settings.publishableKey.length>20;
-    this.client=this.configured?clientFactory(settings.supabaseUrl,settings.publishableKey,{global:{fetch:boundedFetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'brick-breaker-auth-v3'}}):null;
+    // Use the same adapter as game saves: Android startup reconciles WebView
+    // storage with native storage, including this authentication namespace.
+    this.client=this.configured?clientFactory(settings.supabaseUrl,settings.publishableKey,{global:{fetch:boundedFetch},auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'brick-breaker-auth-v3',...(storage?{storage}:{})}}):null;
     this.session=null;this.onChange=onChange;this.state=null;this.unsubscribe=null;
   }
   get signedIn(){return Boolean(this.session?.user);}

@@ -1,17 +1,16 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.118.0';
 import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHash,structuralDistance} from '../_shared/catalog.js';
 import {readLimitedJson,RequestError} from '../_shared/request.js';
-declare const EdgeRuntime: {waitUntil(task:Promise<unknown>):void};
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const businessErrors=new Set(['Authentication required','Stage is locked','Run ID already used','Too many attempts. Try again later.','Stage is not ready','This offline attempt expired. Replay the stage to save it online.','Stage version differs. Reconnect and replay this stage.','Attempt is too short','Invalid completion statistics','Invalid stage score','Invalid guest progress','Complete all starter stages first','Invalid history','Too many new stages. Try again later.']);
-async function ensureLevel(level:number,authorize?:()=>Promise<unknown>){
+async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
-  if(authorize)await authorize();
+  await authorize();
   const recent=await admin.from('game_catalog').select('canonical_layout').eq('version',3).order('level',{ascending:false}).limit(48);
   for(let nonce=0;nonce<32;nonce++){
     const definition=createDefinition(level,nonce);validateCatalogDefinition(definition);
@@ -55,9 +54,10 @@ Deno.serve(async request=>{
     }
     if(body.action==='complete'){
       if(typeof body.runId!=='string'||!/^[a-f\d-]{36}$/i.test(body.runId)||typeof body.hash!=='string'||!/^[a-f\d]{64}$/.test(body.hash))return reply({error:'Invalid attempt'},400);
-      const state=await rpc('game_complete',{p_run_id:body.runId,p_hash:body.hash,p_score:body.score,p_seconds:body.seconds,p_peak:body.peak,p_mode:body.mode});
-      if(state.highest_unlocked>=13){const work=(async()=>{await ensureLevel(Number(state.highest_unlocked));await ensureLevel(Number(state.highest_unlocked)+1);})().catch(()=>console.warn('catalog_prefetch_failed'));if(typeof EdgeRuntime!=='undefined')EdgeRuntime.waitUntil(work);else await work;}
-      return reply(state);
+      // Generate stages only on level/start requests, where the account's
+      // generation budget is checked. Completion retries must never publish
+      // an imported frontier or its locked successor in the background.
+      return reply(await rpc('game_complete',{p_run_id:body.runId,p_hash:body.hash,p_score:body.score,p_seconds:body.seconds,p_peak:body.peak,p_mode:body.mode}));
     }
     if(body.action==='import')return reply(await rpc('game_import_progress',{p_starters:body.starters,p_journey_next:body.journeyNext,p_records:body.records}));
     if(body.action==='history'||body.action==='export'){

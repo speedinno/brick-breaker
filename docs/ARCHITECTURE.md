@@ -16,7 +16,7 @@ session.js restores a validated device-local field, lives, bounded swarm and eff
 
 cloud.js uses email OTP, plus ordinary password login for provisioned reviewer accounts. SDK bearer sessions stay on the device. Public project configuration is disabled until Chandrahas supplies it. No service credential enters a client bundle.
 
-game-api validates every bearer token with Auth and checks unlock authorization before generation. Postgres unique version/level, unique canonical hash and per-level advisory lock choose one concurrent winner. Published definitions do not change. Completion prefetches the newly opened stage and one following stage; locked users cannot download it.
+game-api validates every bearer token with Auth and checks unlock authorization before generation. Postgres unique version/level, unique canonical hash and per-level advisory lock choose one concurrent winner. Published definitions do not change. Unpublished stages are generated on demand by level/start requests after checking the account's generation budget. Completion and its retries do not generate stages; locked users cannot download them.
 
 Private tables use Auth foreign keys with deletion cascade and RLS. Clients read only their records/unlocked catalog and cannot write tables directly. Restricted SQL functions handle transactional advancement, UUID run idempotency, exact score/statistic bounds and expiry. Guest/offline imports are private client-reported progress, not verified competitive results.
 
@@ -38,7 +38,7 @@ Every eight journey clears opens another chapter. difficulty.js uses smooth boun
 
 Revisions 2, 3 and 4 were added before owner-managed cloud provisioning. Existing cached guest definitions are retained rather than overwritten. Their completed ticks remain; newly generated stages use the new recipes. Do not change the generator after the real shared production catalog is populated. Later changes require a version/migration plan.
 
-Unpublished layout generation has an atomic per-account budget of 120 authorizations per ten minutes, enforced by game_prepare_level before expensive work. Importing a high personal frontier cannot reset that budget. Existing shared stages remain downloadable. Background prefetch is bounded by the audited completion/start path. This reduces one-account resource abuse; deployment quotas, signup/SMTP limits, budgets and monitoring are still operator duties.
+Unpublished layout generation has an atomic per-account budget of 120 authorizations per ten minutes, enforced by game_prepare_level before expensive work. Importing a high personal frontier cannot reset that budget. Existing shared stages remain downloadable. Completion-time server prefetch is disabled so completion replays cannot bypass this quota. This reduces one-account resource abuse; deployment quotas, signup/SMTP limits, budgets and monitoring are still operator duties.
 
 Revision 3 adds four rangoli-inspired families, radial colour bands and occasional two-cell-wide mouths at column 3 or 49. Artistic contours use designed paths without random graph chords; an L-shaped approach joins their bottom contour without cutting across the motif. Connectivity repair uses breakable gates. Renderers fill wall cells edge to edge for a continuous solid grey outline. Directional launch hints identify extreme entries. The 22-style bag is independent of the eight-stage chapter cadence. Existing cached/shared definitions are authoritative and never overwritten.
 

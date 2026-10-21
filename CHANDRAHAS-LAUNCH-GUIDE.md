@@ -172,7 +172,7 @@ Do not delete a real player's account to test. Use explicit disposable test acco
 
 ## 7. Catalog, operations and security boundaries
 
-`game_catalog` stores a versioned definition once per stage. Generation validates reachability and density; the canonical SHA-256 detects exact repeats including all rotations/reflections. Recent 48 layouts also receive a structural-distance check. A transaction/advisory lock and unique hash resolve concurrent publication. Completion prefetches the unlocked stage and one following stage server-side; locked users still cannot fetch it. No player email/ID is embedded in shared definitions.
+`game_catalog` stores a versioned definition once per stage. Generation validates reachability and density; the canonical SHA-256 detects exact repeats including all rotations/reflections. Recent 48 layouts also receive a structural-distance check. A transaction/advisory lock and unique hash resolve concurrent publication. New stages are generated on demand through budgeted level/start requests. Completion and its retries do not generate stages; locked users still cannot fetch them. No player email/ID is embedded in shared definitions.
 
 **Freeze generator version 3 after publishing its first real levels.** Existing definitions are immutable. If rules/layout encoding change, design a new catalog version and progress/cache migration. Never regenerate existing stage numbers or truncate the production catalog. Keep the bundled client/server generator in parity with `npm run build:web` and `npm run check`.
 
@@ -180,7 +180,7 @@ There is no competitive leaderboard, currency, purchase, prize, or server-author
 
 Unpublished catalog generation is budgeted per account at 120 authorizations per ten minutes through the second migration. Importing progress does not reset this quota; existing shared stages remain available. This is an abuse limit, not a paid unlock or a change to normal progression.
 
-Monitor function failures/latency, auth send failures, database size and catalog prefetch failures. Never log tokens, email codes, passwords or full request bodies. Configure alerts and a support response process. Retain/expire infrastructure logs consistently with the final privacy notice. Record the selected region, subprocessors, email provider, backup retention and deletion policy. Review RLS after each migration.
+Monitor function failures/latency, auth send failures, database size and catalog generation failures. Never log tokens, email codes, passwords or full request bodies. Configure alerts and a support response process. Retain/expire infrastructure logs consistently with the final privacy notice. Record the selected region, subprocessors, email provider, backup retention and deletion policy. Review RLS after each migration.
 
 Schedule a daily owner-side cleanup (Supabase Cron or another controlled job) for old attempts:
 

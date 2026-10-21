@@ -21,7 +21,7 @@ let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(pref
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastTime=0,accumulator=0,lastSnapshot=0,drag=false,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1;
 const keys=new Set(),focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
 const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'},laser:{color:'#ce79e7',label:'↑'}};
-const cloud=new CloudAccount(accountChanged);
+const cloud=new CloudAccount(accountChanged,{storage});
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
