@@ -148,8 +148,13 @@ jobs:
           print('UI verification uses the exact packaged game executable')
           PY
           xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification -parallel-testing-enabled NO -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building > native-evidence/ios-gameplay.log 2>&1
-          xcrun xcresulttool export attachments --path native-evidence/iOS-gameplay.xcresult --output-path native-evidence/ios-ui-attachments
-          xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png
+      - name: Capture UI attachments, including failed checks
+        if: always()
+        run: |
+          if [ -d native-evidence/iOS-gameplay.xcresult ]; then
+            xcrun xcresulttool export attachments --path native-evidence/iOS-gameplay.xcresult --output-path native-evidence/ios-ui-attachments
+          fi
+          xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png || true
       - name: Shut down simulator services
         if: always()
         timeout-minutes: 2

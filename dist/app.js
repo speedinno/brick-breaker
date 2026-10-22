@@ -1,5 +1,5 @@
 import config from './cloud-config.js';
-import {fitViewport,worldX} from './viewport.js';
+import {fitViewport,worldX,dialogViewport} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
@@ -19,9 +19,12 @@ document.documentElement.classList.toggle('native-app',native);
 // WKWebView can keep its layout viewport while the software keyboard covers it.
 // Move dialogs above that occlusion; never resize or discard the saved game.
 function updateKeyboardInset(){
-  const visual=window.visualViewport,editing=document.activeElement?.matches('input,textarea');
-  const inset=editing&&visual&&visual.scale<=1.01?Math.max(0,innerHeight-visual.height-visual.offsetTop):0;
-  document.documentElement.style.setProperty('--keyboard-inset',inset+'px');
+  const box=dialogViewport(innerHeight,window.visualViewport,document.activeElement?.matches('input,textarea'));
+  const style=document.documentElement.style;
+  style.setProperty('--keyboard-inset',(box?.bottom||0)+'px');
+  style.setProperty('--visual-top',(box?.top||0)+'px');
+  if(box)style.setProperty('--dialog-viewport-height',box.height+'px');
+  else style.removeProperty('--dialog-viewport-height');
 }
 window.visualViewport?.addEventListener('resize',updateKeyboardInset);
 window.visualViewport?.addEventListener('scroll',updateKeyboardInset);

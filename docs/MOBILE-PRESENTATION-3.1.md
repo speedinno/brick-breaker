@@ -1,4 +1,4 @@
-# Full-screen mobile presentation — 3.1.0 (build 14)
+# Full-screen mobile presentation — 3.1.0 (build 15)
 
 Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation and native window behavior; the existing Azure/Supabase configuration and gameplay progress formats are retained.
 
@@ -12,6 +12,7 @@ Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation a
 - Continuous graphite rails frame the full arena down past the paddle, following the owner's additional X video reference (`alpraezolam/status/2112904084034658366`). These are visual rails, not new collision obstacles.
 - New charcoal/peach interface, bundled typography, consistent icons, large primary action, distinct completion treatment, rounded panels, 44–48 px touch controls, heart lives, large ball/brick counters and an accessible clearance meter.
 - Account/history, settings and stage selection use the same visual treatment. Share remains available in Settings.
+- Account dialogs follow the visual viewport when the keyboard opens; their close control remains accessible. Canvas drawing and viewport sizing retain fallbacks for older supported iPhones.
 
 ## Build and install
 
@@ -34,4 +35,15 @@ The Node suite includes camera geometry and touch mapping at compact phone, tall
 
 Before a store upload, Chandrahas should also check the signed build on physical phones: a compact Android, a tall Android with camera cutout, gesture and three-button navigation, and an iPhone with a notch/Dynamic Island. Check launch, manual dragging to both edges, pause/resume, system-bar reveal, app switching, stage-picker scrolling/close, email keyboard and code entry, safe areas and saved progress after relaunch. No verification of these physical devices is implied by simulator results.
 
-Build/test results for this iteration will be recorded below after CI completes.
+## Handoff to Chandrahas
+
+1. Review [the mobile presentation PR](https://github.com/SpeedInno-Org/Brick-Breaker/pull/1) against `dev`. The primary private repository and the approved public build mirror contain the same feature branch. Neither `dev` nor `main` was moved by this update.
+2. Install the test APK on a separate test device, or update with the existing signing key. Follow the progress-preservation guidance above. Compare the result with the native screenshots, including a phone with the same screen proportions as the owner's device.
+3. Complete the physical-device acceptance list above using the owner's signed builds. Pay particular attention to cutouts, keyboard dismissal, app switching and both Android navigation modes. Android may show a one-time system tutorial when entering full screen; dismiss it normally. CI pre-acknowledges only this tutorial on its disposable emulator so it does not obscure screenshots.
+4. Confirm the existing owner-managed cloud login and save service in the intended release environment. This change preserves the populated configuration from `dev`; it does not replace the backend, reset progress or provision new accounts.
+5. Merge into `dev` after review and acceptance, then use the established release process. Sign the Android AAB with the team's release/upload key and the iOS archive with the team's Apple identity. Distribute through Play internal testing and TestFlight before the production rollout.
+6. Continue with [the complete launch guide](../CHANDRAHAS-LAUNCH-GUIDE.md) for store accounts, metadata, support email, privacy disclosures and production operations. A native preview passing automated tests is not a store approval or evidence of physical-device testing.
+
+## Recorded verification
+
+Final results will be recorded here after the native checks finish.

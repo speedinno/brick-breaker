@@ -11,3 +11,12 @@ export function fitViewport(width, height, pixelRatio = 1) {
 export function worldX(clientX, left, viewport) {
   return Math.max(0, Math.min(416, (clientX - left - viewport.x) / viewport.scale));
 }
+
+// A keyboard may pan as well as shrink the visual viewport in WKWebView.
+// Both edges must follow it; subtracting only the keyboard leaves the top hidden.
+export function dialogViewport(layoutHeight, visual, editing) {
+  if (!editing || !visual || visual.scale > 1.01 || !(visual.height > 0)) return null;
+  const height = Math.min(layoutHeight, visual.height);
+  const top = Math.max(0, Math.min(layoutHeight - height, visual.offsetTop || 0));
+  return {top, height, bottom: Math.max(0, layoutHeight - top - height)};
+}
