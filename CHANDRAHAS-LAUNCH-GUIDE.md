@@ -1,6 +1,6 @@
 # Brick Breaker — final product handoff for Chandrahas
 
-**Mobile presentation update:** See [3.1.0 full-screen mobile handoff](docs/MOBILE-PRESENTATION-3.1.md) for build 12, installation precautions and device acceptance. The dated 3.0.0 evidence below is historical; use the current dev/Azure setup for account configuration.
+**Mobile presentation update:** See [3.1.0 full-screen mobile handoff](docs/MOBILE-PRESENTATION-3.1.md) for build 13, installation precautions and device acceptance. The dated 3.0.0 evidence below is historical; use the current dev/Azure setup for account configuration.
 
 Prepared 21 October 2026. Code version 3.0.0, product/source handoff (native build 8). This guide is the handoff requested by the product owner. **You own Supabase, support email, developer accounts, production signing and store submission.** No Supabase project was created for this game during development. No store submission, live email delivery, or physical-device certification is claimed.
 

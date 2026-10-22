@@ -9,6 +9,7 @@ adb shell svc data disable
 adb logcat -c
 adb shell am start -W -n com.speedinno.brickbreaker/.MainActivity
 sleep 8
+python3 tests/native/dismiss-immersive-notice.py
 APP_PID=$(adb shell pidof com.speedinno.brickbreaker | tr -d '\r')
 test -n "$APP_PID"
 adb forward tcp:9222 "localabstract:webview_devtools_remote_$APP_PID"
