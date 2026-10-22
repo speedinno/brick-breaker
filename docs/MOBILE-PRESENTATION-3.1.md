@@ -1,4 +1,4 @@
-# Full-screen mobile presentation — 3.1.0 (build 10)
+# Full-screen mobile presentation — 3.1.0 (build 11)
 
 Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation and native window behavior; the existing Azure/Supabase configuration and gameplay progress formats are retained.
 
