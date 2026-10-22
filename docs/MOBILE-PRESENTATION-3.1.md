@@ -1,4 +1,4 @@
-# Full-screen mobile presentation — 3.1.0 (build 11)
+# Full-screen mobile presentation — 3.1.0 (build 12)
 
 Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation and native window behavior; the existing Azure/Supabase configuration and gameplay progress formats are retained.
 
@@ -9,6 +9,7 @@ Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation a
 - Safe areas have one owner: CSS uses Capacitor's Android inset variables, with iOS/browser `env()` fallback. Controls stay outside the notch and gesture area.
 - A uniform camera fits the entire physics world. Square tiles stay square, balls stay circular, and touch coordinates are transformed back into the original world. Compact screens may have narrow internal side gutters to preserve geometry; the app itself still fills the display.
 - Canvas and its cached background render at device pixel ratio (capped at 3 for memory). Resizing does not reset gameplay or change saved ball positions.
+- Continuous graphite rails frame the full arena down past the paddle, following the owner's additional X video reference (`alpraezolam/status/2112904084034658366`). These are visual rails, not new collision obstacles.
 - New charcoal/peach interface, bundled typography, consistent icons, large primary action, distinct completion treatment, rounded panels, 44–48 px touch controls, heart lives, large ball/brick counters and an accessible clearance meter.
 - Account/history, settings and stage selection use the same visual treatment. Share remains available in Settings.
 
