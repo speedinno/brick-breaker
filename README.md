@@ -8,7 +8,7 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Launch handoff:** [CHANDRAHAS-LAUNCH-GUIDE.md](CHANDRAHAS-LAUNCH-GUIDE.md). Supabase provisioning, monitored support email, production signing, real-device beta and store submission remain owner-managed launch gates. This is the version 3.0.0 source/product handoff. Store publication follows owner setup and signed beta acceptance. Cloud is deliberately disabled until real project configuration is supplied; guest play works now.
+**Current mobile handoff:** [3.1.0 full-screen presentation](docs/MOBILE-PRESENTATION-3.1.md). This branch preserves Chandrahas's populated Azure/Supabase configuration from `dev`. Real email/cloud acceptance, monitored support email, production signing, physical-device beta and store submission remain owner-managed release gates. The [complete launch guide](CHANDRAHAS-LAUNCH-GUIDE.md) also contains explicitly dated 3.0.0 setup history; verify existing services before provisioning replacements.
 
 **Mobile API on Azure:** [Azure CLI deployment](docs/AZURE-API.md) prepares a dedicated API in SpeedInno Org Subscription, with Supabase Auth/Postgres and Resend SMTP. It uses ACR cloud builds without GitHub Actions or publishing a web game. Credentials and hosted acceptance are required before live use.
 
@@ -47,7 +47,9 @@ The original game code is MIT licensed; bundled dependency/font licenses apply t
 
 ## Product downloads and evidence
 
-[Version 3.0.0 packages, source and handoff guide](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0) · [final build/test evidence](docs/RELEASE-FINAL.md). Historical RC1/RC2 releases remain preserved.
+[Version 3.1 mobile presentation and verification](docs/MOBILE-PRESENTATION-3.1.md) includes full-screen native windows, safe areas, continuous arena borders, sharper patterns and keyboard-aware account panels. Downloads are on the [public releases page](https://github.com/speedinno/brick-breaker/releases).
+
+Historical: [version 3.0.0 packages and guide](https://github.com/speedinno/brick-breaker/releases/tag/v3.0.0) · [3.0.0 build/test evidence](docs/RELEASE-FINAL.md). Historical RC1/RC2 releases remain preserved. The screenshot below documents that earlier release; current native screenshots are linked in the 3.1 handoff.
 
 Actual compiled Android app under offline emulator gameplay checks:
 

@@ -39,6 +39,8 @@ final class NativeSmoke: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [reachable], timeout: 5), .completed, "Account close must remain accessible above the keyboard")
         XCTAssertTrue(game.frame.contains(closeAccount.frame))
         button("Close account").tap()
+        let accountClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: closeAccount)
+        XCTAssertEqual(XCTWaiter.wait(for: [accountClosed], timeout: 5), .completed, "One tap must close the account panel while the keyboard is open")
         button("Open stage journey").tap()
         let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
         XCTAssertTrue(locked.waitForExistence(timeout: 10)); locked.tap()
