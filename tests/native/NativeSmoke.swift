@@ -16,11 +16,18 @@ final class NativeSmoke: XCTestCase {
         let attachment = XCTAttachment(screenshot: game.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    func enterFromHome() {
+        let play = button("Play or continue stage")
+        XCTAssertTrue(play.waitForExistence(timeout: 30), "Cold launch must show the home menu")
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: play)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 60), .completed)
+        shot("iPhone-home"); play.tap()
+        if button("Close help").waitForExistence(timeout: 2) { shot("iPhone-how-to-play"); button("Close help").tap() }
+    }
     func testPackagedGamePlayAndColdResume() {
         continueAfterFailure = false
-        game.launch(); waitForField(); shot("iPhone-ready")
-        XCTAssertFalse(game.statusBars.firstMatch.exists, "Game should use the immersive iPhone presentation")
-        for label in ["Settings", "Pause", "Open stage journey", "Account and cloud saves", "Playback speed"] {
+        game.launch(); enterFromHome(); waitForField(); shot("iPhone-ready")
+        for label in ["Home", "How to play", "Pause", "Open stage journey", "Account and cloud saves", "Playback speed"] {
             let control = button(label)
             XCTAssertTrue(control.isHittable, "\(label) must be reachable within the safe area")
             XCTAssertGreaterThanOrEqual(control.frame.width, 43.5)
@@ -51,13 +58,13 @@ final class NativeSmoke: XCTestCase {
         closeStages.tap()
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: closeStages)
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed, "One tap must close the scrolled stage picker")
-        let watch = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Watch it unfold")).firstMatch
+        let watch = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Auto play")).firstMatch
         XCTAssertTrue(watch.waitForExistence(timeout: 10)); watch.tap()
         let destroyed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 && self.remaining() < initial }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [destroyed], timeout: 45), .completed, "Native physics must break real bricks")
         button("Pause").tap(); let saved = remaining(); XCTAssertGreaterThan(saved, 0); XCTAssertLessThan(saved, initial)
         shot("iPhone-paused-gameplay")
-        game.terminate(); game.launch(); waitForField()
+        game.terminate(); game.launch(); enterFromHome(); waitForField()
         XCTAssertEqual(remaining(), saved, "Cold restart must restore the damaged field")
         let resume = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continue")).firstMatch
         XCTAssertTrue(resume.waitForExistence(timeout: 15)); shot("iPhone-restored-field"); resume.tap()

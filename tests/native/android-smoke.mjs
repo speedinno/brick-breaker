@@ -43,6 +43,10 @@ try {
     if(!ready)await wait(1000);
   }
   assert(ready,'Native field must finish loading, including after a cold restart');
+  assert.equal(await evaluate(`document.getElementById('home').hidden`),false,'Every cold launch opens the home menu');
+  await evaluate(`document.getElementById('homePlay').click();if(document.getElementById('help').open)document.getElementById('helpDone').click();true`);
+  assert.equal(await evaluate(`document.getElementById('home').hidden`),true,'Play enters the preserved stage');
+  assert.equal(await evaluate(`document.getElementById('saveStatus').tagName`),'SPAN','Autosaving is a status, not a Save button');
   const layout=await evaluate(`(()=>{const app=document.querySelector('.app'),board=document.getElementById('game'),rect=app.getBoundingClientRect(),footer=document.querySelector('footer').getBoundingClientRect();return {width:innerWidth,height:innerHeight,app:rect.toJSON(),footer:footer.toJSON(),scrollHeight:document.documentElement.scrollHeight,canvas:{width:board.width,height:board.height,css:board.getBoundingClientRect().toJSON()},controls:[...document.querySelectorAll('header button,.journey-strip button,.play-tools button')].map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))};})()`);
   assert(Math.abs(layout.app.width-layout.width)<2&&Math.abs(layout.app.height-layout.height)<2,'Native app must fill its entire viewport');
   assert(layout.app.y===0&&layout.app.x===0,'No centered webpage margins in the native app');

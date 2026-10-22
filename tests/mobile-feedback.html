@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8"><title>Mobile feedback acceptance</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap;max-width:680px}#result{font-size:18px}</style>
+<h1>Mobile feedback acceptance</h1><p>Disposable localhost test. No email or cloud writes.</p><pre id="result">Running…</pre><iframe title="Test game" src="/"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'),output=document.querySelector('#result'),checks=[];
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const assert=(value,message)=>{if(!value)throw Error(message);};
+async function until(predicate,message){for(let i=0;i<300;i++){if(predicate())return;await wait(50);}throw Error(message);}
+const doc=()=>frame.contentDocument,$=id=>doc().getElementById(id),saved=()=>JSON.parse(frame.contentWindow.localStorage.getItem('brick-breaker-session-v3:guest'));
+const keys=['brick-breaker-v3:guest','brick-breaker-session-v3:guest','brick-breaker-help-seen-v1'];let original;
+const reloadFrame=async(url='/')=>{const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src=url;await loaded;};
+function record(message){checks.push(message);output.textContent='Running…\n'+checks.join('\n');}
+try{
+  await until(()=>$('homePlay')&&!$('homePlay').disabled,'Home did not become ready');
+  original=keys.map(key=>[key,localStorage.getItem(key)]);
+  await reloadFrame('about:blank');
+  for(const key of keys)localStorage.removeItem(key);
+  await reloadFrame();await until(()=>$('homePlay')&&!$('homePlay').disabled,'Fresh home did not become ready');
+  await until(()=>$('splash').hidden,'Splash did not dismiss');
+  assert(!$('home').hidden&&$('gameScreen').inert,'Cold launch must show Home with gameplay inert');
+  assert($('homePlay').textContent.startsWith('Play'),'Fresh guest sees Play, not Continue');
+  assert($('saveStatus').tagName==='SPAN','Save status must not be a save action');record('Home, splash and automatic-save status');
+  const first=saved();doc().dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown',{key:' '}));await wait(100);
+  assert(saved().time===first.time,'Home must not launch gameplay from a keyboard shortcut');
+  $('homePlay').click();await until(()=>$('help').open,'First Play must show instructions');
+  const head=$('help').querySelector('.dialog-header'),body=$('help').querySelector('.dialog-body');
+  assert(head.getBoundingClientRect().bottom<=body.getBoundingClientRect().top+1,'Panel close/header must not overlap help content');
+  const top=head.getBoundingClientRect().top;body.scrollTop=body.scrollHeight;await wait(100);
+  assert(Math.abs(head.getBoundingClientRect().top-top)<1,'Close header must stay in place while help scrolls');
+  $('helpDone').click();assert(!$('help').open&&$('home').hidden&&!$('gameScreen').inert,'Help returns to gameplay');record('First-play instructions and independent scrolling header');
+  const board=$('game').getBoundingClientRect();assert(board.left>=8&&board.right<=frame.clientWidth-8,'Playfield must be inset from phone edges');
+  $('launch').click();await until(()=>$('prompt').hidden,'Launch did not start the stage');
+  await until(()=>saved()?.status==='playing'&&saved().time>.5,'Playing field was not autosaved without opening Account');
+  assert($('saveStatus').textContent==='Auto-saved','Automatic saving status must be clear');record('Automatic field checkpoint without tapping Account');
+  $('goHome').click();const before=saved();assert(!$('home').hidden,'Home navigation must work');
+  await reloadFrame();
+  await until(()=>$('homePlay')&&!$('homePlay').disabled,'Restart did not restore Home');await until(()=>$('splash').hidden,'Restart splash did not dismiss');
+  const after=saved();for(const key of ['level','removed','balls','drops','lives','time','stageTime','score','floorUntil','wideUntil','fireUntil','shootUntil','nextShot','shots','multiplierReadyAt'])assert(JSON.stringify(after[key])===JSON.stringify(before[key]),'Restart changed '+key);
+  assert(!$('home').hidden&&$('homePlay').textContent.startsWith('Continue'),'Restart must offer Continue on Home');record('Exact saved field restored behind Home after restart');
+  $('homePlay').click();assert(!$('help').open,'Acknowledged tutorial must not reopen');$('launch').click();await until(()=>$('prompt').hidden,'Resume failed');
+  $('goHome').click();$('homeStages').click();assert($('gallery').open,'Stages must open from Home');
+  doc().querySelector('#journeyGrid button').click();assert($('lockDialog').open,'Locked stages must explain the unlock requirement');
+  doc().querySelector('[data-close="lockDialog"]').click();$('closeGallery').click();record('Home, stage selection and locked-stage navigation');
+  doc().documentElement.classList.add('native-app');
+  for(const [width,height,topInset,bottomInset] of [[320,568,24,24],[393,852,59,34],[412,915,32,24],[768,1024,24,20],[852,393,0,20]]){
+    frame.style.width=width+'px';frame.style.height=height+'px';
+    doc().documentElement.style.setProperty('--safe-area-inset-top',topInset+'px');doc().documentElement.style.setProperty('--safe-area-inset-bottom',bottomInset+'px');
+    await wait(150);
+    const play=$('homePlay').getBoundingClientRect();assert(play.top>=topInset&&play.bottom<=height-bottomInset,'Home Play is outside the safe area at '+width);
+    $('homePlay').click();
+    const app=$('gameScreen').getBoundingClientRect(),field=$('game').getBoundingClientRect(),footer=doc().querySelector('footer').getBoundingClientRect();
+    assert(Math.abs(app.width-width)<1&&Math.abs(app.height-height)<1,'App viewport differs at '+width);
+    assert(field.left>=8&&field.right<=width-8,'Board touches screen edges at '+width);assert(footer.bottom<=height-bottomInset+1,'Footer crosses safe area at '+width);
+    for(const button of doc().querySelectorAll('header button,.journey-strip button,.play-tools button')){const box=button.getBoundingClientRect();assert(box.width>=43.9&&box.height>=43.9,'Small touch target '+button.id+' at '+width);assert(box.left>=0&&box.right<=width+1&&box.top>=topInset&&box.bottom<=height-bottomInset+1,'Control outside safe area '+button.id+' at '+width);}
+    $('goHome').click();
+  }
+  record('Compact, cutout phone, tall phone, tablet and landscape safe areas');
+  output.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n');document.title='PASS · Mobile feedback acceptance';
+}catch(error){output.textContent='FAIL · '+error.message+'\n'+checks.join('\n');document.title='FAIL · Mobile feedback acceptance';}
+finally{if(original){await reloadFrame('about:blank');for(const [key,value]of original){if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);}await reloadFrame();}}
+</script>

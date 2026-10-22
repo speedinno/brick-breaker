@@ -7,6 +7,10 @@ const numbers=(new URLSearchParams(location.search).get('size')||'393,852,59,34'
 const [width,height,top,bottom]=numbers.length===4&&numbers.every(Number.isFinite)?numbers:[393,852,59,34];
 const frame=document.querySelector('iframe');frame.style.width=Math.max(280,Math.min(width,1200))+'px';frame.style.height=Math.max(280,Math.min(height,1400))+'px';
 document.querySelector('#label').textContent=`${width} × ${height} · simulated safe areas ${top} / ${bottom}`;
+if(new URLSearchParams(location.search).get('capture')==='1'){
+  frame.style.transform='scale(.65)';frame.style.transformOrigin='top center';frame.style.marginBottom=(height*.65-height)+'px';
+  document.querySelector('nav').hidden=true;
+}
 frame.onload=()=>{const d=frame.contentDocument;d.documentElement.style.setProperty('--safe-area-inset-top',Math.max(0,Math.min(top,100))+'px');d.documentElement.style.setProperty('--safe-area-inset-bottom',Math.max(0,Math.min(bottom,100))+'px');
 setInterval(()=>{const app=d.querySelector('.app').getBoundingClientRect(),foot=d.querySelector('footer').getBoundingClientRect();const issues=[];
 if(Math.abs(app.height-height)>1)issues.push('App does not fill display');

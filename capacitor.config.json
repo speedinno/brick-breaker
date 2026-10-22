@@ -13,7 +13,7 @@
   },
   "plugins": {
     "SystemBars": {
-      "hidden": true,
+      "hidden": false,
       "style": "DARK",
       "insetsHandling": "css",
       "initialViewportFitValueHint": "cover"
