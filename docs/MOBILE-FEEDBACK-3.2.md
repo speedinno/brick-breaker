@@ -1,4 +1,4 @@
-# Mobile playtest update — 3.2.0, build 18
+# Mobile playtest update — 3.2.0, build 19
 
 This update responds to the Pixel 9a playtest and screenshots from 22 October
 2026. The phone's reported Android version was uncertain; no physical Pixel or
@@ -10,6 +10,10 @@ Android 17 certification is claimed.
   Home menu. Play/Continue, Stages, How to play, Account and Settings are explicit.
   Reopening the app offers the preserved field from Home instead of dropping
   directly into it. Gameplay and shortcuts cannot advance behind Home.
+- Leaving an in-progress stage with Home or Android Back asks for confirmation.
+  The stage pauses behind the prompt. Keep playing or closing the prompt resumes
+  a previously running stage; a stage that was already paused stays paused.
+  Return to Home retains the saved field.
 - Forced immersive system-bar hiding is removed. Capacitor supplies safe-area
   insets, and the board has an additional inner margin and rounded frame. The
   existing 416 × 660 physics world and touch-coordinate transform are preserved.
@@ -51,9 +55,10 @@ The deployed API and database migrations require no update for these changes.
   not a guarantee of human completion time.
 - JavaScript syntax, shared generator parity and production configuration
   preflight passed. Android debug compilation succeeded with Java 21 / SDK 36.
-- The opt-in localhost acceptance page passed six check groups: Home/splash,
+- The opt-in localhost acceptance page passed seven check groups: Home/splash,
   first-play Help and independent panel scrolling, automatic checkpoints without
-  tapping Account, exact field restoration behind Home after reload, stage/lock
+  tapping Account, Home confirmation/cancellation and paused-state restoration,
+  exact field restoration behind Home after reload, stage/lock
   navigation, and five simulated screen/safe-area sizes. It preserves the prior
   guest state around the test and sends no email or cloud writes.
 
@@ -74,7 +79,7 @@ fresh stage's pickup pacing. Production signing and store acceptance remain.
 
 ## Distribution
 
-Use the 3.2.0 build 18 test APK and its published SHA-256 checksum. It uses this
+Use the 3.2.0 build 19 test APK and its published SHA-256 checksum. It uses this
 workstation's existing Android debug certificate, matching the locally built
 3.1.0 dev APK supplied in this chat. Earlier CI APKs can use a different key.
 If installation reports a signature mismatch, preserve guest progress and use

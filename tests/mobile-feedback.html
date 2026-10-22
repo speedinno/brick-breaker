@@ -9,6 +9,7 @@ async function until(predicate,message){for(let i=0;i<300;i++){if(predicate())re
 const doc=()=>frame.contentDocument,$=id=>doc().getElementById(id),saved=()=>JSON.parse(frame.contentWindow.localStorage.getItem('brick-breaker-session-v3:guest'));
 const keys=['brick-breaker-v3:guest','brick-breaker-session-v3:guest','brick-breaker-help-seen-v1'];let original;
 const reloadFrame=async(url='/')=>{const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src=url;await loaded;};
+function returnHome(){$('goHome').click();if($('homeConfirm').open)$('confirmHome').click();}
 function record(message){checks.push(message);output.textContent='Running…\n'+checks.join('\n');}
 try{
   await until(()=>$('homePlay')&&!$('homePlay').disabled,'Home did not become ready');
@@ -32,13 +33,20 @@ try{
   $('launch').click();await until(()=>$('prompt').hidden,'Launch did not start the stage');
   await until(()=>saved()?.status==='playing'&&saved().time>.5,'Playing field was not autosaved without opening Account');
   assert($('saveStatus').textContent==='Auto-saved','Automatic saving status must be clear');record('Automatic field checkpoint without tapping Account');
-  $('goHome').click();const before=saved();assert(!$('home').hidden,'Home navigation must work');
+  $('goHome').click();assert($('homeConfirm').open&&$('home').hidden,'Active play must ask before returning Home');
+  const frozen=saved().time;await wait(150);assert(saved().time===frozen,'The confirmation must pause play');
+  $('keepPlaying').click();await until(()=>$('prompt').hidden,'Keep playing must resume a previously running stage');
+  $('pause').click();$('goHome').click();assert($('homeConfirm').open,'An in-progress paused stage also asks');
+  $('keepPlaying').click();await wait(100);assert(!$('prompt').hidden,'Cancelling from a paused stage must leave it paused');
+  $('launch').click();await until(()=>$('prompt').hidden,'Resume must still work');
+  $('goHome').click();doc().querySelector('[data-close="homeConfirm"]').click();await until(()=>$('prompt').hidden,'Closing the confirmation must resume previous active play');
+  returnHome();const before=saved();assert(!$('home').hidden,'Confirmed Home navigation must work');record('Home confirmation, cancellation, close and paused-state restoration');
   await reloadFrame();
   await until(()=>$('homePlay')&&!$('homePlay').disabled,'Restart did not restore Home');await until(()=>$('splash').hidden,'Restart splash did not dismiss');
   const after=saved();for(const key of ['level','removed','balls','drops','lives','time','stageTime','score','floorUntil','wideUntil','fireUntil','shootUntil','nextShot','shots','multiplierReadyAt'])assert(JSON.stringify(after[key])===JSON.stringify(before[key]),'Restart changed '+key);
   assert(!$('home').hidden&&$('homePlay').textContent.startsWith('Continue'),'Restart must offer Continue on Home');record('Exact saved field restored behind Home after restart');
   $('homePlay').click();assert(!$('help').open,'Acknowledged tutorial must not reopen');$('launch').click();await until(()=>$('prompt').hidden,'Resume failed');
-  $('goHome').click();$('homeStages').click();assert($('gallery').open,'Stages must open from Home');
+  returnHome();$('homeStages').click();assert($('gallery').open,'Stages must open from Home');
   doc().querySelector('#journeyGrid button').click();assert($('lockDialog').open,'Locked stages must explain the unlock requirement');
   doc().querySelector('[data-close="lockDialog"]').click();$('closeGallery').click();record('Home, stage selection and locked-stage navigation');
   doc().documentElement.classList.add('native-app');
@@ -52,7 +60,7 @@ try{
     assert(Math.abs(app.width-width)<1&&Math.abs(app.height-height)<1,'App viewport differs at '+width);
     assert(field.left>=8&&field.right<=width-8,'Board touches screen edges at '+width);assert(footer.bottom<=height-bottomInset+1,'Footer crosses safe area at '+width);
     for(const button of doc().querySelectorAll('header button,.journey-strip button,.play-tools button')){const box=button.getBoundingClientRect();assert(box.width>=43.9&&box.height>=43.9,'Small touch target '+button.id+' at '+width);assert(box.left>=0&&box.right<=width+1&&box.top>=topInset&&box.bottom<=height-bottomInset+1,'Control outside safe area '+button.id+' at '+width);}
-    $('goHome').click();
+    returnHome();
   }
   record('Compact, cutout phone, tall phone, tablet and landscape safe areas');
   output.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n');document.title='PASS · Mobile feedback acceptance';

@@ -84,6 +84,16 @@ function updateStatus(){
   if(game)$('completedIndicator').hidden=!isCompleted(p,game.level);
 }
 function showHome(){away();$('home').hidden=false;$('gameScreen').inert=true;updateStatus();$('home').focus({preventScroll:true});}
+let homeReturn=null;
+function requestHome(){
+  if(!$('home').hidden)return;
+  if(game?.status==='playing'){
+    if($('homeConfirm').open)return;
+    homeReturn={game,resume:!paused};openDialog('homeConfirm');
+    $('homeConfirmMessage').textContent=store.storageError||sessionStorageError?'Device saving is unavailable. Keep playing to avoid leaving an unsaved field.':'Your current field is saved automatically. You can continue this stage later.';
+    $('keepPlaying').focus({preventScroll:true});
+  }else showHome();
+}
 function enterGame(){if(booting||loading===true)return;$('home').hidden=true;$('gameScreen').inert=false;requestAnimationFrame(resizeBoard);}
 function showHelp(){openDialog('help');}
 function syncHUD(){
@@ -155,7 +165,13 @@ function pause(){if(!$('home').hidden||!game||loading)return;if(paused){paused=f
 function away(){keys.clear();drag=false;if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();}
 function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}keys.clear();drag=false;saveSession();if(!$(id).open)$(id).showModal();}
 function closeDialog(id){if($(id).open)$(id).close();}
-for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus({preventScroll:true});});
+for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{
+  if(dialog.id==='homeConfirm'){
+    const pending=homeReturn;homeReturn=null;
+    if(pending?.resume&&game===pending.game&&game.status==='playing'&&$('home').hidden&&!document.querySelector('dialog[open]')){paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}
+  }
+  const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus({preventScroll:true});
+});
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
 function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){
@@ -194,7 +210,9 @@ function setAuto(value){auto=value;if(game)game.mode=auto?'watch':'play';if(auto
 $('auto').onclick=()=>setAuto(!auto);$('watch').onclick=()=>{setAuto(true);void action();};$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'On':'Off';$('sound').setAttribute('aria-pressed',String(sound));$('sound').setAttribute('aria-label',sound?'Mute sound':'Enable sound');if(sound)tone(620,.15);};
 $('settings').onclick=()=>{$('reduced').checked=reduced;$('haptics').checked=haptics;$('record').textContent=`${completedCount(store.value)} stages completed · Best stage score ${store.value.best.toLocaleString()}`;openDialog('menu');};$('closeMenu').onclick=()=>closeDialog('menu');$('closeGallery').onclick=()=>closeDialog('gallery');
-$('goHome').onclick=showHome;
+$('goHome').onclick=requestHome;
+$('keepPlaying').onclick=()=>closeDialog('homeConfirm');
+$('confirmHome').onclick=()=>{homeReturn=null;closeDialog('homeConfirm');showHome();};
 $('homePlay').onclick=()=>{enterGame();if(readJSON('brick-breaker-help-seen-v1')!==true)showHelp();};
 $('homeStages').onclick=()=>{if(!booting&&!loading)journey.show();};$('homeHelp').onclick=showHelp;$('quickHelp').onclick=showHelp;
 $('homeAccount').onclick=()=>account.show();$('settingsHelp').onclick=()=>{closeDialog('menu');showHelp();};
@@ -229,7 +247,7 @@ window.addEventListener('online',()=>{if(cloud.signedIn)void syncPending().catch
 window.addEventListener('storage',e=>{if(e.key===store.key){store.save(mergeProgress(store.value,store.read()));updateStatus();if($('gallery').open)journey.render();}});
 if(native){
   void App.addListener('appStateChange',({isActive})=>{if(!isActive){away();cloud.client?.auth.stopAutoRefresh();}else{cloud.client?.auth.startAutoRefresh();if(cloud.signedIn)void syncPending().catch(()=>{});}});
-  if(Capacitor.getPlatform()==='android')void App.addListener('backButton',()=>{const dialog=[...document.querySelectorAll('dialog[open]')].at(-1);if(dialog)dialog.close();else if($('home').hidden)showHome();else{saveSession();void App.exitApp();}});
+  if(Capacitor.getPlatform()==='android')void App.addListener('backButton',()=>{const dialog=[...document.querySelectorAll('dialog[open]')].at(-1);if(dialog)dialog.close();else if($('home').hidden)requestHome();else{saveSession();void App.exitApp();}});
 }else if('serviceWorker' in navigator){void navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 // Legacy scores are retained, but an old freely selected stage is not treated
 // as proof that the preceding stages were completed.
