@@ -6,6 +6,19 @@ test('cloud response from an old identity cannot populate the new account state'
  let finish;const cloud=make(()=>new Promise(resolve=>finish=resolve));cloud.session={user:{id:'a'}};const pending=cloud.progress();cloud.session={user:{id:'b'}};finish({data:{privateHistory:'a'}});
  await assert.rejects(()=>pending,/account changed/);assert.equal(cloud.state,null);
 });
+
+test('failed cloud reads invalidate the synced indicator, and a real retry clears the failure',async()=>{
+ let fail=false,updates=0;const cloud=make(async()=>fail?{error:{}}:{data:{starter_completed:[1]}});cloud.onStatus=()=>updates++;cloud.session={user:{id:'a'}};
+ await cloud.progress();assert.equal(cloud.syncError,null);fail=true;await assert.rejects(()=>cloud.progress());assert(cloud.syncError);assert.deepEqual(cloud.state.starter_completed,[1]);
+ fail=false;await cloud.progress();assert.equal(cloud.syncError,null);assert.equal(updates,3);
+});
+
+test('SDK sign-in event and verify completion await a single account load',async()=>{
+ let callback,finish,loads=0;const session={user:{id:'a'}};
+ const cloud=new CloudAccount(async()=>{loads++;await new Promise(resolve=>finish=resolve);},{settings,clientFactory:()=>({auth:{getSession:async()=>({data:{session:null}}),onAuthStateChange(fn){callback=fn;return{data:{subscription:{}}};},verifyOtp:async()=>{callback('SIGNED_IN',session);return{data:{session}};}}})});
+ await cloud.init();let done=false;const verifying=cloud.verifyCode('qa@example.test','12345678').then(()=>done=true);
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(loads,1);assert.equal(done,false);finish();await verifying;assert.equal(done,true);assert.equal(loads,1);
+});
 test('cloud binds outgoing requests to the current identity and handles server/network failures',async()=>{
  let outgoing;const cloud=make(async(_,{body})=>{outgoing=body;return{data:{ok:true}};});cloud.session={user:{id:'a'}};
  assert.deepEqual(await cloud.api('state',{accountId:'other',action:'delete'}),{ok:true});assert.equal(outgoing.accountId,'a');assert.equal(outgoing.action,'state');

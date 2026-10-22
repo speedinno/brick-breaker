@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>Account and sound acceptance</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap;max-width:680px}</style>
+<h1>Account and sound acceptance</h1><p>Local mocks only. No email or cloud writes.</p><pre id="result">Running…</pre><iframe title="Account test game" src="about:blank"></iframe>
+<script type="module">
+import {emptyProgress,markCompleted} from '/progress.js';
+const frame=document.querySelector('iframe'),output=document.querySelector('#result'),checks=[],wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const $=id=>frame.contentDocument?.getElementById(id),assert=(value,message)=>{if(!value)throw Error(message);};
+async function until(predicate,message){for(let i=0;i<500;i++){if(predicate())return;await wait(30);}throw Error(message);}
+const reload=async(url='/__account-game')=>{const done=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src=url;await done;};
+const prefix='brick-breaker-',original=Object.keys(localStorage).filter(key=>key.startsWith(prefix)).map(key=>[key,localStorage.getItem(key)]);
+function record(message){checks.push(message);output.textContent='Running…\n'+checks.join('\n');}
+try{
+ for(const key of Object.keys(localStorage))if(key.startsWith(prefix))localStorage.removeItem(key);
+ let guest=emptyProgress();for(let stage=1;stage<=7;stage++)guest=markCompleted(guest,stage,{score:stage*100,seconds:40});
+ let guestSave=JSON.stringify(guest);localStorage.setItem('brick-breaker-v3:guest',guestSave);
+ await reload();await until(()=>$('homePlay')&&!$('homePlay').disabled,'Home failed to load');guestSave=localStorage.getItem('brick-breaker-v3:guest');$('homeAccount').click();
+ $('accountEmail').value='qa@example.test';$('signInForm').requestSubmit();await until(()=>!$('codePanel').hidden,'Code panel missing');
+ $('accountCode').value='12345678';$('verifyForm').requestSubmit();await until(()=>!$('signedInPanel').hidden&&$('accountBusy').hidden,'Sign-in failed');
+ assert(!$('guestProgress').hidden&&$('importGuest').textContent.includes('7 guest stages'),'Seven guest stages must be offered for linking');
+ assert($('accountMessage').textContent.includes('7 guest stages'),'Sign-in must explain guest stages are still here');
+ assert(!$('saveStatus').textContent.includes('cloud synced'),'An unlinked guest save must not claim it is cloud synced');
+ assert(localStorage.getItem('brick-breaker-v3:guest')===guestSave,'Signing in overwrote guest progress');record('Seven guest stages survive sign-in and are clearly offered for linking');
+ frame.contentWindow.accountQA.fail=true;$('syncNow').click();await until(()=>$('accountBusy').hidden&&$('accountMessage').classList.contains('error'),'Failed sync was not shown');
+ assert($('saveStatus').textContent.includes('retry'),'Failed sync left the synced badge visible');
+ assert(!$('accountMessage').textContent.includes('updated'),'Failed sync announced success');record('A failed cloud request clears the synced indication');
+ frame.contentWindow.accountQA.fail=false;frame.contentWindow.dispatchEvent(new frame.contentWindow.Event('online'));
+ await until(()=>!$('accountMessage').classList.contains('error'),'A recovered background sync left a stale cloud error');
+ assert($('accountMessage').textContent==='Cloud connection restored.','Background recovery did not replace the stale error');record('Automatic reconnect removes the stale cloud error');
+ $('syncNow').click();await until(()=>$('accountBusy').hidden&&!$('accountMessage').classList.contains('error'),'Retry did not recover');
+ assert($('accountMessage').textContent.includes('7 guest stages'),'Sync must not imply it imported unlinked guest stages');record('Successful retry distinguishes account sync from guest linking');
+ // A failure while linking must preserve both save namespaces and keep retry visible.
+ frame.contentWindow.accountQA.fail=true;$('importGuest').click();await until(()=>$('accountBusy').hidden&&$('accountMessage').classList.contains('error'),'Failed link was not shown');
+ assert(localStorage.getItem('brick-breaker-v3:guest')===guestSave&&!$('guestProgress').hidden,'Failed linking lost the guest save');
+ frame.contentWindow.accountQA.fail=false;$('importGuest').click();await until(()=>$('accountBusy').hidden&&$('guestProgress').hidden,'Guest linking did not finish');
+ assert($('journeyStatus').textContent==='7/12 cleared','Linked stages were not restored in game');assert($('level').textContent==='08','Empty account should continue at guest selected stage');
+ assert(localStorage.getItem('brick-breaker-v3:guest')===guestSave,'Linking overwrote the guest backup');
+ assert($('saveStatus').textContent.includes('cloud synced'),'Acknowledged import must show synced');
+ $('showHistory').click();await until(()=>$('historyList').children.length===7,'Imported history missing');record('Link retry restores all seven stages and history, retaining the guest backup');
+ // navigator.onLine false must throw rather than silently returning success.
+ Object.defineProperty(frame.contentWindow.navigator,'onLine',{configurable:true,value:false});$('syncNow').click();await until(()=>$('accountBusy').hidden&&$('accountMessage').classList.contains('error'),'Offline sync announced success');
+ assert($('accountMessage').textContent.includes('offline')&&$('saveStatus').textContent.includes('retry'),'Offline status is unclear');record('Offline Sync now cannot announce success');
+ Object.defineProperty(frame.contentWindow.navigator,'onLine',{configurable:true,value:true});$('signOut').click();await until(()=>$('signedInPanel').hidden&&$('accountBusy').hidden,'Sign-out failed');
+ assert($('journeyStatus').textContent==='7/12 cleared','Sign-out did not restore guest stages');record('Sign-out returns to the intact guest save');
+ frame.contentDocument.querySelector('[data-close="account"]').click();$('settings').click();
+ assert($('sound').getAttribute('role')==='switch'&&$('sound').getAttribute('aria-checked')==='false','Sound is not an accessible switch');
+ $('sound').click();await until(()=>JSON.parse(localStorage.getItem('brick-breaker-options-v3')).sound===true,'Sound setting did not persist');
+ await reload();await until(()=>$('homePlay')&&!$('homePlay').disabled,'Reload failed');$('settings').click();assert($('sound').getAttribute('aria-checked')==='true','Sound did not stay enabled after restart');
+ $('sound').click();assert($('sound').getAttribute('aria-checked')==='false'&&$('soundFeedback').textContent==='Sound disabled','Disabled sound is unclear');record('Sound switch has explicit state and retains its preference across restart');
+ output.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n');document.title='PASS · Account and sound acceptance';
+}catch(error){output.textContent='FAIL · '+error.message+'\n'+checks.join('\n');document.title='FAIL · Account and sound acceptance';}
+finally{await reload('about:blank');for(const key of Object.keys(localStorage))if(key.startsWith(prefix))localStorage.removeItem(key);for(const [key,value]of original)localStorage.setItem(key,value);}
+</script>

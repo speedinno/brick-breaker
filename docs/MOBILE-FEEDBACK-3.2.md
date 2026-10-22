@@ -1,8 +1,37 @@
-# Mobile playtest update — 3.2.0, build 19
+# Mobile playtest update — 3.2.0, build 20
 
 This update responds to the Pixel 9a playtest and screenshots from 22 October
 2026. The phone's reported Android version was uncertain; no physical Pixel or
 Android 17 certification is claimed.
+
+## Account and sound follow-up (build 20)
+
+Signing in loads an account-specific save. The separate guest save remains on
+that phone; the old interface did not explain that an empty account could show
+0/12 while seven guest completions were still available to import. Account now
+shows a prominent counted guest card and explicit link action. Link success
+merges stages/history and selects the guest stage for a previously empty account.
+A failed link leaves the guest backup intact. Guest saves are not silently
+assigned to another person on a shared phone.
+
+The deployed Azure API returned health in 19.91 seconds during a cold-start
+check, exceeding the client's former 12-second timeout. API calls now allow
+45 seconds; the separate authentication deadline remains 12 seconds. Mutations
+are not automatically retried. Duplicate sign-in notifications share one account
+load, and startup avoids a redundant progress fetch. Cloud failures invalidate
+the synced indication; offline Sync now fails honestly; a successful reconnect
+removes stale error text. Account sync does not imply guest stages were imported.
+
+Sound effects now use an accessible switch with a moving thumb and explicit
+state description. The preference survives restart. A user gesture resumes the
+audio context before the enable-test tone is scheduled, playback has a louder
+bounded envelope, ended audio nodes disconnect, and audio startup failures are
+visible instead of silently turning the preference off. Phone media volume and
+physical-device audio still need a retest.
+
+Install the update over the current matching-signature APK. In Account, tap
+**Link N guest stages to my account**. Do not uninstall or clear app storage to
+recover progress. Signing out also returns to the original guest save.
 
 ## Changes
 
@@ -43,7 +72,7 @@ The deployed API and database migrations require no update for these changes.
 
 ## Verification
 
-- 71 Node tests passed, including exact pickup arithmetic, single consumption,
+- 77 Node tests passed, including exact pickup arithmetic, single consumption,
   cooldown persistence, old-save compatibility and existing account isolation.
 - All twelve starter motifs and all twenty-two generated architecture families
   cleared with the real simulation. Representative difficulty bands through
@@ -62,12 +91,21 @@ The deployed API and database migrations require no update for these changes.
   navigation, and five simulated screen/safe-area sizes. It preserves the prior
   guest state around the test and sends no email or cloud writes.
 
+- The local account/audio acceptance passed eight additional groups using
+  intercepted network responses and the real bundled SDK/app: guest preservation,
+  failed-sync status, automatic reconnect, manual retry, failed/successful linking
+  and history, offline sync rejection, sign-out restoration, and persistent sound
+  switch state. It sends no emails or real cloud writes. Audio resume/failure,
+  envelope cleanup and account-event races also have Node regressions.
+
 To repeat the browser acceptance locally:
 
 ```powershell
 $env:QA_FIXTURES='1'
 npm.cmd run dev
 # Open http://127.0.0.1:4173/__feedback and wait for PASS.
+# Then open http://127.0.0.1:4173/__account and wait for PASS.
+# Run sequentially because both preserve/restore localhost storage.
 ```
 
 Android/iOS native smoke sources now enter through Home and acknowledge Help.
@@ -79,7 +117,7 @@ fresh stage's pickup pacing. Production signing and store acceptance remain.
 
 ## Distribution
 
-Use the 3.2.0 build 19 test APK and its published SHA-256 checksum. It uses this
+Use the 3.2.0 build 20 test APK and its published SHA-256 checksum. It uses this
 workstation's existing Android debug certificate, matching the locally built
 3.1.0 dev APK supplied in this chat. Earlier CI APKs can use a different key.
 If installation reports a signature mismatch, preserve guest progress and use

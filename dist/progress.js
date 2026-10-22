@@ -21,6 +21,7 @@ export function isCompleted(progress,level){return level<=12?progress.starters.i
 export function isUnlocked(progress,level){return safeLevel(level)&&(level<=12||startersComplete(progress)&&level<=progress.journeyNext);}
 export function nextRequired(progress){for(let n=1;n<=12;n++)if(!progress.starters.includes(n))return n;return progress.journeyNext;}
 export function completedCount(progress){return progress.starters.length+(startersComplete(progress)?progress.journeyNext-13:0);}
+export function unlinkedGuestCount(account,guest){return guest.starters.filter(n=>!isCompleted(account,n)).length+(startersComplete(guest)?Math.max(0,guest.journeyNext-(startersComplete(account)?account.journeyNext:13)):0);}
 export function lockReason(progress,level){
   if(isUnlocked(progress,level))return '';
   if(!startersComplete(progress))return `Finish all 12 starter stages first. ${12-progress.starters.length} ${12-progress.starters.length===1?'stage remains':'stages remain'}. Next: stage ${nextRequired(progress)}.`;

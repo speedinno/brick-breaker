@@ -1,15 +1,15 @@
 import config from './cloud-config.js';
-import {completedCount,isCompleted} from './progress.js';
+import {completedCount,unlinkedGuestCount} from './progress.js';
 const $=id=>document.getElementById(id);
 export class AccountPanel {
   constructor({cloud,getProgress,getGuest,open,callbacks,native=false}){
     Object.assign(this,{cloud,getProgress,getGuest,open,callbacks,native});this.pending=false;this.before=null;
     $('signInForm').onsubmit=e=>{e.preventDefault();void this.run(async()=>{this.email=$('accountEmail').value.trim();await cloud.sendCode(this.email);$('codePanel').hidden=false;$('codeEmail').textContent=this.email;this.message('Check your email for your sign-in code.');$('accountCode').focus();});};
-    $('verifyForm').onsubmit=e=>{e.preventDefault();void this.run(async()=>{await cloud.verifyCode(this.email||$('accountEmail').value.trim(),$('accountCode').value.trim());$('accountCode').value='';this.message('Signed in. Your cloud progress is ready.');});};
+    $('verifyForm').onsubmit=e=>{e.preventDefault();void this.run(async()=>{await cloud.verifyCode(this.email||$('accountEmail').value.trim(),$('accountCode').value.trim());$('accountCode').value='';this.signedInMessage();});};
     $('usePassword').onclick=()=>{$('passwordPanel').hidden=!$('passwordPanel').hidden;};
-    $('passwordForm').onsubmit=e=>{e.preventDefault();void this.run(async()=>{const email=$('passwordEmail').value.trim();const password=$('accountPassword').value;$('accountPassword').value='';await cloud.passwordLogin(email,password);this.message('Signed in.');});};
+    $('passwordForm').onsubmit=e=>{e.preventDefault();void this.run(async()=>{const email=$('passwordEmail').value.trim();const password=$('accountPassword').value;$('accountPassword').value='';await cloud.passwordLogin(email,password);this.signedInMessage();});};
     $('signOut').onclick=()=>void this.run(async()=>{await cloud.signOut();this.message('Signed out. Guest progress is separate.');});
-    $('syncNow').onclick=()=>void this.run(async()=>{await callbacks.sync();this.message('Cloud progress updated.');});
+    $('syncNow').onclick=()=>void this.run(async()=>{await callbacks.sync();const count=unlinkedGuestCount(this.getProgress(),this.getGuest());this.message(count?`Account synced. ${count} guest stages are still on this phone. Link them above to add them to your account.`:'Completed stages are synced to your account.');});
     $('importGuest').onclick=()=>void this.run(async()=>{await callbacks.importGuest();this.message('Device progress linked to this account.');this.render();});
     $('showHistory').onclick=()=>void this.run(()=>this.history(true));
     $('moreHistory').onclick=()=>void this.run(()=>this.history(false));
@@ -23,16 +23,20 @@ export class AccountPanel {
     $('deleteForm').onsubmit=e=>{e.preventDefault();if($('deleteConfirm').value!=='DELETE'){$('deleteError').textContent='Type DELETE to confirm.';return;}void this.run(async()=>{await callbacks.deleteAccount();$('deleteDialog').close();this.message('Your account and cloud history were deleted.');}).catch(()=>{});};
     if(config.supportEmail){$('supportLink').href='mailto:'+config.supportEmail;$('supportLink').textContent=config.supportEmail;}
   }
-  message(text,error=false){$('accountMessage').textContent=text;$('accountMessage').classList.toggle('error',error);}
+  message(text,error=false){this.cloudFailure=error?this.cloud.syncError:null;$('accountMessage').textContent=text;$('accountMessage').classList.toggle('error',error);}
+  signedInMessage(){const count=unlinkedGuestCount(this.getProgress(),this.getGuest());this.message(this.cloud.syncError?this.cloud.syncError.message:count?`Signed in. Your ${count} guest stages are still on this phone. Link them above to keep them in this account.`:'Signed in. Your account progress is loaded.',Boolean(this.cloud.syncError));}
   async run(action){if(this.pending)return;this.pending=true;$('accountBusy').hidden=false;try{await action();}catch(e){this.message(e.message||'Please try again.',true);if($('deleteDialog').open)$('deleteError').textContent=e.message||'Please try again.';}finally{this.pending=false;$('accountBusy').hidden=true;this.render();}}
   show(){this.render();this.open('account');}
   render(){
     const signed=this.cloud.signedIn,p=this.getProgress(),guest=this.getGuest();
-    if(this.historyOwner!==this.cloud.userId){this.historyOwner=this.cloud.userId;this.before=null;$('historyPanel').hidden=true;$('historyList').replaceChildren();$('moreHistory').hidden=true;}
+    if(this.historyOwner!==this.cloud.userId){this.historyOwner=this.cloud.userId;this.before=null;$('historyPanel').hidden=true;$('historyList').replaceChildren();$('moreHistory').hidden=true;this.message('');}
+    if(this.cloudFailure&&!this.cloud.syncError)this.message('Cloud connection restored.');
     $('cloudUnavailable').hidden=this.cloud.configured;$('signInPanel').hidden=signed||!this.cloud.configured;$('signedInPanel').hidden=!signed;
     $('accountDescription').textContent=signed?`Signed in as ${this.cloud.email}`:'Play without an account. Your device keeps your progress.';
-    $('accountProgress').textContent=`${completedCount(p).toLocaleString()} stages completed · ${p.pending.length?`${p.pending.length} saves waiting to upload`:signed?'Cloud account connected':'Saved on this device'}`;
-    $('importGuest').hidden=!signed||!(guest.starters.some(n=>!isCompleted(p,n))||guest.journeyNext>p.journeyNext);
+    $('accountProgress').textContent=`${completedCount(p).toLocaleString()} stages completed${signed?' in this account':''} · ${p.pending.length?`${p.pending.length} saves waiting to upload`:signed?(this.cloud.syncError?'Cloud needs a retry':this.cloud.state?'Account synced':'Cloud not synced yet'):'Saved on this device'}`;
+    const count=signed?unlinkedGuestCount(p,guest):0;$('guestProgress').hidden=!count;
+    $('guestProgressText').textContent=`${count} guest ${count===1?'stage is':'stages are'} still saved on this phone. Add them to this account to continue your progress. Signing out also returns to your guest save.`;
+    $('importGuest').textContent=`Link ${count} guest ${count===1?'stage':'stages'} to my account`;
     if(signed)$('codePanel').hidden=true;
     $('historyIntro').textContent=signed?'Your best result and most recent clear for each stage.':'Your recent device history.';
     if(!signed)this.renderHistory(Object.values(p.records).sort((a,b)=>b.level-a.level),false);

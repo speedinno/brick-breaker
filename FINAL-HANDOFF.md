@@ -1,9 +1,10 @@
 # Brick Breaker — final handoff to Chandrahas
 
-**Latest playtest update: 3.2.0, build 19.** See the
+**Latest playtest update: 3.2.0, build 20.** See the
 [mobile feedback update](docs/MOBILE-FEEDBACK-3.2.md) for Home, Help, safe-area,
-automatic-save and pickup-pacing changes and their verification. The build 17
-download references below are historical; use the build 19 preview for retesting.
+automatic-save, guest-stage linking, cloud-status, sound-switch and pickup-pacing
+changes and their verification. The build 17 download references below are
+historical; use the build 20 preview for retesting.
 
 Updated 22 October 2026. Start here for the current **3.1.0 / native build 17** delivery. This guide supersedes setup assumptions and package versions in the older 3.0 launch guide.
 

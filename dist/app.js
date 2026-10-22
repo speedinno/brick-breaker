@@ -3,7 +3,8 @@ import {fitViewport,worldX,dialogViewport} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
-import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount} from './progress.js';
+import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount,unlinkedGuestCount} from './progress.js';
+import {SoundEffects} from './audio.js';
 import {snapshotGame,restoreGame} from './session.js';
 import {durableStorage} from './storage.js';
 import {CloudAccount} from './cloud.js';
@@ -44,7 +45,8 @@ let viewport=fitViewport(416,660);
 let storage;try{storage=durableStorage(localStorage,native?window.BrickBreakerStorage:null);}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
-let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,sound=false,audio=null,lastSound=0;
+let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,lastSound=0;
+const effects=new SoundEffects({enabled:options.sound===true});
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastTime=0,accumulator=0,lastSnapshot=0,drag=false,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1,sessionStorageError=false;
 const keys=new Set(),focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
 function resizeBoard(){
@@ -62,21 +64,23 @@ function resizeBoard(){
 new ResizeObserver(resizeBoard).observe(canvas);
 window.addEventListener('resize',resizeBoard);
 const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'},laser:{color:'#ce79e7',label:'↑'}};
-const cloud=new CloudAccount(accountChanged,{storage});
+const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{updateStatus();account.render();}});
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
-function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics}));}catch{}}
+function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled}));}catch{}}
 function sessionKey(id=store.accountId){return `brick-breaker-session-v3:${id?'user:'+id:'guest'}`;}
 function saveSession(){if(!game||loading)return;const snapshot=snapshotGame(game,{auto,speed,run,assisted});try{if(snapshot)storage.setItem(sessionKey(),JSON.stringify(snapshot));else storage.removeItem(sessionKey());sessionStorageError=false;}catch{sessionStorageError=true;}updateStatus();}
 function clearSession(id=store.accountId){try{storage.removeItem(sessionKey(id));}catch{}}
-function tone(freq=500,duration=.03){if(!sound)return;try{audio ||=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')void audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.frequency.setValueAtTime(freq,audio.currentTime);gain.gain.setValueAtTime(.012,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);osc.connect(gain);gain.connect(audio.destination);osc.start();osc.stop(audio.currentTime+duration);}catch{sound=false;}}
+function renderSound(){$('sound').setAttribute('aria-checked',String(effects.enabled));$('soundFeedback').textContent=!effects.enabled?'Sound disabled':effects.error?.message||'Sound enabled · use your phone’s media volume';$('soundFeedback').classList.toggle('error',Boolean(effects.enabled&&effects.error));}
+function tone(freq=500,duration=.05){effects.play(freq,duration);if(effects.error)renderSound();}
 function updateStatus(){
   const p=store.value,error=store.storageError||sessionStorageError;
   $('journeyStatus').textContent=p.starters.length<12?`${p.starters.length}/12 cleared`:`${completedCount(p).toLocaleString()} cleared · Stage ${p.journeyNext}`;
-  $('saveStatus').textContent=error?'Save failed':cloud.signedIn&&p.pending.length?'Saved · sync pending':cloud.signedIn&&cloud.state?'Saved · cloud synced':'Auto-saved';
-  $('saveStatus').classList.toggle('pending',Boolean(error||p.pending.length));
-  $('homeSave').textContent=error?'Could not save on this phone. Check available storage.':cloud.signedIn?'Auto-save on · completed stages sync to your account.':'Auto-save on · no account needed to play.';
+  const guestCount=cloud.signedIn?unlinkedGuestCount(p,new ProgressStore(storage).value):0;
+  $('saveStatus').textContent=error?'Save failed':cloud.signedIn&&cloud.syncError?'Saved · cloud retry needed':syncTask?.id===cloud.userId?'Saved · syncing…':cloud.signedIn&&p.pending.length?'Saved · sync pending':guestCount?'Guest stages to link':cloud.signedIn&&cloud.state?'Saved · cloud synced':'Auto-saved';
+  $('saveStatus').classList.toggle('pending',Boolean(error||p.pending.length||cloud.syncError||guestCount));
+  $('homeSave').textContent=error?'Could not save on this phone. Check available storage.':guestCount?`${guestCount} guest stages are still on this phone. Open Account to link them.`:cloud.signedIn&&cloud.syncError?'Auto-saved on this phone · open Account to retry cloud sync.':cloud.signedIn?'Auto-save on · completed stages sync to your account.':'Auto-save on · no account needed to play.';
   $('homeCompleted').textContent=`${completedCount(p).toLocaleString()} STAGES CLEARED`;
   $('homeStage').textContent=`STAGE ${String(game?.level||p.selected).padStart(2,'0')}`;
   $('homePlay').textContent=booting?'Getting ready…':loading==='failed'?`Retry · Stage ${p.selected}`:`${game&&(game.status==='playing'||game.score>0)?'Continue':'Play'} · Stage ${game?.level||p.selected}`;
@@ -128,12 +132,12 @@ function event(e){
     else {const next=nextRequired(store.value);if(next>12)void cache.load(next).catch(()=>{});}
   }
 }
-async function start(level=store.value.selected,{resume=false,enter=true}={}){
+async function start(level=store.value.selected,{resume=false,enter=true,sync=true}={}){
   if(!isUnlocked(store.value,level)){toast('Finish earlier stages to unlock this stage.');return;}
   if(enter)enterGame();
   saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;keys.clear();drag=false;clearTimeout(toastTimer);$('toast').classList.remove('show');$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
   try{
-    if(cloud.signedIn&&navigator.onLine!==false)await syncPending().catch(()=>{});
+    if(sync&&cloud.signedIn&&navigator.onLine!==false)await syncPending().catch(()=>{});
     const nextDefinition=await cache.load(level,cloud),hash=nextDefinition.hash||await definitionHash(nextDefinition);
     if(epoch!==loadEpoch)return;
     definition=nextDefinition;currentHash=hash;const pattern=hydrateDefinition(definition);let restored=null;
@@ -208,7 +212,10 @@ document.addEventListener('keydown',e=>{if(!$('home').hidden||[...document.query
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);
 function setAuto(value){auto=value;if(game)game.mode=auto?'watch':'play';if(auto)assisted=true;$('auto').setAttribute('aria-pressed',String(auto));}
 $('auto').onclick=()=>setAuto(!auto);$('watch').onclick=()=>{setAuto(true);void action();};$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'On':'Off';$('sound').setAttribute('aria-pressed',String(sound));$('sound').setAttribute('aria-label',sound?'Mute sound':'Enable sound');if(sound)tone(620,.15);};
+$('sound').onclick=async()=>{effects.enabled=!effects.enabled;persistOptions();renderSound();if(effects.enabled){if(await effects.unlock())tone(620,.18);renderSound();}};
+// Unlock again after an OS audio interruption, using a real touch/key gesture.
+for(const kind of ['pointerdown','keydown'])document.addEventListener(kind,()=>{if(effects.enabled)void effects.unlock().then(renderSound);},{capture:true});
+renderSound();
 $('settings').onclick=()=>{$('reduced').checked=reduced;$('haptics').checked=haptics;$('record').textContent=`${completedCount(store.value)} stages completed · Best stage score ${store.value.best.toLocaleString()}`;openDialog('menu');};$('closeMenu').onclick=()=>closeDialog('menu');$('closeGallery').onclick=()=>closeDialog('gallery');
 $('goHome').onclick=requestHome;
 $('keepPlaying').onclick=()=>closeDialog('homeConfirm');
@@ -225,25 +232,27 @@ $('share').onclick=async()=>{const data={title:'Brick Breaker',text:`Narrow chan
 async function accountChanged(){
   const id=cloud.userId;if(id===accountIdentity&&!booting){account.render();return;}
   const epoch=++authEpoch;saveSession();accountIdentity=id;cloud.state=null;++loadEpoch;loading=true;game=null;run=null;store.switchAccount(id);updateStatus();
-  if(id&&navigator.onLine!==false){try{const state=await cloud.progress();if(epoch!==authEpoch)return;store.save(mergeProgress(store.value,cloudProgress(state)));await syncPending();}catch{account.message('Cloud saving is offline. Your device progress is safe.',true);}}
-  if(epoch!==authEpoch)return;loading=false;account.render();updateStatus();if(!booting)await start(store.value.selected,{resume:true,enter:$('home').hidden});
+  if(id){try{await syncPending();}catch(error){if(epoch===authEpoch)account.message(error.message,true);}}
+  if(epoch!==authEpoch)return;loading=false;account.render();updateStatus();if(!booting)await start(store.value.selected,{resume:true,enter:$('home').hidden,sync:false});
 }
 async function syncPending(){
-  if(!cloud.signedIn||navigator.onLine===false)return;
+  if(!cloud.signedIn)throw Error('Sign in to sync your completed stages.');
+  if(navigator.onLine===false){cloud.syncError=Error('You are offline. Your device progress is safe. Reconnect, then tap Sync now.');updateStatus();account.render();throw cloud.syncError;}
   const id=cloud.userId;if(syncTask?.id===id)return syncTask.promise;
   const promise=(async()=>{
-    if(store.accountId!==id)return;
-    const initial=await cloud.progress();if(store.accountId!==id)return;store.save(mergeProgress(store.value,cloudProgress(initial)));
+    if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');
+    const initial=await cloud.progress();if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save(mergeProgress(store.value,cloudProgress(initial)));
     const pending=store.value.pending.slice().sort((a,b)=>a.level-b.level);
     if(pending.some(p=>!p.remote)){
-      const state=await cloud.importGuest(store.value);if(store.accountId!==id)return;store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>!pending.some(item=>item.runId===p.runId))});
-    }else for(const item of pending){let state;try{state=await cloud.complete(item);}catch(error){if(!/expired/i.test(error.message))throw error;state=await cloud.importGuest(store.value);}if(store.accountId!==id)return;store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>p.runId!==item.runId)});}
+      const state=await cloud.importGuest(store.value);if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>!pending.some(item=>item.runId===p.runId))});
+    }else for(const item of pending){let state;try{state=await cloud.complete(item);}catch(error){if(!/expired/i.test(error.message))throw error;state=await cloud.importGuest(store.value);}if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>p.runId!==item.runId)});}
     if(store.accountId===id){updateStatus();account.render();}
-  })();syncTask={id,promise};try{await promise;}finally{if(syncTask?.promise===promise)syncTask=null;updateStatus();}
+  })();syncTask={id,promise};updateStatus();try{await promise;}finally{if(syncTask?.promise===promise)syncTask=null;updateStatus();account.render();}
 }
-async function importGuest(){if(!cloud.signedIn)return;const id=cloud.userId,state=await cloud.importGuest(new ProgressStore(storage).value);if(cloud.userId!==id||store.accountId!==id)return;store.save(mergeProgress(store.value,cloudProgress(state)));account.render();updateStatus();journey.render();}
+async function importGuest(){if(!cloud.signedIn)throw Error('Sign in to link guest stages.');const id=cloud.userId,guest=new ProgressStore(storage).value,wasEmpty=completedCount(store.value)===0,state=await cloud.importGuest(guest);if(cloud.userId!==id||store.accountId!==id)throw Error('Your account changed. Reopen Account and try again.');store.save({...mergeProgress(store.value,cloudProgress(state)),...(wasEmpty?{selected:guest.selected}:{})});account.render();updateStatus();journey.render();if(wasEmpty)await start(store.value.selected,{resume:true,enter:$('home').hidden});}
 async function deleteAccount(){const id=cloud.userId;if(!id)return;await cloud.deleteAccount();new ProgressStore(storage,id).clear();clearSession(id);account.render();updateStatus();}
 window.addEventListener('online',()=>{if(cloud.signedIn)void syncPending().catch(()=>toast('Your device saves will upload when the connection returns.'));});
+window.addEventListener('offline',()=>{if(cloud.signedIn){cloud.syncError=Error('You are offline. Your device progress is safe. Reconnect, then tap Sync now.');updateStatus();account.render();}});
 window.addEventListener('storage',e=>{if(e.key===store.key){store.save(mergeProgress(store.value,store.read()));updateStatus();if($('gallery').open)journey.render();}});
 if(native){
   void App.addListener('appStateChange',({isActive})=>{if(!isActive){away();cloud.client?.auth.stopAutoRefresh();}else{cloud.client?.auth.startAutoRefresh();if(cloud.signedIn)void syncPending().catch(()=>{});}});
@@ -255,5 +264,5 @@ if(!readJSON(store.key)){const legacy=readJSON('brick-breaker-channel-v2');if(Nu
 requestAnimationFrame(frame);updateStatus();
 setTimeout(()=>$('splash').hidden=true,reduced?150:650);
 try{await cloud.init();}catch{account.message('Cloud saving is offline. You can keep playing.',true);}
-booting=false;loading=false;await start(store.value.selected,{resume:true,enter:false});
+booting=false;loading=false;await start(store.value.selected,{resume:true,enter:false,sync:!cloud.signedIn});
 const requested=new URLSearchParams(location.search).get('account');if(requested){account.show();if(requested==='delete'&&cloud.signedIn)$('requestDelete').click();if(requested==='export'&&cloud.signedIn)$('exportHistory').click();}
