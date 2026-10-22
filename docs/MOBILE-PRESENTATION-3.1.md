@@ -46,6 +46,19 @@ Before a store upload, Chandrahas should also check the signed build on physical
 
 ## Recorded verification
 
-Final build 17 native results will be recorded after CI completes. The local suite has 66 passing tests, including camera/touch geometry and keyboard viewport panning/reset cases.
+Application source: `e32cb8e28e13c6f9b980eb946cc6ab591a983ad6`, version **3.1.0, build 17**. Later documentation commits do not change the packaged application. Checks recorded on 22 October 2026:
 
-Native testing found two iPhone keyboard issues during this iteration: the viewport could pan the close control above the display, and input blur could move an action between pointer-down and click. The panel now follows the visible viewport and tracks the visible viewport throughout keyboard dismissal, without resetting when input focus changes. The native test requires an actual software keyboard, a reachable close control and successful dismissal with one tap before continuing to stage locks and cold-save restoration. Builds 14–16 are superseded and are not the handoff package.
+- **66 Node tests passed**, including camera/touch geometry and keyboard viewport transitions. Syntax and shared server/client generator parity passed.
+- [Source/backend CI](https://github.com/speedinno/brick-breaker/actions/runs/39756048519) passed.
+- [Android and iPhone builds](https://github.com/speedinno/brick-breaker/actions/runs/39756071750) passed: Android test APK, unsigned release AAB, unsigned iOS device archive and simulator app.
+- All four packages contain **40 matching game assets** from the stated Git commit. Only license-notice CRLF/LF line endings are normalized for comparison. Native immersive configuration matches; iOS metadata confirms build 17. See [package audit](mobile-3.1/package-audit.json).
+- Android API 35 emulator checks passed: full viewport, no document scrolling, screen-resolution canvas, at least 44 px touch targets, offline gameplay, shooter, stage locks and exact saved-field restoration after a cold restart. See [layout measurements](mobile-3.1/android-layout.json) and [restart assertions](mobile-3.1/android-relaunch-checks.json).
+- [Final iPhone acceptance](https://github.com/speedinno/brick-breaker/actions/runs/39756698191) passed on an iPhone 17 Pro simulator using the exact packaged app ([test log](mobile-3.1/ios-gameplay.log)): immersive presentation, reachable touch controls, actual software keyboard, account close with one tap, stage-lock prompt, scrolled picker close, brick destruction, pause/resume and exact damaged-field restoration after a cold restart.
+
+[Android native screenshot](mobile-3.1/android.png) · [iPhone native screenshot](mobile-3.1/iphone.png) · [iPhone account with keyboard](mobile-3.1/iphone-keyboard.png). Screenshots and native checks use emulators/simulators, not physical phones.
+
+Native testing found two iPhone keyboard issues during this iteration: the viewport could pan the close control above the display, and input blur could move an action between pointer-down and click. The panel now tracks the visible viewport throughout keyboard dismissal, without resetting when input focus changes. The native test requires an actual software keyboard, a reachable close control and successful dismissal with one tap before continuing to stage locks and cold-save restoration. Builds 14–16 are superseded and are not the handoff package.
+
+## Downloads
+
+Use [the 3.1 preview release](https://github.com/speedinno/brick-breaker/releases/tag/v3.1.0-rc.1) for build 17, the Android test APK, unsigned Android/iOS release packages, this handoff and checksums. This is a prerelease for acceptance, not a store publication.
