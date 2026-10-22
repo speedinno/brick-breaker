@@ -49,3 +49,9 @@ Recording frames reveal appearance and trajectories, not the original source, ex
 ## Additional reference 27 — fully played through
 
 21 October 2026: https://x.com/fleurifte/status/2112397032363286539?s=48 . Played from the opening through the 112.663-second “You win” ending without seeking ahead, then replayed the transition around 76–87 seconds using the visible seek control. A solid orange rectangle sits inside a grey perimeter corridor with a small lower-left entry. Around 76–79 seconds a pink pickup falls, followed by purple vertical shots emitted from the paddle. They carve narrow brick columns while ordinary white balls continue bouncing. The grey frame remains. Shooting later stops; the swarm clears the field and a three-star win panel appears. Exact cooldown/duration and hidden control rules cannot be recovered from a recording. The implementation uses a separate earned eight-second piercing paddle shooter, distinct from fireballs; wall tiles remain permanent. New Perimeter/Gateway generators mix restrained solid-colour stages into decorative stages.
+
+## Additional reference 28 — full arena framing
+
+22 October 2026: https://x.com/alpraezolam/status/2112904084034658366?s=48 . Reviewed the opening, middle, late gameplay and ending of the 117.19-second clip in the browser. The yellow field has a central ladder-like channel, white ball swarms and an orange paddle. Continuous dark-grey side rails extend below the bricks and surround the paddle area; the arena occupies the game's available portrait area. A reaction video sits outside that game region. The ending shows a three-star win panel.
+
+The 3.1 presentation uses continuous graphite rails around the whole arena, removes the old external webpage margins on phones and enables native immersive windows. It preserves square brick geometry, safe control placement and the existing collision rules. No reaction footage, watermarks or third-party assets are included.

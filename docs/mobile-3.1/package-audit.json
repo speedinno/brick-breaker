@@ -1,0 +1,32 @@
+{
+  "version": "3.1.0",
+  "build": 17,
+  "sourceCommit": "e32cb8e28e13c6f9b980eb946cc6ab591a983ad6",
+  "buildRun": "39756071750",
+  "packages": {
+    "Android-test.apk": {
+      "assetsMatched": 40,
+      "licenseNoticeLineEndingsNormalized": true,
+      "immersiveConfigMatched": true,
+      "sha256": "183b50a89dff3fab1d3b6ff6f36d46de094f8c0f16302dabcc2175d1d48d81ab"
+    },
+    "Android-unsigned.aab": {
+      "assetsMatched": 40,
+      "licenseNoticeLineEndingsNormalized": true,
+      "immersiveConfigMatched": true,
+      "sha256": "0cb803c068180751d6713e60a58650642d7c59368d9db3ddf1bcac3dc4272ea7"
+    },
+    "iOS-unsigned-archive.zip": {
+      "assetsMatched": 40,
+      "licenseNoticeLineEndingsNormalized": true,
+      "immersiveConfigMatched": true,
+      "sha256": "06dff49bc55cd4aa539a2dd2ef0681e775247b9993859dd18f13734287d54fb1"
+    },
+    "iOS-simulator.zip": {
+      "assetsMatched": 40,
+      "licenseNoticeLineEndingsNormalized": true,
+      "immersiveConfigMatched": true,
+      "sha256": "f1fe405676a6ca2539c2b93f3248bf2caa954e268469c28413de17485b4a1fda"
+    }
+  }
+}

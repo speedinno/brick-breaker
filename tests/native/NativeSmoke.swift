@@ -19,7 +19,28 @@ final class NativeSmoke: XCTestCase {
     func testPackagedGamePlayAndColdResume() {
         continueAfterFailure = false
         game.launch(); waitForField(); shot("iPhone-ready")
+        XCTAssertFalse(game.statusBars.firstMatch.exists, "Game should use the immersive iPhone presentation")
+        for label in ["Settings", "Pause", "Open stage journey", "Account and cloud saves", "Playback speed"] {
+            let control = button(label)
+            XCTAssertTrue(control.isHittable, "\(label) must be reachable within the safe area")
+            XCTAssertGreaterThanOrEqual(control.frame.width, 43.5)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 43.5)
+            XCTAssertTrue(game.frame.contains(control.frame), "\(label) must stay inside the phone display")
+        }
         let initial = remaining(); XCTAssertGreaterThan(initial, 1000)
+        button("Account and cloud saves").tap()
+        let email = game.textFields["you@example.com"].firstMatch
+        XCTAssertTrue(email.waitForExistence(timeout: 5), "Configured account sign-in must be available")
+        email.tap()
+        XCTAssertTrue(game.keyboards.firstMatch.waitForExistence(timeout: 10), "Email field must open the software keyboard")
+        shot("iPhone-account-keyboard")
+        let closeAccount = button("Close account")
+        let reachable = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: closeAccount)
+        XCTAssertEqual(XCTWaiter.wait(for: [reachable], timeout: 5), .completed, "Account close must remain accessible above the keyboard")
+        XCTAssertTrue(game.frame.contains(closeAccount.frame))
+        button("Close account").tap()
+        let accountClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: closeAccount)
+        XCTAssertEqual(XCTWaiter.wait(for: [accountClosed], timeout: 5), .completed, "One tap must close the account panel while the keyboard is open")
         button("Open stage journey").tap()
         let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
         XCTAssertTrue(locked.waitForExistence(timeout: 10)); locked.tap()

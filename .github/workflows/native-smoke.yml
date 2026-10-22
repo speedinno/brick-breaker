@@ -62,7 +62,11 @@ jobs:
           target: google_apis
           profile: pixel_2
           disable-animations: true
-          script: bash tests/native/android-smoke.sh
+          # Suppress only Android's one-time OS tutorial on this disposable emulator.
+          # It otherwise dims/obscures native screenshots while the WebView tests run.
+          script: |
+            adb shell settings put secure immersive_mode_confirmations confirmed
+            bash tests/native/android-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -144,8 +148,13 @@ jobs:
           print('UI verification uses the exact packaged game executable')
           PY
           xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=$DEVICE_GUID" -derivedDataPath build/native-verification -parallel-testing-enabled NO -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building > native-evidence/ios-gameplay.log 2>&1
-          xcrun xcresulttool export attachments --path native-evidence/iOS-gameplay.xcresult --output-path native-evidence/ios-ui-attachments
-          xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png
+      - name: Capture UI attachments, including failed checks
+        if: always()
+        run: |
+          if [ -d native-evidence/iOS-gameplay.xcresult ]; then
+            xcrun xcresulttool export attachments --path native-evidence/iOS-gameplay.xcresult --output-path native-evidence/ios-ui-attachments
+          fi
+          xcrun simctl io "$DEVICE_GUID" screenshot native-evidence/iPhone-native-gameplay.png || true
       - name: Shut down simulator services
         if: always()
         timeout-minutes: 2

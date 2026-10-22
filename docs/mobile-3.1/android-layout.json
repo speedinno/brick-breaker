@@ -1,0 +1,76 @@
+{
+  "width": 412,
+  "height": 732,
+  "app": {
+    "x": 0,
+    "y": 0,
+    "width": 412.19049072265625,
+    "height": 732.1904907226562,
+    "top": 0,
+    "right": 412.19049072265625,
+    "bottom": 732.1904907226562,
+    "left": 0
+  },
+  "footer": {
+    "x": 0,
+    "y": 656.1904907226562,
+    "width": 412.19049072265625,
+    "height": 76,
+    "top": 656.1904907226562,
+    "right": 412.19049072265625,
+    "bottom": 732.1904907226562,
+    "left": 0
+  },
+  "scrollHeight": 732,
+  "canvas": {
+    "width": 1082,
+    "height": 1450,
+    "css": {
+      "x": 0,
+      "y": 104,
+      "width": 412.19049072265625,
+      "height": 552.1904907226562,
+      "top": 104,
+      "right": 412.19049072265625,
+      "bottom": 656.1904907226562,
+      "left": 0
+    }
+  },
+  "controls": [
+    {
+      "id": "patterns",
+      "width": 125.3452377319336,
+      "height": 48
+    },
+    {
+      "id": "settings",
+      "width": 46,
+      "height": 46
+    },
+    {
+      "id": "pause",
+      "width": 46,
+      "height": 46
+    },
+    {
+      "id": "journeyButton",
+      "width": 157.4404754638672,
+      "height": 44
+    },
+    {
+      "id": "accountButton",
+      "width": 78.06547546386719,
+      "height": 44
+    },
+    {
+      "id": "auto",
+      "width": 45.23214340209961,
+      "height": 44
+    },
+    {
+      "id": "speed",
+      "width": 44,
+      "height": 44
+    }
+  ]
+}

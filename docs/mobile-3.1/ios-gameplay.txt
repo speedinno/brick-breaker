@@ -1,0 +1,321 @@
+Command line invocation:
+    /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/xcodebuild -project ios/App/App.xcodeproj -scheme NativeVerification -configuration Debug -destination "platform=iOS Simulator,id=0183276C-C5F7-4A53-B0AF-C3D9117595F6" -derivedDataPath build/native-verification -parallel-testing-enabled NO -resultBundlePath native-evidence/iOS-gameplay.xcresult CODE_SIGNING_ALLOWED=NO test-without-building
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  CapacitorApp: /Users/runner/work/brick-breaker/brick-breaker/node_modules/@capacitor/app @ local
+  CapacitorHaptics: /Users/runner/work/brick-breaker/brick-breaker/node_modules/@capacitor/haptics @ local
+  capacitor-swift-pm: https://github.com/ionic-team/capacitor-swift-pm.git @ 8.5.3
+  CapApp-SPM: /Users/runner/work/brick-breaker/brick-breaker/ios/App/CapApp-SPM @ local
+
+Writing result bundle at path:
+	/Users/runner/work/brick-breaker/brick-breaker/native-evidence/iOS-gameplay.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:0183276C-C5F7-4A53-B0AF-C3D9117595F6, OS:26.4.1, name:iPhone 17 Pro }
+{ platform:iOS Simulator, arch:x86_64, id:0183276C-C5F7-4A53-B0AF-C3D9117595F6, OS:26.4.1, name:iPhone 17 Pro }
+2026-10-22 09:47:00.796541+0000 NativeVerification-Runner[14084:47533] [Default] Running tests...
+objc[14084]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x109324310) and /Library/Developer/CoreSimulator/Volumes/iOS_23E254a/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x109000398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'All tests' started at 2026-10-22 09:47:14.647.
+Test Suite 'NativeVerification.xctest' started at 2026-10-22 09:47:14.648.
+Test Suite 'NativeSmoke' started at 2026-10-22 09:47:14.648.
+Test Case '-[NativeVerification.NativeSmoke testPackagedGamePlayAndColdResume]' started.
+    t =     0.00s Start Test at 2026-10-22 09:47:14.650
+    t =     3.04s Set Up
+    t =     3.04s Open com.speedinno.brickbreaker
+    t =     3.04s     Launch com.speedinno.brickbreaker
+    t =     3.04s         Terminate com.speedinno.brickbreaker:7241
+2026-10-22 09:47:19.597 xcodebuild[11832:40663] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+2026-10-22 09:47:19.597 xcodebuild[11832:40663] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =    12.72s         Setting up automation session
+    t =    14.42s         Wait for com.speedinno.brickbreaker to idle
+    t =    18.16s Checking existence of `Any (First Match)`
+    t =    20.64s Find the Any (First Match)
+    t =    20.74s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    21.12s Added attachment named 'iPhone-ready'
+    t =    21.13s Checking existence of `StatusBar (First Match)`
+    t =    21.19s Find the "Settings" Button
+    t =    21.30s Find the "Settings" Button
+    t =    21.40s Find the "Settings" Button
+    t =    21.53s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    21.59s Find the "Settings" Button
+    t =    21.67s Find the "Pause" Button
+    t =    21.78s Find the "Pause" Button
+    t =    21.89s Find the "Pause" Button
+    t =    21.98s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    22.05s Find the "Pause" Button
+    t =    22.14s Find the "Open stage journey" Button
+    t =    22.22s Find the "Open stage journey" Button
+    t =    22.35s Find the "Open stage journey" Button
+    t =    22.61s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    22.66s Find the "Open stage journey" Button
+    t =    22.83s Find the "Account and cloud saves" Button
+    t =    22.98s Find the "Account and cloud saves" Button
+    t =    23.54s Find the "Account and cloud saves" Button
+    t =    23.69s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    23.76s Find the "Account and cloud saves" Button
+    t =    23.97s Find the "Playback speed" Button
+    t =    24.08s Find the "Playback speed" Button
+    t =    24.21s Find the "Playback speed" Button
+    t =    24.34s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    24.41s Find the "Playback speed" Button
+    t =    24.53s Checking existence of `Any (First Match)`
+    t =    24.61s Find the Any (First Match)
+    t =    24.70s Tap "Account and cloud saves" Button
+    t =    24.70s     Wait for com.speedinno.brickbreaker to idle
+    t =    24.71s     Find the "Account and cloud saves" Button
+    t =    24.78s     Check for interrupting elements affecting "Account and cloud saves" Button
+    t =    24.87s     Synthesize event
+    t =    25.33s     Wait for com.speedinno.brickbreaker to idle
+    t =    25.33s Waiting 5.0s for "you@example.com" TextField to exist
+    t =    26.40s     Checking `Expect predicate `existsNoRetry == 1` for object "you@example.com" TextField`
+    t =    26.41s         Checking existence of `"you@example.com" TextField`
+    t =    26.53s Tap "you@example.com" TextField
+    t =    26.53s     Wait for com.speedinno.brickbreaker to idle
+    t =    26.54s     Find the "you@example.com" TextField
+    t =    26.61s     Check for interrupting elements affecting "you@example.com" TextField
+    t =    26.74s     Synthesize event
+    t =    27.14s     Wait for com.speedinno.brickbreaker to idle
+    t =    28.22s Waiting 10.0s for Keyboard (First Match) to exist
+    t =    29.32s     Checking `Expect predicate `existsNoRetry == 1` for object Keyboard (First Match)`
+    t =    29.32s         Checking existence of `Keyboard (First Match)`
+    t =    29.48s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    30.16s Added attachment named 'iPhone-account-keyboard'
+    t =    31.22s Checking `Expect predicate `hittable == 1` for object "Close account" Button`
+    t =    31.23s     Find the "Close account" Button
+    t =    31.42s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    31.47s Find the "Close account" Button
+    t =    32.04s Tap "Close account" Button
+    t =    32.04s     Wait for com.speedinno.brickbreaker to idle
+    t =    32.06s     Find the "Close account" Button
+    t =    32.56s     Check for interrupting elements affecting "Close account" Button
+    t =    32.76s     Synthesize event
+    t =    33.13s     Wait for com.speedinno.brickbreaker to idle
+    t =    34.56s Checking `Expect predicate `exists == 0` for object "Close account" Button`
+    t =    34.56s     Checking existence of `"Close account" Button`
+    t =    34.71s Tap "Open stage journey" Button
+    t =    34.71s     Wait for com.speedinno.brickbreaker to idle
+    t =    34.72s     Find the "Open stage journey" Button
+    t =    34.90s     Check for interrupting elements affecting "Open stage journey" Button
+    t =    35.03s     Synthesize event
+    t =    35.35s     Wait for com.speedinno.brickbreaker to idle
+    t =    35.35s Waiting 10.0s for Button (First Match) to exist
+    t =    36.40s     Checking `Expect predicate `existsNoRetry == 1` for object Button (First Match)`
+    t =    36.40s         Checking existence of `Button (First Match)`
+    t =    36.63s Tap Button (First Match)
+    t =    36.63s     Wait for com.speedinno.brickbreaker to idle
+    t =    36.64s     Find the Button (First Match)
+    t =    36.73s     Check for interrupting elements affecting "Stage 13, Locked, show unlock requirement" Button
+    t =    36.84s     Synthesize event
+    t =    36.87s         Scroll element to visible
+    t =    36.88s         Find the "Stage 13, Locked, show unlock requirement" Button
+    t =    38.18s         Computed hit point {89, 451} after scrolling to visible
+    t =    38.48s     Wait for com.speedinno.brickbreaker to idle
+    t =    38.76s Waiting 10.0s for "Close unlock requirement" Button to exist
+    t =    39.82s     Checking `Expect predicate `existsNoRetry == 1` for object "Close unlock requirement" Button`
+    t =    39.83s         Checking existence of `"Close unlock requirement" Button`
+    t =    40.28s Tap "Close unlock requirement" Button
+    t =    40.28s     Wait for com.speedinno.brickbreaker to idle
+    t =    40.29s     Find the "Close unlock requirement" Button
+    t =    40.53s     Check for interrupting elements affecting "Close unlock requirement" Button
+    t =    40.97s     Synthesize event
+    t =    41.39s     Wait for com.speedinno.brickbreaker to idle
+    t =    41.40s Find the "Close stages" Button
+    t =    41.80s Tap "Close stages" Button
+    t =    41.80s     Wait for com.speedinno.brickbreaker to idle
+    t =    41.81s     Find the "Close stages" Button
+    t =    42.08s     Check for interrupting elements affecting "Close stages" Button
+    t =    42.21s     Synthesize event
+    t =    42.66s     Wait for com.speedinno.brickbreaker to idle
+    t =    43.72s Checking `Expect predicate `exists == 0` for object "Close stages" Button`
+    t =    43.72s     Checking existence of `"Close stages" Button`
+    t =    43.93s Waiting 10.0s for Button (First Match) to exist
+    t =    44.99s     Checking `Expect predicate `existsNoRetry == 1` for object Button (First Match)`
+    t =    44.99s         Checking existence of `Button (First Match)`
+    t =    45.54s Tap Button (First Match)
+    t =    45.54s     Wait for com.speedinno.brickbreaker to idle
+    t =    45.56s     Find the Button (First Match)
+    t =    45.95s     Check for interrupting elements affecting "Watch it unfold ▷" Button
+    t =    46.18s     Synthesize event
+    t =    46.69s     Wait for com.speedinno.brickbreaker to idle
+    t =    47.74s Checking existence of `Any (First Match)`
+    t =    47.93s Find the Any (First Match)
+    t =    48.21s Checking existence of `Any (First Match)`
+    t =    48.50s Find the Any (First Match)
+    t =    49.77s Checking existence of `Any (First Match)`
+    t =    49.82s Find the Any (First Match)
+    t =    49.95s Checking existence of `Any (First Match)`
+    t =    50.07s Find the Any (First Match)
+    t =    50.79s Checking existence of `Any (First Match)`
+    t =    50.86s Find the Any (First Match)
+    t =    50.94s Checking existence of `Any (First Match)`
+    t =    51.00s Find the Any (First Match)
+    t =    51.79s Checking existence of `Any (First Match)`
+    t =    51.85s Find the Any (First Match)
+    t =    51.91s Checking existence of `Any (First Match)`
+    t =    51.97s Find the Any (First Match)
+    t =    52.75s Checking existence of `Any (First Match)`
+    t =    52.79s Find the Any (First Match)
+    t =    52.86s Checking existence of `Any (First Match)`
+    t =    52.93s Find the Any (First Match)
+    t =    53.71s Checking existence of `Any (First Match)`
+    t =    53.76s Find the Any (First Match)
+    t =    53.83s Checking existence of `Any (First Match)`
+    t =    53.89s Find the Any (First Match)
+    t =    54.77s Checking existence of `Any (First Match)`
+    t =    54.86s Find the Any (First Match)
+    t =    54.92s Checking existence of `Any (First Match)`
+    t =    54.97s Find the Any (First Match)
+    t =    55.74s Checking existence of `Any (First Match)`
+    t =    55.79s Find the Any (First Match)
+    t =    55.85s Checking existence of `Any (First Match)`
+    t =    55.90s Find the Any (First Match)
+    t =    56.72s Checking existence of `Any (First Match)`
+    t =    56.79s Find the Any (First Match)
+    t =    56.84s Checking existence of `Any (First Match)`
+    t =    56.90s Find the Any (First Match)
+    t =    57.79s Checking existence of `Any (First Match)`
+    t =    57.87s Find the Any (First Match)
+    t =    57.92s Checking existence of `Any (First Match)`
+    t =    57.97s Find the Any (First Match)
+    t =    58.75s Checking existence of `Any (First Match)`
+    t =    58.81s Find the Any (First Match)
+    t =    58.91s Checking existence of `Any (First Match)`
+    t =    58.97s Find the Any (First Match)
+    t =    59.77s Checking existence of `Any (First Match)`
+    t =    59.83s Find the Any (First Match)
+    t =    59.93s Checking existence of `Any (First Match)`
+    t =    60.03s Find the Any (First Match)
+    t =    60.77s Checking existence of `Any (First Match)`
+    t =    60.86s Find the Any (First Match)
+    t =    60.98s Checking existence of `Any (First Match)`
+    t =    61.08s Find the Any (First Match)
+    t =    61.74s Checking existence of `Any (First Match)`
+    t =    61.86s Find the Any (First Match)
+    t =    61.94s Checking existence of `Any (First Match)`
+    t =    62.05s Find the Any (First Match)
+    t =    62.77s Checking existence of `Any (First Match)`
+    t =    62.90s Find the Any (First Match)
+    t =    62.99s Checking existence of `Any (First Match)`
+    t =    63.10s Find the Any (First Match)
+    t =    63.72s Checking existence of `Any (First Match)`
+    t =    63.83s Find the Any (First Match)
+    t =    63.93s Checking existence of `Any (First Match)`
+    t =    64.06s Find the Any (First Match)
+    t =    64.74s Checking existence of `Any (First Match)`
+    t =    64.83s Find the Any (First Match)
+    t =    64.95s Checking existence of `Any (First Match)`
+    t =    65.05s Find the Any (First Match)
+    t =    65.77s Checking existence of `Any (First Match)`
+    t =    65.84s Find the Any (First Match)
+    t =    65.93s Checking existence of `Any (First Match)`
+    t =    66.03s Find the Any (First Match)
+    t =    66.77s Checking existence of `Any (First Match)`
+    t =    66.86s Find the Any (First Match)
+    t =    66.94s Checking existence of `Any (First Match)`
+    t =    67.06s Find the Any (First Match)
+    t =    67.71s Checking existence of `Any (First Match)`
+    t =    67.90s Find the Any (First Match)
+    t =    68.06s Checking existence of `Any (First Match)`
+    t =    68.17s Find the Any (First Match)
+    t =    68.78s Checking existence of `Any (First Match)`
+    t =    68.88s Find the Any (First Match)
+    t =    68.99s Checking existence of `Any (First Match)`
+    t =    69.10s Find the Any (First Match)
+    t =    69.73s Checking existence of `Any (First Match)`
+    t =    69.89s Find the Any (First Match)
+    t =    70.01s Checking existence of `Any (First Match)`
+    t =    70.27s Find the Any (First Match)
+    t =    70.74s Checking existence of `Any (First Match)`
+    t =    70.88s Find the Any (First Match)
+    t =    71.12s Checking existence of `Any (First Match)`
+    t =    71.25s Find the Any (First Match)
+    t =    71.72s Checking existence of `Any (First Match)`
+    t =    71.85s Find the Any (First Match)
+    t =    71.98s Checking existence of `Any (First Match)`
+    t =    72.15s Find the Any (First Match)
+    t =    72.74s Checking existence of `Any (First Match)`
+    t =    72.85s Find the Any (First Match)
+    t =    72.94s Checking existence of `Any (First Match)`
+    t =    73.05s Find the Any (First Match)
+    t =    73.72s Checking existence of `Any (First Match)`
+    t =    73.90s Find the Any (First Match)
+    t =    74.02s Checking existence of `Any (First Match)`
+    t =    74.17s Find the Any (First Match)
+    t =    74.70s Checking existence of `Any (First Match)`
+    t =    74.90s Find the Any (First Match)
+    t =    75.07s Checking existence of `Any (First Match)`
+    t =    75.21s Find the Any (First Match)
+    t =    75.76s Checking existence of `Any (First Match)`
+    t =    76.02s Find the Any (First Match)
+    t =    76.17s Checking existence of `Any (First Match)`
+    t =    76.45s Find the Any (First Match)
+    t =    76.77s Checking existence of `Any (First Match)`
+    t =    76.90s Find the Any (First Match)
+    t =    77.01s Checking existence of `Any (First Match)`
+    t =    77.11s Find the Any (First Match)
+    t =    77.71s Checking existence of `Any (First Match)`
+    t =    77.84s Find the Any (First Match)
+    t =    77.93s Checking existence of `Any (First Match)`
+    t =    77.99s Find the Any (First Match)
+    t =    78.07s Tap "Pause" Button
+    t =    78.07s     Wait for com.speedinno.brickbreaker to idle
+    t =    78.09s     Find the "Pause" Button
+    t =    78.16s     Check for interrupting elements affecting "Pause" Button
+    t =    78.31s     Synthesize event
+    t =    78.63s     Wait for com.speedinno.brickbreaker to idle
+    t =    78.63s Checking existence of `Any (First Match)`
+    t =    78.73s Find the Any (First Match)
+    t =    78.83s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    79.07s Added attachment named 'iPhone-paused-gameplay'
+    t =    79.07s Terminate com.speedinno.brickbreaker:14777
+    t =    80.13s Open com.speedinno.brickbreaker
+    t =    80.13s     Launch com.speedinno.brickbreaker
+2026-10-22 09:48:34.792 xcodebuild[11832:40663] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+2026-10-22 09:48:34.793 xcodebuild[11832:40663] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =    81.03s         Setting up automation session
+    t =    82.92s         Wait for com.speedinno.brickbreaker to idle
+    t =    85.84s Checking existence of `Any (First Match)`
+    t =    86.38s Find the Any (First Match)
+    t =    86.56s Checking existence of `Any (First Match)`
+    t =    86.77s Find the Any (First Match)
+    t =    86.90s Waiting 15.0s for Button (First Match) to exist
+    t =    87.92s     Checking `Expect predicate `existsNoRetry == 1` for object Button (First Match)`
+    t =    87.92s         Checking existence of `Button (First Match)`
+    t =    87.99s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    88.25s Added attachment named 'iPhone-restored-field'
+    t =    88.25s Tap Button (First Match)
+    t =    88.25s     Wait for com.speedinno.brickbreaker to idle
+    t =    88.25s     Find the Button (First Match)
+    t =    88.34s     Check for interrupting elements affecting "Continue ↗︎" Button
+    t =    88.42s     Synthesize event
+    t =    88.77s     Wait for com.speedinno.brickbreaker to idle
+    t =    88.80s Waiting 10.0s for "Pause" Button to exist
+    t =    89.82s     Checking `Expect predicate `existsNoRetry == 1` for object "Pause" Button`
+    t =    89.82s         Checking existence of `"Pause" Button`
+    t =    89.94s Find the Target Application 'com.speedinno.brickbreaker'
+    t =    90.27s Added attachment named 'iPhone-resumed'
+    t =    90.28s Tear Down
+Test Case '-[NativeVerification.NativeSmoke testPackagedGamePlayAndColdResume]' passed (90.870 seconds).
+Test Suite 'NativeSmoke' passed at 2026-10-22 09:48:45.526.
+	 Executed 1 test, with 0 failures (0 unexpected) in 90.870 (90.878) seconds
+Test Suite 'NativeVerification.xctest' passed at 2026-10-22 09:48:45.527.
+	 Executed 1 test, with 0 failures (0 unexpected) in 90.870 (90.879) seconds
+Test Suite 'All tests' passed at 2026-10-22 09:48:45.528.
+	 Executed 1 test, with 0 failures (0 unexpected) in 90.870 (90.881) seconds
+2026-10-22 09:48:47.119 xcodebuild[11832:40663] [MT] IDETestOperationsObserverDebug: 140.089 elapsed -- Testing started completed.
+2026-10-22 09:48:47.119 xcodebuild[11832:40663] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-22 09:48:47.119 xcodebuild[11832:40663] [MT] IDETestOperationsObserverDebug: 140.089 sec, +140.089 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/brick-breaker/brick-breaker/native-evidence/iOS-gameplay.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

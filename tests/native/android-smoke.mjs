@@ -43,6 +43,14 @@ try {
     if(!ready)await wait(1000);
   }
   assert(ready,'Native field must finish loading, including after a cold restart');
+  const layout=await evaluate(`(()=>{const app=document.querySelector('.app'),board=document.getElementById('game'),rect=app.getBoundingClientRect(),footer=document.querySelector('footer').getBoundingClientRect();return {width:innerWidth,height:innerHeight,app:rect.toJSON(),footer:footer.toJSON(),scrollHeight:document.documentElement.scrollHeight,canvas:{width:board.width,height:board.height,css:board.getBoundingClientRect().toJSON()},controls:[...document.querySelectorAll('header button,.journey-strip button,.play-tools button')].map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))};})()`);
+  assert(Math.abs(layout.app.width-layout.width)<2&&Math.abs(layout.app.height-layout.height)<2,'Native app must fill its entire viewport');
+  assert(layout.app.y===0&&layout.app.x===0,'No centered webpage margins in the native app');
+  assert(layout.scrollHeight<=layout.height+1,'Game surface must not scroll');
+  assert(layout.footer.bottom<=layout.height+1,'Bottom controls must stay on screen');
+  assert(layout.canvas.width>=layout.canvas.css.width&&layout.canvas.height>=layout.canvas.css.height,'Canvas must render at screen resolution');
+  for(const control of layout.controls)assert(control.width>=43.9&&control.height>=43.9,control.id+' needs a 44pt touch target');
+  await writeFile('native-evidence/android-layout'+(relaunch?'-restored':'')+'.json',JSON.stringify(layout,null,2));
   if(relaunch){
     const before=JSON.parse(await readFile('native-evidence/android-saved-state.json','utf8'));
     const after=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest'))`);
@@ -56,13 +64,14 @@ try {
     await writeFile('native-evidence/android-relaunch-checks.json',JSON.stringify({fieldReady:true,exactSnapshotRestored:true,resumeWorks:true,remaining:restoredRemaining,errors},null,2));
     console.log('Cold restart restored the exact saved field, lives, balls, boosts and shots');
   }else{
-  const initial = await evaluate(`({native:window.Capacitor.isNativePlatform(),title:document.title,remaining:Number(document.getElementById('remaining').textContent),promptHidden:document.getElementById('prompt').hidden,canvas:Array.from(document.getElementById('game').getContext('2d').getImageData(50,50,1,1).data),url:location.href})`);
+  const initial = await evaluate(`({native:window.Capacitor.isNativePlatform(),title:document.title,remaining:Number(document.getElementById('remaining').textContent),promptHidden:document.getElementById('prompt').hidden,url:location.href})`);
   assert.equal(initial.native, true);
   assert.equal(await evaluate(`Boolean(window.BrickBreakerStorage&&JSON.parse(window.BrickBreakerStorage.snapshot()).initialized)`),true,'Android game storage must use committed native persistence');
   assert.equal(initial.title, 'Brick Breaker');
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
-  assert.ok(initial.canvas[0] > 80, 'The field must be painted, not an empty canvas');
+  const painted=await evaluate(`(()=>{const c=document.getElementById('game'),pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let colored=0;for(let i=0;i<pixels.length;i+=16)if(pixels[i]>100&&pixels[i]>pixels[i+1]*2)colored++;return colored;})()`);
+  assert(painted>1000,'The responsive dense field must be painted');
   const legal=await evaluate(`Array.from(document.querySelectorAll('a[href]')).filter(a=>/privacy\\.html|terms\\.html|delete-account\\.html/.test(a.href)).map(a=>a.href)`);
   assert(legal.length>=3);assert(legal.every(url=>url.startsWith('https://')&&!url.startsWith('https://localhost/')&&!url.startsWith('capacitor:')),'Native legal links must open the public site');
   const journey=await evaluate(`document.getElementById('journeyButton').click();({cards:document.getElementById('patternGrid').children.length,locked:document.querySelector('#journeyGrid button').textContent,starter:document.getElementById('starterSummary').textContent})`);

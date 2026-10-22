@@ -1,6 +1,6 @@
 {
   "name": "brick-breaker",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
   "description": "Dense channel-and-swarm brick breaker for web, Android, and iPhone",

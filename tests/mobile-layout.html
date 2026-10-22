@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Mobile layout acceptance</title>
+<style>body{margin:0;background:#292430;color:#ddd;font:14px system-ui;display:grid;justify-content:center}p{margin:12px 0}iframe{border:0;border-radius:16px}nav{display:flex;gap:12px;flex-wrap:wrap;max-width:600px;margin:12px 0}a{color:#ffd5ae}#result{max-width:600px}</style>
+<nav><a href="?size=320,568,0,0">Compact</a><a href="?size=393,852,59,34">iPhone safe areas</a><a href="?size=412,915,32,24">Tall Android</a><a href="?size=768,1024,24,20">Tablet</a><a href="?size=852,393,0,20">Landscape</a></nav>
+<p id="label"></p><iframe title="Mobile game preview" src="/"></iframe><p id="result" role="status"></p>
+<script type="module">
+const numbers=(new URLSearchParams(location.search).get('size')||'393,852,59,34').split(',').map(Number);
+const [width,height,top,bottom]=numbers.length===4&&numbers.every(Number.isFinite)?numbers:[393,852,59,34];
+const frame=document.querySelector('iframe');frame.style.width=Math.max(280,Math.min(width,1200))+'px';frame.style.height=Math.max(280,Math.min(height,1400))+'px';
+document.querySelector('#label').textContent=`${width} × ${height} · simulated safe areas ${top} / ${bottom}`;
+frame.onload=()=>{const d=frame.contentDocument;d.documentElement.style.setProperty('--safe-area-inset-top',Math.max(0,Math.min(top,100))+'px');d.documentElement.style.setProperty('--safe-area-inset-bottom',Math.max(0,Math.min(bottom,100))+'px');
+setInterval(()=>{const app=d.querySelector('.app').getBoundingClientRect(),foot=d.querySelector('footer').getBoundingClientRect();const issues=[];
+if(Math.abs(app.height-height)>1)issues.push('App does not fill display');
+if(d.documentElement.scrollHeight>height+1||d.documentElement.scrollWidth>width+1)issues.push('Document scrolls');
+if(foot.bottom>height-bottom+1)issues.push('Footer outside safe area');
+for(const b of d.querySelectorAll('header button,.journey-strip button,.play-tools button,dialog[open] .close')){const r=b.getBoundingClientRect();if(r.width<43.9||r.height<43.9)issues.push(b.id+' target smaller than 44px');if(r.top<top-.5||r.bottom>height-bottom+.5||r.left<0||r.right>width+.5)issues.push(b.id+' outside safe area');}
+document.querySelector('#result').textContent=issues.length?'FAIL: '+issues.join('; '):'PASS: full viewport, no page scrolling, safe-area controls and 44px touch targets';
+},500);};
+</script>
