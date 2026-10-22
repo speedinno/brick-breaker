@@ -1,4 +1,5 @@
 import config from './cloud-config.js';
+import {fitViewport,worldX} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
@@ -14,12 +15,28 @@ const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('
 // Keep web/PWA legal pages relative for offline access; native links use the
 // owner's public HTTPS site, including links inside the sign-in panel.
 if(native)for(const link of document.querySelectorAll('a[href]'))if(link.getAttribute('href').startsWith('./'))link.href=new URL(link.getAttribute('href'),PUBLIC_URL).href;
+document.documentElement.classList.toggle('native-app',native);
+let viewport=fitViewport(416,660);
 let storage;try{storage=durableStorage(localStorage,native?window.BrickBreakerStorage:null);}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,sound=false,audio=null,lastSound=0;
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastTime=0,accumulator=0,lastSnapshot=0,drag=false,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1;
 const keys=new Set(),focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
+function resizeBoard(){
+  const rect=canvas.getBoundingClientRect();
+  viewport=fitViewport(rect.width,rect.height,window.devicePixelRatio);
+  canvas.width=viewport.pixelsWide;canvas.height=viewport.pixelsHigh;
+  const detail=viewport.scale*viewport.ratio;
+  background.width=Math.ceil(W*detail);background.height=Math.ceil(H*detail);
+  bg.setTransform(detail,0,0,detail,0,0);paintVersion='';
+  const field=canvas.parentElement;
+  field.style.setProperty('--scene-left',viewport.x+'px');
+  field.style.setProperty('--scene-width',W*viewport.scale+'px');
+  field.style.setProperty('--paddle-bottom',(viewport.height-viewport.y-570*viewport.scale)+'px');
+}
+new ResizeObserver(resizeBoard).observe(canvas);
+window.addEventListener('resize',resizeBoard);
 const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'},laser:{color:'#ce79e7',label:'↑'}};
 const cloud=new CloudAccount(accountChanged,{storage});
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
@@ -33,11 +50,13 @@ function tone(freq=500,duration=.03){if(!sound)return;try{audio ||=new(window.Au
 function updateStatus(){const p=store.value;$('journeyStatus').textContent=p.starters.length<12?`${p.starters.length}/12 starters completed`:`${completedCount(p).toLocaleString()} completed · Next ${p.journeyNext}`;$('saveStatus').textContent=store.storageError?'Storage full':cloud.signedIn?p.pending.length?`${p.pending.length} pending save${p.pending.length===1?'':'s'}`:cloud.state?'Cloud save':'Device save':'Device save';$('saveStatus').classList.toggle('pending',store.storageError||p.pending.length>0);if(game)$('completedIndicator').hidden=!isCompleted(p,game.level);}
 function syncHUD(){
   if(!game)return;
-  const balls=String(game.status==='ready'?1:game.balls.length),remaining=String(game.remaining),lives='● '.repeat(game.lives).trim();
+  const balls=String(game.status==='ready'?1:game.balls.length),remaining=String(game.remaining),lives='♥ '.repeat(game.lives).trim();
   if($('balls').textContent!==balls)$('balls').textContent=balls;
   if($('remaining').textContent!==remaining||!$('remaining').hasAttribute('aria-label')){$('remaining').textContent=remaining;$('remaining').setAttribute('aria-label',remaining+' bricks remaining');}
   if($('lives').textContent!==lives||!$('lives').hasAttribute('aria-label')){$('lives').textContent=lives;$('lives').setAttribute('aria-label',`${game.lives} lives`);}
   const width=`${Math.round((1-game.remaining/game.total)*1e6)/1e4}%`;if($('progress').style.width!==width)$('progress').style.width=width;
+  const percent=Math.floor((1-game.remaining/game.total)*100);
+  if($('clearance').textContent!==percent+'%'){$('clearance').textContent=percent+'%';$('progress').parentElement.setAttribute('aria-valuenow',String(percent));}
 }
 function suggestedNext(level){if(store.value.starters.length<12){for(let n=level+1;n<=12;n++)if(!isCompleted(store.value,n))return n;}return nextRequired(store.value);}
 function prompt(kind){
@@ -45,7 +64,7 @@ function prompt(kind){
   clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=difficultyProfile(game.level);
   const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):'Drag the paddle. Catch the boosts. Grow the swarm.','Launch ↗︎'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue ↗︎'],paused:['Paused.','Your progress is safe on this device.','Resume ▷'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch ↗︎'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry this stage ↻']};
-  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over'].includes(kind);$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',kind==='paused'?'Resume':'Pause');
+  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over'].includes(kind);$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',kind==='paused'?'Resume':'Pause');
 }
 function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
@@ -100,9 +119,12 @@ for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener(
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
 function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){
-  if(!game){ctx.fillStyle='#191919';ctx.fillRect(0,0,W,H);return;}
-  const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#191919';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color);paintVersion=version;}ctx.drawImage(background,0,0);
-  const p=game.paddle;if(game.time<game.floorUntil){ctx.fillStyle='#ff8251';ctx.fillRect(0,H-11,W,4);}ctx.fillStyle='#ff8050';ctx.fillRect(p.x-p.w/2,p.y,p.w,7);ctx.fillStyle='#ff9b6c';ctx.fillRect(p.x-p.w/2,p.y,p.w,1);ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#14171c';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.setTransform(viewport.scale*viewport.ratio,0,0,viewport.scale*viewport.ratio,viewport.x*viewport.ratio,viewport.y*viewport.ratio);
+  if(!game){ctx.fillStyle='#14171c';ctx.fillRect(0,0,W,H);return;}
+  const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#14171c';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color);paintVersion=version;}ctx.drawImage(background,0,0,background.width,background.height,0,0,W,H);
+  const p=game.paddle;if(game.time<game.floorUntil){ctx.fillStyle='#ff8251';ctx.fillRect(0,H-11,W,4);}const paddleFill=ctx.createLinearGradient(0,p.y,0,p.y+8);paddleFill.addColorStop(0,'#ffd2a4');paddleFill.addColorStop(1,'#ff8955');ctx.fillStyle=paddleFill;
+  if(!reduced){ctx.shadowColor='#ff9b6c66';ctx.shadowBlur=12;}ctx.beginPath();ctx.roundRect(p.x-p.w/2,p.y,p.w,7,3.5);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
   if(game.shots.length){ctx.fillStyle='#d98aef';if(!reduced){ctx.shadowColor='#b754d9';ctx.shadowBlur=5;}for(const shot of game.shots)ctx.fillRect(shot.x-1.4,shot.y-9,2.8,15);ctx.shadowBlur=0;}
   const shooting=game.status==='playing'&&game.time<game.shootUntil;
   if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
@@ -119,7 +141,7 @@ function frame(t){
   }else accumulator=0;
   draw();syncHUD();if(t-lastSnapshot>10000){lastSnapshot=t;saveSession();}requestAnimationFrame(frame);
 }
-function pointer(e){if(!game||loading)return;const rect=canvas.getBoundingClientRect();game.target=clamp((e.clientX-rect.left)*W/rect.width,0,W);}
+function pointer(e){if(!game||loading)return;const rect=canvas.getBoundingClientRect();game.target=worldX(e.clientX,rect.left,viewport);}
 canvas.addEventListener('pointerdown',e=>{if(!game)return;drag=true;canvas.setPointerCapture(e.pointerId);if(auto)setAuto(false);pointer(e);});canvas.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'&&!auto||drag)pointer(e);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(kind,()=>drag=false);
 document.addEventListener('keydown',e=>{if([...document.querySelectorAll('dialog')].some(d=>d.open))return;if(e.target.matches('button,input,a')&&[' ','Enter'].includes(e.key))return;const key=e.key.length===1?e.key.toLowerCase():e.key;if(['ArrowLeft','ArrowRight','a','d',' ','p','Escape'].includes(key)){e.preventDefault();if(e.repeat&&[' ','p','Escape'].includes(key))return;keys.add(key);if(key===' ')void action();if(key==='p'||key==='Escape')pause();}});document.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);

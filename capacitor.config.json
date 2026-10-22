@@ -1,1 +1,22 @@
-{"appId":"com.speedinno.brickbreaker","appName":"Brick Breaker","webDir":"dist","android":{"backgroundColor":"#191919","allowMixedContent":false},"ios":{"backgroundColor":"#191919","contentInset":"never","preferredContentMode":"mobile"}}
+{
+  "appId": "com.speedinno.brickbreaker",
+  "appName": "Brick Breaker",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#14171c",
+    "allowMixedContent": false
+  },
+  "ios": {
+    "backgroundColor": "#14171c",
+    "contentInset": "never",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SystemBars": {
+      "hidden": true,
+      "style": "DARK",
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

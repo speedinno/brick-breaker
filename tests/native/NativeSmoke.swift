@@ -19,6 +19,14 @@ final class NativeSmoke: XCTestCase {
     func testPackagedGamePlayAndColdResume() {
         continueAfterFailure = false
         game.launch(); waitForField(); shot("iPhone-ready")
+        XCTAssertFalse(game.statusBars.firstMatch.exists, "Game should use the immersive iPhone presentation")
+        for label in ["Settings", "Pause", "Open stage journey", "Account and cloud saves", "Playback speed"] {
+            let control = button(label)
+            XCTAssertTrue(control.isHittable, "\(label) must be reachable within the safe area")
+            XCTAssertGreaterThanOrEqual(control.frame.width, 43.5)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 43.5)
+            XCTAssertTrue(game.frame.contains(control.frame), "\(label) must stay inside the phone display")
+        }
         let initial = remaining(); XCTAssertGreaterThan(initial, 1000)
         button("Open stage journey").tap()
         let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
