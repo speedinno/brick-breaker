@@ -19,7 +19,9 @@ document.documentElement.classList.toggle('native-app',native);
 // WKWebView can keep its layout viewport while the software keyboard covers it.
 // Move dialogs above that occlusion; never resize or discard the saved game.
 function updateKeyboardInset(){
-  const box=dialogViewport(innerHeight,window.visualViewport,document.activeElement?.matches('input,textarea'));
+  // Focus can leave the input before the keyboard disappears. Use the actual
+  // viewport throughout dismissal so the tapped action does not jump away.
+  const box=dialogViewport(innerHeight,window.visualViewport);
   const style=document.documentElement.style;
   style.setProperty('--keyboard-inset',(box?.bottom||0)+'px');
   style.setProperty('--visual-top',(box?.top||0)+'px');
@@ -130,12 +132,6 @@ function away(){keys.clear();drag=false;if(game?.status==='playing'&&!paused){pa
 function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}keys.clear();drag=false;saveSession();if(!$(id).open)$(id).showModal();}
 function closeDialog(id){if($(id).open)$(id).close();}
 for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus({preventScroll:true});});
-// Keep an editing field focused until a tapped action executes. Otherwise iOS
-// can blur it on pointer-down, resize the panel and move the action before click.
-// Keyboard/assistive activation still follows the normal click handlers.
-for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('pointerdown',event=>{
-  if(event.button===0&&event.target.closest('button,a')&&document.activeElement?.matches('input,textarea'))event.preventDefault();
-});
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
 function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){

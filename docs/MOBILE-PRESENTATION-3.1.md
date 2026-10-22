@@ -1,4 +1,4 @@
-# Full-screen mobile presentation — 3.1.0 (build 16)
+# Full-screen mobile presentation — 3.1.0 (build 17)
 
 Based on Chandrahas's `dev` commit `d3db7f2`. This update changes presentation and native window behavior; the existing Azure/Supabase configuration and gameplay progress formats are retained.
 
@@ -46,6 +46,6 @@ Before a store upload, Chandrahas should also check the signed build on physical
 
 ## Recorded verification
 
-Final build 16 native results will be recorded after CI completes. The local suite has 66 passing tests, including camera/touch geometry and keyboard viewport panning/reset cases.
+Final build 17 native results will be recorded after CI completes. The local suite has 66 passing tests, including camera/touch geometry and keyboard viewport panning/reset cases.
 
-Native testing found two iPhone keyboard issues during this iteration: the viewport could pan the close control above the display, and input blur could move an action between pointer-down and click. The panel now follows the visible viewport and preserves editing focus until a tapped action executes. The native test requires an actual software keyboard, a reachable close control and successful dismissal with one tap before continuing to stage locks and cold-save restoration. Builds 14 and 15 are superseded and are not the handoff package.
+Native testing found two iPhone keyboard issues during this iteration: the viewport could pan the close control above the display, and input blur could move an action between pointer-down and click. The panel now follows the visible viewport and tracks the visible viewport throughout keyboard dismissal, without resetting when input focus changes. The native test requires an actual software keyboard, a reachable close control and successful dismissal with one tap before continuing to stage locks and cold-save restoration. Builds 14–16 are superseded and are not the handoff package.

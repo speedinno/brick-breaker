@@ -24,15 +24,18 @@ test('resize preserves logical paddle targets and caps the rendering memory on d
 
 test('keyboard dialogs stay inside a visual viewport that has panned upward',()=>{
   const visible={height:500,offsetTop:120,scale:1};
-  const box=dialogViewport(874,visible,true);
+  const box=dialogViewport(874,visible);
   assert.deepEqual(box,{top:120,height:500,bottom:254});
   // With safe areas and spacing, neither close control nor panel bottom is occluded.
   assert(box.top+62>=visible.offsetTop);
   assert(box.top+box.height-34<=visible.offsetTop+visible.height);
-  assert.deepEqual(dialogViewport(500,{height:500,offsetTop:0,scale:1},true),{top:0,height:500,bottom:0});
+  assert.deepEqual(dialogViewport(500,{height:500,offsetTop:0,scale:1}),{top:0,height:500,bottom:0});
 });
-test('keyboard dialog adjustment resets on blur and does not override pinch zoom',()=>{
-  assert.equal(dialogViewport(874,{height:500,offsetTop:120,scale:1},false),null);
-  assert.equal(dialogViewport(874,{height:400,offsetTop:100,scale:2},true),null);
-  assert.equal(dialogViewport(874,null,true),null);
+test('dialog follows the real keyboard dismissal, including the interval after input blur',()=>{
+  // Losing input focus must not jump to the full layout while the keyboard remains.
+  assert.deepEqual(dialogViewport(874,{height:500,offsetTop:120,scale:1}),{top:120,height:500,bottom:254});
+  assert.deepEqual(dialogViewport(874,{height:650,offsetTop:60,scale:1}),{top:60,height:650,bottom:164});
+  assert.deepEqual(dialogViewport(874,{height:874,offsetTop:0,scale:1}),{top:0,height:874,bottom:0});
+  assert.equal(dialogViewport(874,{height:400,offsetTop:100,scale:2}),null);
+  assert.equal(dialogViewport(874,null),null);
 });
