@@ -16,6 +16,17 @@ const $=id=>document.getElementById(id),canvas=$('game'),ctx=canvas.getContext('
 // owner's public HTTPS site, including links inside the sign-in panel.
 if(native)for(const link of document.querySelectorAll('a[href]'))if(link.getAttribute('href').startsWith('./'))link.href=new URL(link.getAttribute('href'),PUBLIC_URL).href;
 document.documentElement.classList.toggle('native-app',native);
+// WKWebView can keep its layout viewport while the software keyboard covers it.
+// Move dialogs above that occlusion; never resize or discard the saved game.
+function updateKeyboardInset(){
+  const visual=window.visualViewport,editing=document.activeElement?.matches('input,textarea');
+  const inset=editing&&visual&&visual.scale<=1.01?Math.max(0,innerHeight-visual.height-visual.offsetTop):0;
+  document.documentElement.style.setProperty('--keyboard-inset',inset+'px');
+}
+window.visualViewport?.addEventListener('resize',updateKeyboardInset);
+window.visualViewport?.addEventListener('scroll',updateKeyboardInset);
+document.addEventListener('focusin',updateKeyboardInset);
+document.addEventListener('focusout',()=>requestAnimationFrame(updateKeyboardInset));
 let viewport=fitViewport(416,660);
 let storage;try{storage=durableStorage(localStorage,native?window.BrickBreakerStorage:null);}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
@@ -124,7 +135,9 @@ function draw(){
   if(!game){ctx.fillStyle='#14171c';ctx.fillRect(0,0,W,H);return;}
   const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#14171c';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color);paintVersion=version;}ctx.drawImage(background,0,0,background.width,background.height,0,0,W,H);
   const p=game.paddle;if(game.time<game.floorUntil){ctx.fillStyle='#ff8251';ctx.fillRect(0,H-11,W,4);}const paddleFill=ctx.createLinearGradient(0,p.y,0,p.y+8);paddleFill.addColorStop(0,'#ffd2a4');paddleFill.addColorStop(1,'#ff8955');ctx.fillStyle=paddleFill;
-  if(!reduced){ctx.shadowColor='#ff9b6c66';ctx.shadowBlur=12;}ctx.beginPath();ctx.roundRect(p.x-p.w/2,p.y,p.w,7,3.5);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
+  if(!reduced){ctx.shadowColor='#ff9b6c66';ctx.shadowBlur=12;}ctx.beginPath();
+  ctx.arc(p.x+p.w/2-3.5,p.y+3.5,3.5,-Math.PI/2,Math.PI/2);
+  ctx.arc(p.x-p.w/2+3.5,p.y+3.5,3.5,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
   if(game.shots.length){ctx.fillStyle='#d98aef';if(!reduced){ctx.shadowColor='#b754d9';ctx.shadowBlur=5;}for(const shot of game.shots)ctx.fillRect(shot.x-1.4,shot.y-9,2.8,15);ctx.shadowBlur=0;}
   const shooting=game.status==='playing'&&game.time<game.shootUntil;
   if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}

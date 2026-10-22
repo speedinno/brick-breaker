@@ -28,6 +28,15 @@ final class NativeSmoke: XCTestCase {
             XCTAssertTrue(game.frame.contains(control.frame), "\(label) must stay inside the phone display")
         }
         let initial = remaining(); XCTAssertGreaterThan(initial, 1000)
+        button("Account and cloud saves").tap()
+        let email = game.textFields["you@example.com"].firstMatch
+        if email.waitForExistence(timeout: 5) {
+            email.tap()
+            XCTAssertTrue(game.keyboards.firstMatch.waitForExistence(timeout: 10), "Email field must open the software keyboard")
+            XCTAssertTrue(button("Close account").isHittable, "Account close must remain accessible above the keyboard")
+            shot("iPhone-account-keyboard")
+        }
+        button("Close account").tap()
         button("Open stage journey").tap()
         let locked = game.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Stage 13, Locked")).firstMatch
         XCTAssertTrue(locked.waitForExistence(timeout: 10)); locked.tap()
