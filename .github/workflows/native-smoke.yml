@@ -62,7 +62,11 @@ jobs:
           target: google_apis
           profile: pixel_2
           disable-animations: true
-          script: bash tests/native/android-smoke.sh
+          # Suppress only Android's one-time OS tutorial on this disposable emulator.
+          # It otherwise dims/obscures native screenshots while the WebView tests run.
+          script: |
+            adb shell settings put secure immersive_mode_confirmations confirmed
+            bash tests/native/android-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
