@@ -1,5 +1,7 @@
 # Brick Breaker · Channels & Swarms
 
+**Chandrahas: start with [FINAL-HANDOFF.md](FINAL-HANDOFF.md)** for the current build, downloads, existing cloud setup and remaining owner-managed release steps.
+
 Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
 **Play:** https://speedinno.github.io/brick-breaker/
