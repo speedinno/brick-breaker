@@ -139,13 +139,13 @@ function New-RecoveryFailureAlert {
     param($Job,[object[]]$MetricDefinitions,$ExistingRule)
     if($Job.tags.application -ne 'brick-breaker' -or $Job.id -notmatch '/providers/Microsoft.App/jobs/[^/]+$'){throw 'The alert target is not the dedicated game recovery job.'}
     $metric=@($MetricDefinitions | Where-Object {$_.name.value -eq 'Executions' -and $_.namespace -eq 'Microsoft.App/jobs'})
-    if($metric.Count -ne 1 -or $metric[0].unit -ne 'Count' -or $metric[0].supportedAggregationTypes -notcontains 'Maximum' -or @($metric[0].dimensions | Where-Object value -eq state).Count -ne 1){throw 'The live job execution metric schema differs. No alert was installed.'}
+    if($metric.Count -ne 1 -or $metric[0].unit -ne 'Count' -or $metric[0].supportedAggregationTypes -notcontains 'Total' -or @($metric[0].dimensions | Where-Object value -eq state).Count -ne 1){throw 'The live job execution metric schema differs. No alert was installed.'}
     if($ExistingRule -and ($ExistingRule.tags.application -ne 'brick-breaker' -or @($ExistingRule.properties.scopes).Count -ne 1 -or $ExistingRule.properties.scopes[0] -ne $Job.id)){throw 'The existing alert belongs to another resource.'}
     $tags=if($ExistingRule.tags){$ExistingRule.tags | ConvertTo-Json | ConvertFrom-Json -AsHashtable}else{@{}};$tags.application='brick-breaker';$tags.purpose='recovery-failure-monitor'
     $actions=@();if($ExistingRule){$actions=@($ExistingRule.properties.actions | Where-Object {$_})}
     return @{location='global';tags=$tags;properties=@{
         description='Recovery execution failed. Inspect safe worker logs and private SQL status. Missing executions require separate heartbeat monitoring. Notification actions must be configured by the operator.'
-        enabled=$true;severity=2;scopes=@($Job.id);evaluationFrequency='PT1M';windowSize='PT15M';autoMitigate=$true;targetResourceType='Microsoft.App/jobs';targetResourceRegion=$Job.location;actions=$actions
-        criteria=@{'odata.type'='Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria';allOf=@(@{name='failed-recovery-execution';criterionType='StaticThresholdCriterion';metricNamespace='Microsoft.App/jobs';metricName='Executions';timeAggregation='Maximum';operator='GreaterThan';threshold=0;skipMetricValidation=$false;dimensions=@(@{name='state';operator='Include';values=@('Failed')})})}
+        enabled=$true;severity=2;scopes=@($Job.id.ToLowerInvariant());evaluationFrequency='PT1M';windowSize='PT15M';autoMitigate=$true;targetResourceType='Microsoft.App/jobs';targetResourceRegion=$Job.location;actions=$actions
+        criteria=@{'odata.type'='Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria';allOf=@(@{name='failed-recovery-execution';criterionType='StaticThresholdCriterion';metricNamespace='Microsoft.App/jobs';metricName='Executions';timeAggregation='Total';operator='GreaterThan';threshold=0;skipMetricValidation=$false;dimensions=@(@{name='state';operator='Include';values=@('Failed')})})}
     }}
 }

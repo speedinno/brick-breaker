@@ -14,7 +14,7 @@ $resourceId="/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/provid
 $url="https://management.azure.com${resourceId}?api-version=2018-03-01"
 if($resources.Where({$_.type -eq 'Microsoft.Insights/metricAlerts' -and $_.name -eq $RuleName})){$existing=Invoke-Azure -Arguments @('rest','--method','get','--url',$url)}
 $payload=New-RecoveryFailureAlert -Job $job -MetricDefinitions $metrics -ExistingRule $existing
-if($Plan){[ordered]@{subscription=$account.name;subscriptionId=$account.id;rule=$RuleName;job=$JobName;metric='Executions';dimension='state=Failed';threshold='Maximum > 0';evaluation='PT1M';window='PT15M';notificationActions=@($payload.properties.actions).Count;monitorsMissingExecutions=$false} | ConvertTo-Json;return}
+if($Plan){[ordered]@{subscription=$account.name;subscriptionId=$account.id;rule=$RuleName;job=$JobName;metric='Executions';dimension='state=Failed';threshold='Total > 0';evaluation='PT1M';window='PT15M';notificationActions=@($payload.properties.actions).Count;monitorsMissingExecutions=$false} | ConvertTo-Json;return}
 $root=Split-Path $PSScriptRoot -Parent
 if(& git -C $root status --porcelain --untracked-files=normal -- scripts/deploy-recovery-monitor.ps1 scripts/azure-cli.ps1 scripts/azure-profile.ps1){throw 'Commit the monitoring scripts before deployment.'}
 foreach($provider in @('Microsoft.Insights','Microsoft.AlertsManagement')){Invoke-Azure -Arguments @('provider','register','--namespace',$provider,'--wait') | Out-Null}
