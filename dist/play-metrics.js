@@ -1,6 +1,6 @@
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/.test(value);
 const revision=value=>typeof value==='string'&&/^(0|[1-9][0-9]{0,18})$/.test(value)&&BigInt(value)<=9223372036854775807n;
-const types=new Set(['session_start','help_open','play_segment','stage_end','coach_exposure','purchase_offer','ad_event']);
+const types=new Set(['session_start','help_open','play_segment','stage_end','coach_exposure','purchase_offer','ad_event','ad_value']);
 const assigned=a=>a?.kind==='aim_coaching'&&typeof a.experiment==='string'&&/^[a-z0-9_-]{1,80}$/.test(a.experiment)&&['standard','aim_hint'].includes(a.variant)?{experiment:a.experiment,kind:a.kind,variant:a.variant}:null;
 function validData(type,d){
  if(!d||typeof d!=='object'||Array.isArray(d))return false;
@@ -15,6 +15,7 @@ function validData(type,d){
  if(type==='coach_exposure'){keys=['experiment','variant'];valid=text(d.experiment,/^[a-z0-9_-]{1,80}$/)&&member(d.variant,['standard','aim_hint']);}
  if(type==='purchase_offer'){keys=['platform','sku','currency','amountMicros','benefitMs','configVersion'];valid=member(d.platform,['android','ios','web'])&&text(d.sku,/^[A-Za-z0-9_.:-]{1,200}$/)&&text(d.currency,/^[A-Z]{3}$/)&&integer(d.amountMicros,0,1000000000000000)&&integer(d.benefitMs,1,9000000000)&&text(d.configVersion,/^[A-Za-z0-9_.:-]{1,80}$/);}
  if(type==='ad_event'){keys=['opportunityId','provider','platform','phase'];valid=uuid(d.opportunityId)&&member(d.provider,['admob','h5'])&&member(d.platform,['android','ios','web'])&&member(d.phase,['request','display','reward_signal','closed','failed']);}
+ if(type==='ad_value'){keys=['opportunityId','provider','platform','valueMicros','currency','precision'];valid=uuid(d.opportunityId)&&d.provider==='admob'&&member(d.platform,['android','ios'])&&integer(d.valueMicros,0,1e15)&&text(d.currency,/^[A-Z]{3}$/)&&integer(d.precision,0,3);}
  return valid&&Object.keys(d).every(key=>keys.includes(key));
 }
 export class PlayMetrics {

@@ -3,6 +3,8 @@
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};};
 const unavailable=()=>Error('No rewarded ad is available right now. Manual play is always available.');
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
+// Optional observations cannot break an SDK callback or change reward proof.
+const observe=(hooks,phase,data)=>{try{hooks.observed?.(phase,data);}catch{}};
 
 export class NativeRewardedAdapter {
  constructor({available=()=>false,eligible=()=>false,loadSDK=()=>import('./vendor/ads.js'),externalStart=()=>null,externalEnd=()=>{}}={}){
@@ -30,13 +32,16 @@ export class NativeRewardedAdapter {
  async prepare({unit,offerId,environment},hooks={}){
   if(this.busy)throw Error('Another ad is still open or loading.');
   if(!/^ca-app-pub-\d{16}\/\d{6,16}$/.test(unit)||!uuid(offerId)||!['production','sandbox'].includes(environment))throw unavailable();
-  this.busy=true;const handles=[],closed=deferred();let invoked=false,ended=false,earned=false;
+  this.busy=true;const handles=[],closed=deferred();let invoked=false,ended=false,earned=false,displayed=false;const values=new Set();
   const clean=()=>{for(const handle of handles.splice(0))void handle.remove().catch(()=>{});this.busy=false;};
-  const finish=(reason)=>{if(ended)return;ended=true;clean();closed.resolve({reason,earnedHint:earned,definitivelyUnearned:false});};
-  const reward=()=>{if(!invoked||ended||earned)return;earned=true;hooks.rewarded?.();};
+  const finish=(reason)=>{if(ended)return;ended=true;if(reason==='dismissed'&&invoked)observe(hooks,'closed');else if(reason==='failed')observe(hooks,'failed');clean();closed.resolve({reason,earnedHint:earned,definitivelyUnearned:false});};
+  const reward=()=>{if(!invoked||ended||earned)return;earned=true;observe(hooks,'reward_signal');hooks.rewarded?.();};
+  const display=()=>{if(!invoked||ended||displayed)return;displayed=true;observe(hooks,'display');};
+  const value=data=>{if(!invoked||ended||data?.adUnitId!==unit||!Number.isSafeInteger(data.valueMicros)||data.valueMicros<0||data.valueMicros>1e15||typeof data.currencyCode!=='string'||!/^[A-Z]{3}$/.test(data.currencyCode)||!Number.isInteger(data.precision)||data.precision<0||data.precision>3)return;const normalized={valueMicros:data.valueMicros,currency:data.currencyCode,precision:data.precision},key=JSON.stringify(normalized);if(values.has(key)||values.size>=4)return;values.add(key);observe(hooks,'value',normalized);};
   try{
    await this.consent();const api=this.sdk.AdMob,events=this.sdk.RewardAdPluginEvents;
-   for(const [event,callback] of [[events.Rewarded,reward],[events.Dismissed,()=>{if(invoked)finish('dismissed');}],[events.FailedToShow,()=>{if(invoked)finish('failed');}]])handles.push(await api.addListener(event,callback));
+   for(const [event,callback] of [[events.Rewarded,reward],[events.Dismissed,()=>{if(invoked)finish('dismissed');}],[events.FailedToShow,()=>{if(invoked)finish('failed');}],[events.Showed,display],[events.AdImpression,value]])if(event)handles.push(await api.addListener(event,callback));
+   observe(hooks,'request');
    const loaded=await api.prepareRewardVideoAd({adId:unit,isTesting:environment==='sandbox',npa:true,ssv:{userId:offerId,customData:offerId}});
    if(loaded?.adUnitId!==unit)throw unavailable();
    return{
@@ -46,7 +51,7 @@ export class NativeRewardedAdapter {
     show:()=>{if(invoked||ended)throw unavailable();hooks.beforeAd?.();invoked=true;try{Promise.resolve(api.showRewardVideoAd({adId:unit})).then(reward,()=>finish('failed'));}catch{finish('failed');}return closed.promise;},
     cancel:()=>{if(invoked)return false;if(!ended){ended=true;clean();closed.resolve({reason:'cancelled',earnedHint:false,definitivelyUnearned:true});}return true;}
    };
-  }catch(error){ended=true;clean();throw error;}
+  }catch(error){observe(hooks,'failed');ended=true;clean();throw error;}
  }
 }
 
@@ -57,10 +62,11 @@ export class H5RewardedAdapter {
  async prepare({unit,offerId,environment},hooks={}){
   if(this.busy)throw Error('Another ad is still open or loading.');
   if(!/^ca-pub-\d{16}$/.test(unit)||!uuid(offerId)||!['production','sandbox'].includes(environment))throw unavailable();
-  this.busy=true;let invoked=false,ended=false,viewed=false,showAd=null,timer;
+  this.busy=true;let invoked=false,ended=false,viewed=false,displayed=false,notedClosure=false,showAd=null,timer;
   const ready=deferred(),closed=deferred();
   const finish=(reason,definitive=true)=>{
    if(ended)return;ended=true;clearTimeout(timer);this.busy=false;
+   if(displayed&&!notedClosure){notedClosure=true;observe(hooks,'closed');}else if(!displayed&&!['cancelled','ignored'].includes(reason))observe(hooks,'failed');
    if(!showAd)ready.reject(unavailable());
    closed.resolve({reason,earnedHint:viewed,definitivelyUnearned:definitive&&!viewed});
   };
@@ -70,18 +76,18 @@ export class H5RewardedAdapter {
    if(permitted!==true)throw Error('Ads are unavailable with the current privacy choices. Manual play remains free.');
    const sdk=await this.load({unit,environment});sdk.config({sound:this.sound()?'on':'off',preloadAdBreaks:'on'});
    timer=setTimeout(()=>finish('unavailable'),this.timeoutMs);
-   sdk.break({type:'reward',name:'autoplay_time',
+   observe(hooks,'request');sdk.break({type:'reward',name:'autoplay_time',
     beforeReward:fn=>{if(ended||showAd||typeof fn!=='function')return;clearTimeout(timer);showAd=fn;ready.resolve({
      show:()=>{if(invoked||ended)throw unavailable();hooks.beforeAd?.();invoked=true;try{showAd();}catch{finish('failed',false);}return closed.promise;},
      cancel:()=>{if(invoked)return false;finish('cancelled');return true;}
     });},
-    beforeAd:()=>{if(invoked&&!ended)hooks.beforeAd?.();},
-    adViewed:()=>{if(!invoked||ended||viewed)return;viewed=true;hooks.rewarded?.();},
-    adDismissed:()=>{},afterAd:()=>{},
+    beforeAd:()=>{if(invoked&&!ended){hooks.beforeAd?.();if(!displayed){displayed=true;observe(hooks,'display');}}},
+    adViewed:()=>{if(!invoked||ended||viewed)return;viewed=true;observe(hooks,'reward_signal');hooks.rewarded?.();},
+    adDismissed:()=>{},afterAd:()=>{if(invoked&&!ended&&displayed&&!notedClosure){notedClosure=true;observe(hooks,'closed');}},
     adBreakDone:info=>finish(info?.breakStatus||'finished')
    });
    return await ready.promise;
-  }catch(error){clearTimeout(timer);ended=true;this.busy=false;throw error;}
+  }catch(error){if(!ended)observe(hooks,'failed');clearTimeout(timer);ended=true;this.busy=false;throw error;}
  }
 }
 

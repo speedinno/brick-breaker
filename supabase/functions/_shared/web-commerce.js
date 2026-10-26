@@ -34,7 +34,7 @@ export async function prepareWebCheckout(commerce,admin,user,intentId,priceId){
   if(!order)return {state:'preparing',intentId:intent.id};
   intent=await attach(commerce,admin,intent,order);
  }
- return {state:order.status==='paid'?'paid':'quoted',intentId:intent.id,orderId:intent.order_id,keyId:provider.keyId,environment:provider.environment,amount:order.amount,currency:order.currency,milliseconds:Number(intent.milliseconds),quoteUntil:intent.quote_until};
+ return {state:order.status==='paid'?'paid':'quoted',intentId:intent.id,orderId:intent.order_id,keyId:provider.keyId,environment:provider.environment,amount:order.amount,currency:order.currency,milliseconds:Number(intent.milliseconds),productId:intent.product_id,configVersion:intent.config_version,quoteUntil:intent.quote_until};
 }
 export async function findWebIntent(commerce,admin,id,user){
  if(!commerce)throw unavailable();let query=admin.from('game_web_orders').select('*').eq('id',id).eq('scope',commerce.provider.scope).eq('environment',commerce.provider.environment);

@@ -37,11 +37,13 @@ begin
   allowed:=array['experiment','variant'];if (d->>'experiment') is null or (d->>'experiment') !~ '^[a-z0-9_-]{1,80}$' or (d->>'variant') is null or (d->>'variant') not in ('standard','aim_hint') then return false;end if;
  when 'purchase_offer' then
   allowed:=array['platform','sku','currency','amountMicros','benefitMs','configVersion'];if (d->>'platform') is null or (d->>'platform') not in ('android','ios','web') or (d->>'sku') is null or (d->>'sku') !~ '^[A-Za-z0-9_.:-]{1,200}$' or (d->>'currency') is null or (d->>'currency') !~ '^[A-Z]{3}$' or not public.game_metric_int(d->'amountMicros',0,1000000000000000) or not public.game_metric_int(d->'benefitMs',1,9000000000) or (d->>'configVersion') is null or (d->>'configVersion') !~ '^[A-Za-z0-9_.:-]{1,80}$' then return false;end if;
+ when 'ad_value' then
+  allowed:=array['opportunityId','provider','platform','valueMicros','currency','precision'];if (d->>'opportunityId') is null or (d->>'opportunityId') !~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$' or (d->>'provider') is distinct from 'admob' or (d->>'platform') is null or (d->>'platform') not in ('android','ios') or (d->>'currency') is null or (d->>'currency') !~ '^[A-Z]{3}$' or not public.game_metric_int(d->'valueMicros',0,1000000000000000) or not public.game_metric_int(d->'precision',0,3) then return false;end if;
  when 'ad_event' then
   allowed:=array['opportunityId','provider','platform','phase'];if (d->>'opportunityId') is null or (d->>'opportunityId') !~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$' or (d->>'provider') is null or (d->>'provider') not in ('admob','h5') or (d->>'platform') is null or (d->>'platform') not in ('android','ios','web') or (d->>'phase') is null or (d->>'phase') not in ('request','display','reward_signal','closed','failed') then return false;end if;
  else return false;
  end case;
- return not exists(select 1 from jsonb_each(d) f where not(f.key=any(allowed)) or f.key not in ('level','activeMs','simulationMs','losses','amountMicros','benefitMs') and jsonb_typeof(f.value)<>'string');
+ return not exists(select 1 from jsonb_each(d) f where not(f.key=any(allowed)) or f.key not in ('level','activeMs','simulationMs','losses','amountMicros','benefitMs','valueMicros','precision') and jsonb_typeof(f.value)<>'string');
 end $$;
 
 create function public.game_metrics_state(p_allow_assignment boolean default true) returns jsonb language plpgsql security definer set search_path='' as $$
@@ -99,7 +101,7 @@ begin
   if found then if old.fingerprint=fingerprint then duplicates:=duplicates+1;else rejected:=rejected+1;end if;continue;end if;
   if kind='stage_end' and exists(select 1 from public.game_metric_events where user_id=uid and type='stage_end' and run_id=rid) then duplicates:=duplicates+1;continue;end if;
   if kind='coach_exposure' and not exists(select 1 from public.game_metric_assignments where user_id=uid and experiment_id=raw->'data'->>'experiment' and variant=raw->'data'->>'variant' and revision=p_revision) then rejected:=rejected+1;continue;end if;
-  if kind='ad_event' and not exists(select 1 from public.game_ad_offers where owner_user_id=uid and id=(raw->'data'->>'opportunityId')::uuid and provider=raw->'data'->>'provider' and platform=raw->'data'->>'platform') then rejected:=rejected+1;continue;end if;
+  if kind in ('ad_event','ad_value') and not exists(select 1 from public.game_ad_offers where owner_user_id=uid and id=(raw->'data'->>'opportunityId')::uuid and provider=raw->'data'->>'provider' and platform=raw->'data'->>'platform') then rejected:=rejected+1;continue;end if;
   if used+added>=1000 then quota:=quota+1;continue;end if;
   client_time:=null;if (raw->>'clientAt')::numeric between extract(epoch from now()-interval '30 days')*1000 and extract(epoch from now()+interval '5 minutes')*1000 then client_time:=to_timestamp((raw->>'clientAt')::double precision/1000);end if;
   insert into public.game_metric_events(user_id,id,revision,type,session_id,run_id,client_at,data,fingerprint) values(uid,event_id,p_revision,kind,sid,rid,client_time,raw->'data',fingerprint);added:=added+1;

@@ -32,10 +32,26 @@ test('native show failure is conservatively unverified, and a mismatched loaded 
 test('native unavailable or ineligible builds do not import an SDK',async()=>{
  let imports=0;const adapter=new NativeRewardedAdapter({available:()=>false,eligible:()=>true,loadSDK:async()=>imports++});await assert.rejects(()=>adapter.prepare({unit,offerId:crypto.randomUUID(),environment:'production'}));assert.equal(imports,0);
 });
+test('native display and paid-value observations come from their SDK callbacks, with normalized deduplication and no financial authority',async()=>{
+ const pending=defer(),n=native({showRewardVideoAd:()=>pending.promise}),load=n.adapter.loadSDK;n.adapter.loadSDK=async()=>{const sdk=await load();return{...sdk,RewardAdPluginEvents:{...sdk.RewardAdPluginEvents,Showed:'display',AdImpression:'paid'}};};
+ const seen=[],handle=await n.adapter.prepare({unit,offerId:crypto.randomUUID(),environment:'sandbox'},{observed:(phase,value)=>seen.push({phase,value})});
+ const data={adUnitId:unit,valueMicros:1200,currencyCode:'USD',precision:1,networkName:'not stored',impressionId:'not stored'};
+ n.listeners.get('display')();n.listeners.get('paid')(data);assert.deepEqual(seen.map(e=>e.phase),['request']);
+ const closing=handle.show();n.listeners.get('display')();n.listeners.get('display')();n.listeners.get('paid')({...data,adUnitId:'different'});n.listeners.get('paid')({...data,precision:5});n.listeners.get('paid')(data);n.listeners.get('paid')(data);n.listeners.get('paid')({...data,valueMicros:1300});
+ assert.deepEqual(seen.map(e=>e.phase),['request','display','value','value']);assert.deepEqual(seen[2].value,{valueMicros:1200,currency:'USD',precision:1});
+ n.listeners.get('reward')();n.listeners.get('dismiss')();await closing;assert.deepEqual(seen.map(e=>e.phase),['request','display','value','value','reward_signal','closed']);assert.equal(n.removed,5);
+});
+test('optional callback errors and a failed native request cannot fabricate display or prevent cleanup',async()=>{
+ const n=native({prepareRewardVideoAd:async()=>{throw Error('no fill');}}),seen=[];await assert.rejects(()=>n.adapter.prepare({unit,offerId:crypto.randomUUID(),environment:'sandbox'},{observed:phase=>{seen.push(phase);throw Error('optional capture failed');}}),/no fill/);assert.deepEqual(seen,['request','failed']);assert.equal(n.adapter.busy,false);
+});
 function h5({consent=async()=>true,loadError=false,timeoutMs=1000}={}){
  let options,loaded=0,showed=0;const adapter=new H5RewardedAdapter({consent,timeoutMs,load:async()=>{loaded++;if(loadError)throw Error('blocked');return{config(){},break:o=>{options=o;}};}});
  return{adapter,get options(){return options;},get loaded(){return loaded;},get showed(){return showed;},async ready(hooks){const pending=adapter.prepare({unit:webUnit,offerId:crypto.randomUUID(),environment:'sandbox'},hooks);await tick();options.beforeReward(()=>showed++);return pending;}};
 }
+test('H5 distinguishes loading, actual display, reward and closure; no-fill has no impression/value',async()=>{
+ const f=h5(),seen=[],handle=await f.ready({observed:phase=>seen.push(phase)});assert.deepEqual(seen,['request']);const closing=handle.show();assert.deepEqual(seen,['request']);f.options.beforeAd();f.options.beforeAd();f.options.adViewed();f.options.adViewed();f.options.afterAd();f.options.afterAd();f.options.adBreakDone({breakStatus:'viewed'});await closing;assert.deepEqual(seen,['request','display','reward_signal','closed']);
+ const second=h5(),empty=[],preparing=second.adapter.prepare({unit:webUnit,offerId:crypto.randomUUID(),environment:'sandbox'},{observed:phase=>empty.push(phase)});await tick();second.options.adBreakDone({breakStatus:'noAdPreloaded'});await assert.rejects(()=>preparing);assert.deepEqual(empty,['request','failed']);
+});
 test('H5 show runs synchronously in the final gesture and reward is sticky through dismissal',async()=>{
  const h=h5();let rewards=0,muted=0;const handle=await h.ready({rewarded:()=>rewards++,beforeAd:()=>muted++});const closed=handle.show();assert.equal(h.showed,1);assert.equal(muted,1);
  h.options.beforeAd();h.options.adViewed();h.options.adViewed();h.options.adDismissed();assert.equal(rewards,1);h.options.afterAd();assert.equal(h.adapter.busy,true);h.options.adBreakDone({breakStatus:'viewed'});assert.deepEqual(await closed,{reason:'viewed',earnedHint:true,definitivelyUnearned:false});assert.equal(h.adapter.busy,false);
@@ -64,6 +80,12 @@ function fixture(platform='web'){
  const service=()=>new RewardedService({cloud,storage,platform,deviceId,adapter,now:()=>1793027000000+sequence++});
  return{service,cloud,storage,data,offers,calls,adapter,get shows(){return shows;},reward:()=>reward(),close:result=>closing.resolve(result)};
 }
+test('optional ad observations keep the original opportunity/account and cannot disrupt loading or follow another account',async()=>{
+ const f=fixture(),service=f.service(),seen=[];let callbacks;const prepare=f.adapter.prepare;
+ f.adapter.prepare=async(config,hooks)=>{callbacks=hooks;hooks.observed('request');hooks.observed('request');return prepare(config,hooks);};
+ service.onObservation=(account,type,data)=>{seen.push({account,type,data});throw Error('Optional recorder failed');};await service.load();await service.prepare();assert.equal(seen.length,1);assert.equal(seen[0].account,owner);assert.equal(seen[0].data.opportunityId,service.ready.record.id);assert.equal(seen[0].type,'ad_event');assert.equal(seen[0].data.phase,'request');assert.equal(seen[0].data.provider,'h5');
+ f.cloud.userId=crypto.randomUUID();service.reset();callbacks.observed('display');assert.equal(seen.length,1);assert.equal(f.shows,0);
+});
 test('H5 service journals presentation before synchronous SDK show and claims only after actual completion',async()=>{
  const f=fixture(),service=f.service();await service.load();assert.equal((await service.prepare()).milliseconds,30000);assert.equal(f.shows,0);
  const closing=service.show();assert.equal(f.shows,1);assert.equal(service.records(owner)[0].invoked,true);assert.equal(f.calls.some(([action])=>action==='ad-web-earned'),false);

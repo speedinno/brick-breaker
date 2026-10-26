@@ -2,8 +2,8 @@ const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a
 const changed=()=>Error('Your account or screen changed. Reopen the time bank to recover any pending reward.');
 const phases=['requesting','prepared','ready','presenting','pending'];
 export class RewardedService {
- constructor({cloud,storage,platform,deviceId,adapter,now=()=>Date.now(),monotonic=()=>performance.now(),id=()=>crypto.randomUUID(),canPresent=()=>true}){
-  Object.assign(this,{cloud,storage,platform,deviceId,adapter,now,monotonic,id,canPresent});this.busy=false;this.epoch=0;this.ready=null;this.configuration=null;this.state=null;this.catalogOwner=null;this.inFlight=null;
+ constructor({cloud,storage,platform,deviceId,adapter,now=()=>Date.now(),monotonic=()=>performance.now(),id=()=>crypto.randomUUID(),canPresent=()=>true,onObservation=()=>{}}){
+  Object.assign(this,{cloud,storage,platform,deviceId,adapter,now,monotonic,id,canPresent,onObservation});this.busy=false;this.epoch=0;this.ready=null;this.configuration=null;this.state=null;this.catalogOwner=null;this.inFlight=null;
  }
  key(owner){return 'brick-breaker-rewarded-v1:'+owner;}
  records(owner){
@@ -39,7 +39,12 @@ export class RewardedService {
    const prepared=await this.cloud.api('ad-prepare',{platform:this.platform,offerId:record.id,deviceId:record.deviceId});this.check(owner,epoch);
    const offer=prepared.offer;if(offer?.id!==record.id||offer.device_id!==record.deviceId||offer.platform!==this.platform||offer.placement_id!==this.configuration.placementId||offer.provider!==this.configuration.provider||offer.environment!==this.configuration.environment||offer.state!=='prepared'||!Number.isSafeInteger(offer.promised_ms)||offer.promised_ms<1||offer.promised_ms>60000)throw Error('Ad settings changed. Refresh availability before preparing another offer.');
    this.state=prepared.state;record.phase='prepared';record.milliseconds=offer.promised_ms;this.save(owner,record);
-   handle=await this.adapter.prepare({...this.configuration,offerId:record.id},{rewarded:()=>{
+   const observations=new Set(),provider=offer.provider;
+   handle=await this.adapter.prepare({...this.configuration,offerId:record.id},{observed:(phase,value)=>{
+    if(owner!==this.cloud.userId||epoch!==this.epoch||!['request','display','reward_signal','closed','failed','value'].includes(phase))return;
+    const key=phase+':'+(phase==='value'?JSON.stringify(value):'');if(observations.has(key))return;observations.add(key);
+    try{this.onObservation(owner,phase==='value'?'ad_value':'ad_event',{opportunityId:record.id,provider,platform:this.platform,...(phase==='value'?value:{phase})});}catch{}
+   },rewarded:()=>{
     if(!record.invoked||record.earnedAtMs!==null)return;
     // Retain the original callback time across failed claims, restart and UTC
     // rollover. Never replace it with the time a recovery request is sent.

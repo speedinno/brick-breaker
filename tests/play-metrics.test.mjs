@@ -25,6 +25,16 @@ test('the same linked account receives the same curated assignment across sessio
  await db.query("update game_metric_experiments set active=true where id='aim-coaching-2026-10-v1'");const a=await state(owner),b=await state(owner);assert.deepEqual(a.assignment,b.assignment);assert(['standard','aim_hint'].includes(a.assignment.variant));const exposure=event('coach_exposure',{experiment:a.assignment.experiment,variant:a.assignment.variant});assert.equal((await send(owner,'1',[exposure])).inserted,1);assert.equal((await send(owner,'1',[event('coach_exposure',{...exposure.data,variant:a.assignment.variant==='standard'?'aim_hint':'standard'})])).rejected,1);
  await assert.rejects(()=>db.query("update game_metric_experiments set hint_weight=9000"),/immutable/);await db.query('update game_metric_experiments set active=false');assert.equal((await state(owner)).assignment,null);assert.equal((await send(owner,'1',[{...exposure,id:crypto.randomUUID()}])).inserted,1);
 });
+test('ad observations require that account opportunity and monetary callbacks remain optional client reports',async()=>{
+ const id=crypto.randomUUID(),foreign=crypto.randomUUID();await db.query("insert into game_ad_placements(id,provider,platform,environment,request_unit,verification_unit,reward_amount,reward_item,active) values('metrics-ad','admob','android','sandbox','unit','verify',1,'time',true)");
+ await as(owner,()=>value('select game_prepare_ad($1,$2,$3) as value',[id,crypto.randomUUID(),'metrics-ad']));
+ const data={opportunityId:id,provider:'admob',platform:'android',valueMicros:1200,currency:'USD',precision:1},first=event('ad_value',data);
+ assert.equal((await send(owner,'1',[first])).inserted,1);assert.equal((await send(owner,'1',[first])).duplicates,1);
+ assert.equal((await send(owner,'1',[event('ad_value',{...data,opportunityId:foreign})])).rejected,1);
+ for(const invalid of [{...data,precision:4},{...data,valueMicros:-1},{...data,provider:'h5',platform:'web'},{...data,impressionId:'private extra data'}])await assert.rejects(()=>send(owner,'1',[event('ad_value',invalid)]),/Invalid analytics event/);
+ assert.equal(await value('select count(*)::integer as value from game_credit_lots where user_id=$1',[owner]),0);
+ const exported=await as(owner,()=>value('select game_metrics_export() as value'));assert(exported.events.some(e=>e.id===first.id&&e.source==='client_reported'));
+});
 test('an opt-out deletes optional data and fences late events and stale opt-ins from every device',async()=>{
  const off=await set(owner,false,'1');assert.equal(off.revision,'2');assert.equal(await value('select count(*)::integer as value from game_metric_events where user_id=$1',[owner]),0);assert.equal(await value('select count(*)::integer as value from game_metric_assignments where user_id=$1',[owner]),0);assert.equal((await send(owner,'1',[event()])).accepted,false);const stale=await set(owner,true,'1');assert.equal(stale.applied,false);assert.equal(stale.enabled,false);assert.equal(stale.revision,'2');
  await db.query('update game_metric_experiments set active=true');const again=await set(owner,true,'2');assert.equal(again.revision,'3');assert.equal((await send(owner,'1',[event()])).accepted,false);

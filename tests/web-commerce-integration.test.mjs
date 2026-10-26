@@ -10,7 +10,7 @@ async function setup(){const user=crypto.randomUUID();await db.query('insert int
 test('production web orchestration and PostgreSQL recover a lost create response, verify capture and never replenish a restored pack',async()=>{
  const {fixture,api,user}=await setup(),intentId=crypto.randomUUID();fixture.loseNextCreate();
  await assert.rejects(()=>api('purchase-web-order',{intentId,priceId:fixture.priceId}),/verification is unavailable/);
- const quote=await api('purchase-web-order',{intentId,priceId:fixture.priceId});assert.equal(quote.amount,12900);assert.equal(fixture.calls.filter(c=>c.method==='POST').length,1);assert.equal(fixture.orders.size,1);
+ const quote=await api('purchase-web-order',{intentId,priceId:fixture.priceId});assert.equal(quote.amount,12900);assert.equal(quote.productId,'fixture300');assert.equal(quote.configVersion,'fixture-v1');assert.equal(fixture.calls.filter(c=>c.method==='POST').length,1);assert.equal(fixture.orders.size,1);
  const callback=fixture.capture(quote.orderId),confirmed=await api('purchase-web-confirm',{intentId,paymentId:callback.razorpay_payment_id,signature:callback.razorpay_signature});assert.equal(confirmed.wallet.availableMs,300000);assert.equal(confirmed.state,'verified');
  await api('purchase-web-confirm',{intentId,paymentId:callback.razorpay_payment_id,signature:callback.razorpay_signature});
  assert.equal((await api('purchase-web-sync')).wallet.availableMs,300000);assert.equal((await db.query("select count(*)::integer n from public.game_credit_lots where user_id=$1",[user])).rows[0].n,1);
