@@ -16,45 +16,7 @@ $repoRoot = Split-Path $PSScriptRoot -Parent
 $azureApiVersion = '2026-07-01'
 . (Join-Path $PSScriptRoot 'azure-profile.ps1')
 
-function Invoke-Azure {
-    param([string[]]$Arguments)
-    # Explicit subscription on EVERY operation; never switch the CLI default.
-    $command = Get-Command az -ErrorAction Stop
-    if ($command.CommandType -eq 'Application') {
-        $start = [Diagnostics.ProcessStartInfo]::new(); $start.UseShellExecute=$false; $start.CreateNoWindow=$true
-        if ([IO.Path]::GetExtension($command.Source) -eq '.cmd') {
-            $start.FileName=Join-Path (Split-Path (Split-Path $command.Source -Parent) -Parent) 'python.exe'
-            if (!(Test-Path -LiteralPath $start.FileName)) { throw 'Cannot locate the installed Azure CLI runtime.' }
-            $start.ArgumentList.Add('-IBm'); $start.ArgumentList.Add('azure.cli')
-        } else { $start.FileName=$command.Source }
-        foreach ($item in ($Arguments+@('--subscription',$SubscriptionId,'--only-show-errors','--output','json'))) { $start.ArgumentList.Add($item) }
-        $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
-        $process=[Diagnostics.Process]::new(); $process.StartInfo=$start
-        try {
-            $process.Start() | Out-Null; $stdout=$process.StandardOutput.ReadToEndAsync(); $stderr=$process.StandardError.ReadToEndAsync(); $process.WaitForExit()
-            $raw=$stdout.GetAwaiter().GetResult(); $diagnostic=$stderr.GetAwaiter().GetResult()
-            if ($process.ExitCode -ne 0) {
-                if ($diagnostic -match 'AADSTS|az login|Please run|Refresh Token') { throw 'Azure authentication needs renewal. Sign in with Azure CLI and retry.' }
-                throw "Azure CLI operation failed: $($Arguments[0]) $($Arguments[1]). Private diagnostics are not printed."
-            }
-        } finally { $process.Dispose() }
-    } else {
-        # Unit tests supply a local az function; no shell/network is used.
-        $raw = & az @Arguments --subscription $SubscriptionId --only-show-errors --output json
-        if ($LASTEXITCODE -ne 0) { throw "Azure CLI operation failed: $($Arguments[0]) $($Arguments[1])." }
-    }
-    if ($raw) { try { ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Azure CLI returned an invalid JSON response. Private output is not printed.' } }
-}
-
-function Invoke-AzurePayload {
-    param([string]$Url,$Payload)
-    $temporary=[IO.Path]::GetTempFileName()
-    try {
-        if (!$IsWindows) { [IO.File]::SetUnixFileMode($temporary,([IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)) }
-        [IO.File]::WriteAllText($temporary,($Payload | ConvertTo-Json -Depth 60),[Text.UTF8Encoding]::new($false))
-        Invoke-Azure -Arguments @('rest','--method','put','--url',$Url,'--body',('@'+$temporary),'--headers','Content-Type=application/json')
-    } finally { Remove-Item -LiteralPath $temporary -ErrorAction SilentlyContinue }
-}
+. (Join-Path $PSScriptRoot 'azure-cli.ps1')
 
 if ($SubscriptionId -eq 'acd1c944-4dfe-4258-aeba-87356ecf6b2e') { throw 'Sigzio Dev is explicitly excluded from this deployment.' }
 Get-Command az -ErrorAction Stop | Out-Null
@@ -71,7 +33,7 @@ $planInfo = [ordered]@{
     build = 'Azure Container Registry Tasks (no GitHub Actions or local Docker)'
 }
 if ($Plan) { $planInfo | ConvertTo-Json; return }
-$dirtyApi = & git -C $repoRoot status --porcelain --untracked-files=normal -- supabase/functions Dockerfile.api .dockerignore scripts/deploy-api.ps1 scripts/azure-profile.ps1 scripts/operations.mjs scripts/run-operations.mjs scripts/dispute-recovery.mjs scripts/privacy-discovery.mjs scripts/private-settings.mjs
+$dirtyApi = & git -C $repoRoot status --porcelain --untracked-files=normal -- supabase/functions Dockerfile.api .dockerignore scripts/deploy-api.ps1 scripts/azure-profile.ps1 scripts/azure-cli.ps1 scripts/operations.mjs scripts/run-operations.mjs scripts/dispute-recovery.mjs scripts/privacy-discovery.mjs scripts/private-settings.mjs
 if ($dirtyApi) { throw 'Commit the API/container/deployment changes before deploying so the image tag identifies its source.' }
 
 if (!(Test-Path -LiteralPath $SecretsFile -PathType Leaf)) { throw 'Create the ignored .env.api file using .env.api.example first. Do not pass keys on the command line.' }
@@ -146,7 +108,8 @@ if ($resources.Where({ $_.type -eq 'Microsoft.App/containerApps' -and $_.name -e
 }
 $resolvedState=New-AzureEnvironmentState -Settings $settings -ExistingResource $existingApp -ExistingSecrets $existingSecrets
 if (($resolvedState.Variables | Where-Object name -eq 'PLAY_METRICS_ENABLED').value -eq 'true') {
-    $recentPrune=@($operationHealth.jobs | Where-Object { $_.kind -eq 'metrics_prune' -and $_.lastSuccessAt -and [DateTimeOffset]::Parse($_.lastSuccessAt) -gt [DateTimeOffset]::UtcNow.AddMinutes(-20) })
+    $pruneKey=Get-AzureOperationKey -Kind 'metrics_prune' -DatabaseUrl $settings.SUPABASE_URL -Environment $resolvedState.Environment
+    $recentPrune=@($operationHealth.jobs | Where-Object { $_.key -eq $pruneKey -and $_.kind -eq 'metrics_prune' -and $_.outcome -eq 'success' -and !$_.overdue -and $_.lastSuccessAt -and (Convert-AzureTimestamp $_.lastSuccessAt) -gt [DateTimeOffset]::UtcNow.AddMinutes(-20) })
     if (!$recentPrune.Count) { throw 'Optional analytics needs a recently successful retention worker before enabling collection. Keep PLAY_METRICS_ENABLED=false until operations are verified.' }
 }
 if (!$resources.Where({ $_.type -eq 'Microsoft.ContainerRegistry/registries' -and $_.name -eq $RegistryName })) {

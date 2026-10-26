@@ -22,6 +22,9 @@ function New-AzureEnvironmentState {
         if ($item.secretRef) { $copy.secretRef = $item.secretRef } else { $copy.value = [string]$item.value }
         $variables[$copy.name] = $copy
     }
+    if ($Worker) {
+        foreach ($name in @('SUPABASE_ANON_KEY','SUPABASE_PUBLISHABLE_KEY','SUPABASE_SECRET_KEY','SUPABASE_ACCESS_TOKEN','REVENUECAT_CONFIG_JSON','REVENUECAT_SECRET_KEY','REVENUECAT_WEBHOOK_AUTH','REWARDED_ADS_CONFIG_JSON','RESEND_API_KEY','CLOUDFLARE_API_TOKEN','ALLOWED_ORIGINS','PLAY_METRICS_ENABLED','PORT')) { $variables.Remove($name) }
+    }
     $managed = @{
         SUPABASE_SERVICE_ROLE_KEY='supabase-service'; REVENUECAT_CONFIG_JSON='revenuecat-config';
         REVENUECAT_SECRET_KEY='revenuecat-server'; REVENUECAT_WEBHOOK_AUTH='revenuecat-webhook';
@@ -107,9 +110,27 @@ function New-ApiAzurePayload {
 
 function New-WorkerAzurePayload {
     param([Collections.IDictionary]$Settings,$ExistingResource,[object[]]$ExistingSecrets=@(),[string]$Location,[string]$Image,[string]$EnvironmentId,[string]$IdentityId,[string]$RegistryServer,[switch]$Scheduled)
-    if ($ExistingResource -and ($ExistingResource.tags.application -ne 'brick-breaker' -or @($ExistingResource.properties.template.containers).Count -ne 1)) { throw 'The target job is not the dedicated Brick Breaker worker.' }
+    if ($ExistingResource -and ($ExistingResource.tags.application -ne 'brick-breaker' -or @($ExistingResource.properties.template.containers).Count -ne 1 -or $ExistingResource.properties.template.initContainers)) { throw 'The target job is not the dedicated Brick Breaker worker.' }
+    if ($ExistingResource -and $ExistingResource.properties.configuration.triggerType -notin @('Manual','Schedule')) { throw 'Review the existing event worker before changing its trigger.' }
+    if ($ExistingResource.properties.environmentId -and $ExistingResource.properties.environmentId -ne $EnvironmentId) { throw 'The worker belongs to a different environment.' }
+    $expectedArgs=@('run','--cached-only','--frozen','--allow-env','--allow-net','--config','supabase/functions/deno.json','scripts/run-operations.mjs','--batch','20')
+    if ($ExistingResource) {
+        $old=$ExistingResource.properties.template.containers[0]
+        if (($old.command -join '|') -ne 'deno' -or ($old.args -join '|') -ne ($expectedArgs -join '|')) { throw 'Review the custom worker command before updating it.' }
+    }
     $state=New-AzureEnvironmentState -Settings $Settings -ExistingResource $ExistingResource -ExistingSecrets $ExistingSecrets -Worker
-    $config=@{triggerType=if($Scheduled){'Schedule'}else{'Manual'};replicaTimeout=240;replicaRetryLimit=1;registries=@(@{server=$RegistryServer;identity=$IdentityId});secrets=$state.Secrets}
-    if ($Scheduled) {$config.scheduleTriggerConfig=@{cronExpression='*/5 * * * *';parallelism=1;replicaCompletionCount=1}} else {$config.manualTriggerConfig=@{parallelism=1;replicaCompletionCount=1}}
-    return @{location=$Location;tags=@{application='brick-breaker';purpose='durable-recovery'};identity=@{type='UserAssigned';userAssignedIdentities=@{$IdentityId=@{}}};properties=@{environmentId=$EnvironmentId;configuration=$config;template=@{containers=@(@{name='recovery';image=$Image;env=$state.Variables;command=@('deno');args=@('run','--cached-only','--frozen','--allow-env','--allow-net','--config','supabase/functions/deno.json','scripts/run-operations.mjs','--batch','20');resources=@{cpu=0.25;memory='0.5Gi'}})}}}
+    $registries=@($ExistingResource.properties.configuration.registries | Where-Object { $_ -and $_.server -ne $RegistryServer })+@(@{server=$RegistryServer;identity=$IdentityId})
+    $config=@{triggerType=if($Scheduled){'Schedule'}else{'Manual'};replicaTimeout=240;replicaRetryLimit=1;registries=$registries;secrets=$state.Secrets}
+    if ($Scheduled) {
+        $cron=if($ExistingResource.properties.configuration.triggerType -eq 'Schedule'){$ExistingResource.properties.configuration.scheduleTriggerConfig.cronExpression}else{'*/5 * * * *'}
+        $config.scheduleTriggerConfig=@{cronExpression=$cron;parallelism=1;replicaCompletionCount=1}
+    } else {$config.manualTriggerConfig=@{parallelism=1;replicaCompletionCount=1}}
+    $template=if($ExistingResource){$ExistingResource.properties.template | ConvertTo-Json -Depth 50 | ConvertFrom-Json -AsHashtable}else{@{containers=@(@{name='recovery'})}}
+    $container=$template.containers[0];$container.Remove('imageType') | Out-Null
+    $container.image=$Image;$container.env=$state.Variables;$container.command=@('deno');$container.args=$expectedArgs;$container.resources=@{cpu=0.25;memory='0.5Gi'}
+    $identities=@{};foreach($key in @($ExistingResource.identity.userAssignedIdentities.PSObject.Properties.Name)){if($key){$identities[$key]=@{}}};$identities[$IdentityId]=@{}
+    $identityType=if($ExistingResource.identity.type -match 'SystemAssigned'){'SystemAssigned, UserAssigned'}else{'UserAssigned'}
+    $tags=if($ExistingResource.tags){$ExistingResource.tags | ConvertTo-Json | ConvertFrom-Json -AsHashtable}else{@{}};$tags.application='brick-breaker';$tags.purpose='durable-recovery'
+    $properties=@{environmentId=$EnvironmentId;configuration=$config;template=$template};if($ExistingResource.properties.workloadProfileName){$properties.workloadProfileName=$ExistingResource.properties.workloadProfileName}
+    $payload=@{location=$Location;tags=$tags;identity=@{type=$identityType;userAssignedIdentities=$identities};properties=$properties};Remove-AzureResponseNulls $payload;return $payload
 }

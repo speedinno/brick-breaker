@@ -7,6 +7,7 @@ $global:brickDeployTestReceipt = ''
 $global:brickDeployTestPayloads = [Collections.Generic.List[object]]::new()
 $global:brickDeployTestArmFailure=$false
 $global:brickDeployTestSchemaMissing=$false
+$global:brickDeployTestRetentionMode='none'
 $subscription = 'cb69a440-eed5-4854-a89b-588dc241fc68'
 function Assert($condition, [string]$message) { if (!$condition) { throw $message } }
 function git {
@@ -49,7 +50,16 @@ function az {
 }
 function Invoke-WebRequest {
     param($Uri, $Headers, $Method, $ContentType, $Body, $UserAgent, [switch]$SkipHttpErrorCheck, $TimeoutSec)
-    if ($Uri -like 'https://project.example.test/*') { Assert ($UserAgent -eq 'brick-breaker-deployment/1.0') 'Secret-key checks must identify a server, not a browser.'; if ($global:brickDeployTestSchemaMissing -and $Uri -like '*/game_metric_preferences?*') { return @{StatusCode=404} }; return @{ StatusCode = 200;Content='{"jobs":[]}' } }
+    if ($Uri -like 'https://project.example.test/*') {
+        Assert ($UserAgent -eq 'brick-breaker-deployment/1.0') 'Secret-key checks must identify a server, not a browser.'
+        if ($global:brickDeployTestSchemaMissing -and $Uri -like '*/game_metric_preferences?*') { return @{StatusCode=404} }
+        $jobs=@();if($global:brickDeployTestRetentionMode -ne 'none'){
+            $mode=if($global:brickDeployTestRetentionMode -eq 'other-environment'){'sandbox'}else{'production'}
+            $outcome=if($global:brickDeployTestRetentionMode -eq 'error'){'error'}else{'success'}
+            $jobs=@(@{key=(Get-AzureOperationKey -Kind metrics_prune -DatabaseUrl 'https://project.example.test' -Environment $mode);kind='metrics_prune';outcome=$outcome;overdue=$false;lastSuccessAt=[DateTimeOffset]::UtcNow.ToString('o')})
+        }
+        return @{StatusCode=200;Content=(@{jobs=@($jobs)} | ConvertTo-Json -Depth 10)}
+    }
     if ($Method -eq 'Post') { return @{ StatusCode = 401 } }
     if ($Method -eq 'Options') { return @{ StatusCode = 204; Headers = @{ 'Access-Control-Allow-Origin' = $Headers.Origin } } }
     throw 'Unexpected HTTP operation in deployment test.'
@@ -99,6 +109,15 @@ try {
     try { & $deployScript -SecretsFile $secretsPath | Out-Null } catch { $rejected=$_.Exception.Message -match 'successful retention worker' }
     Assert $rejected 'Collection must not enable without recently verified retention.'
     Assert (@($global:brickDeployTestCommands | Where-Object {$_[0] -eq 'acr'}).Count -eq 0) 'Failed retention gate must precede the image build.'
+    foreach($mode in @('other-environment','error')){
+        $global:brickDeployTestRetentionMode=$mode;$global:brickDeployTestCommands.Clear();$rejected=$false
+        try { & $deployScript -SecretsFile $secretsPath | Out-Null } catch { $rejected=$_.Exception.Message -match 'successful retention worker' }
+        Assert $rejected 'Foreign-environment or latest-error retention evidence cannot enable collection.'
+        Assert (@($global:brickDeployTestCommands | Where-Object {$_[0] -eq 'acr'}).Count -eq 0) 'Reject wrong retention evidence before a build.'
+    }
+    $global:brickDeployTestRetentionMode='matching'; & $deployScript -SecretsFile $secretsPath | Out-Null
+    Assert (($global:brickDeployTestPayloads[$global:brickDeployTestPayloads.Count-1].body.properties.template.containers[0].env | Where-Object name -eq PLAY_METRICS_ENABLED).value -eq 'true') 'Matching recent successful retention must permit the actual deployment path.'
+    $global:brickDeployTestRetentionMode='none'
     [IO.File]::WriteAllText($secretsPath,"SUPABASE_URL=https://project.example.test`nSUPABASE_ANON_KEY=public-test-key`nSUPABASE_SERVICE_ROLE_KEY=server-test-key`n")
     $global:brickDeployTestArmFailure=$true; $rejected=$false
     try { & $deployScript -SecretsFile $secretsPath | Out-Null } catch { Assert ($_.Exception.Message -notmatch 'private-server-test-key') 'Never print a private CLI diagnostic.'; $rejected=$_.Exception.Message -match 'Azure CLI operation failed' }

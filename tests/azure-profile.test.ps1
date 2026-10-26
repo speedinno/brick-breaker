@@ -53,6 +53,19 @@ Assert ($worker.properties.template.containers[0].command[0] -eq 'deno' -and $wo
 Assert ($worker.properties.configuration.replicaTimeout -eq 240 -and $worker.properties.template.containers[0].resources.cpu -eq 0.25) 'Bounded worker resource profile differs.'
 $scheduled=New-WorkerAzurePayload -Settings $configured -Scheduled @workerArgs
 Assert ($scheduled.properties.configuration.scheduleTriggerConfig.cronExpression -eq '*/5 * * * *') 'Schedule must use the intended UTC interval.'
+$oldWorker=$scheduled | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+$oldWorker.tags | Add-Member -NotePropertyName owner -NotePropertyValue 'preserve-worker-owner'
+$oldWorker.identity.type='SystemAssigned, UserAssigned'
+$oldWorker.identity.userAssignedIdentities | Add-Member -NotePropertyName '/identities/extra-worker' -NotePropertyValue @{}
+$oldWorker.properties.configuration.scheduleTriggerConfig.cronExpression='*/10 * * * *'
+$oldWorker.properties.template.containers[0].env+=@(@{name='REVENUECAT_SECRET_KEY';value='remove-unneeded-billing-key'},@{name='RESEND_API_KEY';value='remove-unneeded-mail-key'},@{name='UNMANAGED_WORKER_SETTING';value='preserve-owner-setting'})
+$workerUpdate=New-WorkerAzurePayload -Settings $configured -ExistingResource $oldWorker -ExistingSecrets $oldWorker.properties.configuration.secrets -Scheduled @workerArgs
+Assert ($workerUpdate.tags.owner -eq 'preserve-worker-owner' -and $workerUpdate.identity.type -match 'SystemAssigned' -and $workerUpdate.identity.userAssignedIdentities.ContainsKey('/identities/extra-worker')) 'Worker updates must preserve ownership and managed identities.'
+Assert ($workerUpdate.properties.configuration.scheduleTriggerConfig.cronExpression -eq '*/10 * * * *') 'Updating an existing scheduled job must preserve its cron.'
+Assert (($workerUpdate.properties.template.containers[0].env | ConvertTo-Json) -notmatch 'remove-unneeded') 'Known billing/mail settings must not survive in the worker environment.'
+Assert (($workerUpdate.properties.template.containers[0].env | Where-Object name -eq UNMANAGED_WORKER_SETTING).value -eq 'preserve-owner-setting') 'Unmanaged worker settings must survive.'
+$oldWorker.properties.template.containers[0].command=@('custom-command')
+Reject { New-WorkerAzurePayload -Settings $configured -ExistingResource $oldWorker -ExistingSecrets $oldWorker.properties.configuration.secrets @workerArgs } 'custom worker command'
 $configured.PRIVACY_REVENUECAT_KEYS_JSON='[{"projectId":"proj_test","environment":"production","apiKey":"private-cleanup-key"}]'
 Reject { New-WorkerAzurePayload -Settings $configured @workerArgs } 'differs from this environment'
 Write-Output 'Azure payload checks passed: new/update, retention, provider environments, secret references/isolation, worker mode and bounded schedule.'
