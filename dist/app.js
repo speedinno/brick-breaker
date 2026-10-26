@@ -9,6 +9,7 @@ import {RewardedService} from './rewarded.js';
 import {RewardedPanel} from './rewarded-ui.js';
 import {NativeRewardedAdapter,H5RewardedAdapter} from './rewarded-adapters.js';
 import adRuntime from './ad-runtime.js';
+import {GoogleAdConsent} from './ad-consent.js';
 import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
 import {fitViewport,dialogViewport} from './viewport.js';
@@ -116,10 +117,16 @@ function externalEnd(token){
  if(token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden&&paused&&!document.querySelector('dialog[open]'))openDialog('assist');
 }
 const monetizationBusy=()=>assistancePanel.busy||assistance.starting||assistance.active;
-const rewardedAdapter=native?new NativeRewardedAdapter({available:()=>adRuntime.enabled&&Capacitor.isPluginAvailable('AdMob'),eligible:()=>$('adAdult').checked&&adRuntime.audienceReviewed,externalStart,externalEnd}):new H5RewardedAdapter({externalStart,externalEnd,sound:()=>effects.enabled});
+const adConfigured=()=>adRuntime.enabled&&adRuntime.audienceReviewed&&adRuntime.platforms?.includes(native?Capacitor.getPlatform():'web');
+const webConsent=new GoogleAdConsent({settings:adRuntime.web});
+const rewardedAdapter=native?new NativeRewardedAdapter({available:()=>adConfigured()&&Capacitor.isPluginAvailable('AdMob'),eligible:()=>$('adAdult').checked&&adRuntime.audienceReviewed,externalStart,externalEnd}):new H5RewardedAdapter({externalStart,externalEnd,sound:()=>effects.enabled,consent:()=>webConsent.request()});
+if(!native){
+ Object.defineProperty(rewardedAdapter,'privacyRequired',{get:()=>webConsent.euRequired});rewardedAdapter.privacyLabel='European ad consent choices';
+ rewardedAdapter.privacy=async()=>{if(rewardedAdapter.busy)throw Error('Finish the current ad before changing privacy choices.');const token=externalStart();try{await webConsent.europeanChoices();}finally{externalEnd(token);}};
+}
 const rewarded=new RewardedService({cloud,storage,platform:native?Capacitor.getPlatform():'web',deviceId,adapter:rewardedAdapter,canPresent:()=>!document.hidden&&($('assist').open||[...externalContexts].some(token=>token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden))});
 const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!monetizationBusy()&&!rewarded.busy&&!rewarded.ready,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart,externalEnd});
-const adPanel=new RewardedPanel({service:rewarded,cloud,configured:()=>adRuntime.enabled&&adRuntime.audienceReviewed,canStart:()=>!monetizationBusy()&&!purchases.busy&&!purchasePanel.busy,onBusy:busy=>{assistancePanel.adBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart,externalEnd});
+const adPanel=new RewardedPanel({service:rewarded,cloud,configured:adConfigured,canStart:()=>!monetizationBusy()&&!purchases.busy&&!purchasePanel.busy,onBusy:busy=>{assistancePanel.adBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart,externalEnd});
 assistancePanel.purchases=purchasePanel;
 assistancePanel.ads=adPanel;
 setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flush().catch(()=>{});},1000);

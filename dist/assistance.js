@@ -1,5 +1,6 @@
 // This class accounts for a server-issued reservation. It never grants credit,
 // trusts a cached bank as authorization, or resumes assistance from a save.
+import {WalletSnapshots} from './wallet-snapshots.js';
 const isUuid = value => typeof value === 'string' && /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
 const isMs = value => Number.isSafeInteger(value) && value >= 0 && value <= 30000;
 
@@ -7,10 +8,12 @@ export class AssistanceSession {
   constructor({storage, api, account, deviceId, now = () => performance.now(), uuid = () => crypto.randomUUID(), onStop = () => {}}) {
     if (!isUuid(deviceId)) throw Error('Invalid activation device');
     Object.assign(this, {storage, api, account, deviceId, now, uuid, onStop});
-    this.active = false; this.journal = null; this.wallet = null; this.error = null;
+    this.active = false; this.journal = null; this.snapshots = new WalletSnapshots({account}); this.error = null;
     this.flushing = null; this.scheduled = false; this.deadline = 0;
     this.starting = false; this.epoch = 0;
   }
+  get wallet(){return this.snapshots.value;}
+  set wallet(value){if(value===null)this.snapshots.clear();else this.snapshots.accept(value);}
   key(owner) { return 'brick-breaker-assistance-v1:' + owner; }
   read(owner = this.account()) {
     const raw = this.storage.getItem(this.key(owner));
@@ -128,7 +131,7 @@ export class AssistanceSession {
     const state = await this.api('state');
     if (owner !== this.account()) throw Error('Your account changed. Reopen your time bank.');
     this.wallet = state;
-    return state;
+    return this.wallet;
   }
   async recoverLocal() {
     if (this.active || this.starting) throw Error('Take control before recovering an activation.');

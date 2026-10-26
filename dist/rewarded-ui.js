@@ -21,7 +21,7 @@ export class RewardedPanel {
   $('adWatch').hidden=!ready;$('adWatch').disabled=busy||!this.eligible();$('adWatch').textContent=ready?`Watch ad · earn ${seconds(ready.record.milliseconds)} seconds`:'Watch ad';
   $('adCancel').hidden=!ready;$('adCancel').disabled=busy;
   $('adRecover').hidden=!signed||!configured;$('adRecover').disabled=busy||!!ready;
-  $('adPrivacy').hidden=!this.service.adapter.privacyRequired;$('adPrivacy').disabled=busy||!!ready;
+  $('adPrivacy').hidden=!this.service.adapter.privacyRequired;$('adPrivacy').disabled=busy||!!ready;$('adPrivacy').textContent=this.service.adapter.privacyLabel||'Ad privacy choices';
  }
  async load(){
   if(this.busy||this.service.busy||!this.canStart()||!this.configured()||!this.cloud.signedIn||this.service.ready)return;

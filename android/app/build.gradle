@@ -44,6 +44,18 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
+tasks.register('verifyAdMobAppId') {
+    doLast {
+        if (rootProject.findProject(':capacitor-community-admob') != null) {
+            def manifestText = file('src/main/AndroidManifest.xml').getText('UTF-8')
+            if (!(manifestText =~ /android:name="com.google.android.gms.ads.APPLICATION_ID"\s+android:value="ca-app-pub-[0-9]{16}~[0-9]{10}"/).find()) {
+                throw new GradleException('AdMob is registered but its App ID is missing. Run npm run configure:ads and npm run mobile:sync before building.')
+            }
+        }
+    }
+}
+tasks.named('preBuild').configure { dependsOn('verifyAdMobAppId') }
+
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {

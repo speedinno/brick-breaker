@@ -10,6 +10,7 @@
     "check": "node scripts/check.mjs",
     "build:web": "node scripts/build-web.mjs",
     "configure:cloud": "node scripts/configure-cloud.mjs",
+    "configure:ads": "node scripts/configure-ads.mjs",
     "mobile:sync": "node scripts/sync-mobile.mjs",
     "android:open": "npx cap open android",
     "ios:open": "npx cap open ios"

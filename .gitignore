@@ -13,5 +13,6 @@ build/
 .env.*
 !.env.example
 !.env.api.example
+!.env.ads.example.json
 supabase/.temp/
 supabase/.branches/
