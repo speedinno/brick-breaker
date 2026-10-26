@@ -1,4 +1,5 @@
 import {RevenueCatVerifier} from './revenuecat.js';
+import {nativeFinancials} from './native-financials.js';
 // Public SDK keys and product mappings are deployment configuration; the
 // secret API key stays server-side. Missing setup leaves ordinary play intact.
 export function nativeCommerce(env,request=fetch){
@@ -31,7 +32,7 @@ export async function nativeCatalog(commerce,admin,platform,user){
  return {available:true,provider:'revenuecat',environment:commerce.verifier.environment,publicKey:key,products};
 }
 export async function persistVerifiedPurchase(admin,r,projectId){
- const result=await admin.rpc('game_record_purchase',{p_user:r.user,p_provider:r.provider,p_scope:r.scope,p_environment:r.environment,p_transaction:r.transaction,p_product:r.product,p_quantity:r.quantity,p_state:r.state,p_purchased_at:r.purchasedAt});
+ const result=await admin.rpc('game_record_native_purchase',{p_user:r.user,p_provider:r.provider,p_scope:r.scope,p_environment:r.environment,p_transaction:r.transaction,p_product:r.product,p_quantity:r.quantity,p_state:r.state,p_purchased_at:r.purchasedAt,p_financials:r.financials??nativeFinancials(null)});
  if(result.error)throw Error('Could not reconcile this purchase. Try purchase recovery again.');
  if(result.data?.state==='account-deleted'&&projectId){const cleanup=await admin.rpc('game_privacy_requeue_deleted',{p_user:r.user,p_project:projectId,p_environment:r.environment});if(cleanup.error)throw Error('Provider cleanup needs retry. No purchase credit is confirmed.');}
  return result.data;

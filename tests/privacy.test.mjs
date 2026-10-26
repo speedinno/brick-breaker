@@ -50,7 +50,7 @@ test('late verified receipts invalidate leases, restore redacted subjects and ca
  await query('select game_privacy_requeue_deleted($1,$2,$3)',[user,project,'sandbox']);const renewed=(await jobs(user))[0];assert.equal(renewed.subject,user);assert.equal(renewed.state,'pending');assert.equal(renewed.outcome,null);
  // The production receipt orchestrator schedules erasure only on the
  // database's existing account-deleted tombstone result, never a client hint.
- const calls=[];const admin={rpc:async(name,args)=>{calls.push({name,args});return{data:name==='game_record_purchase'?{state:'account-deleted'}:true};}};
+ const calls=[];const admin={rpc:async(name,args)=>{calls.push({name,args});return{data:name==='game_record_native_purchase'?{state:'account-deleted'}:true};}};
  await persistVerifiedPurchase(admin,{user,environment:'sandbox'},project);assert.equal(calls[1].name,'game_privacy_requeue_deleted');assert.equal(calls[1].args.p_user,user);
  await query("update game_privacy_jobs set next_attempt_at=now()+interval '2 days' where id=$1",[job.id]);
 });

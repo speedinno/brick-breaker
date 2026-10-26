@@ -12,7 +12,7 @@ function setup({change=p=>p,productChange=p=>p,next=null,response,fetchError=fal
  }});return {client,calls};
 }
 test('authoritative native purchase lookup binds account, app, product, store and environment',async()=>{
- const {client,calls}=setup(),page=await client.page(user);assert.equal(page.next,null);assert.deepEqual(page.records,[{user,provider:'revenuecat',scope:'play_store:com.speedinno.brickbreaker',environment:'production',transaction:'GPA.1234',product:'time300_v1',quantity:1,state:'owned',purchasedAt:new Date(now-1000).toISOString()}]);
+ const {client,calls}=setup(),page=await client.page(user);assert.equal(page.next,null);assert.deepEqual(page.records,[{user,provider:'revenuecat',scope:'play_store:com.speedinno.brickbreaker',environment:'production',transaction:'GPA.1234',product:'time300_v1',quantity:1,state:'owned',purchasedAt:new Date(now-1000).toISOString(),financials:{quality:'missing',country:null,grossMicros:null,commissionMicros:null,taxMicros:null,proceedsMicros:null}}]);
  await client.page(user);assert.equal(calls.filter(c=>c.url.includes('/products/')).length,1);assert(calls.every(c=>c.options.redirect==='error'&&c.url.startsWith('https://api.revenuecat.com/v2/projects/projA/')));
 });
 test('forged family, transferred, wrong-store, sandbox, quantity and future purchases fail closed',async()=>{

@@ -1,5 +1,6 @@
 // Server-only verification. SDK callbacks and webhook bodies are lookup hints,
 // never evidence that time was bought. No provider diagnostic bodies are exposed.
+import {nativeFinancials} from './native-financials.js';
 const ROOT='https://api.revenuecat.com';
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,120}$/.test(value);
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
@@ -43,7 +44,7 @@ export class RevenueCatVerifier {
   const mapping=this.products.get(p.product_id);if(!mapping)return null; // unrelated project product; never mint it
   if(!uuid(user)||p.object!=='purchase'||p.customer_id!==user||p.original_customer_id!==user||p.ownership!=='purchased'||p.store!==mapping.store||p.environment!==this.environment||!['owned','refunded'].includes(p.status)||typeof p.store_purchase_identifier!=='string'||!p.store_purchase_identifier||p.store_purchase_identifier.length>255||!Number.isInteger(p.quantity)||p.quantity<1||p.quantity>100||!Number.isSafeInteger(p.purchased_at)||p.purchased_at<946684800000||p.purchased_at>this.now()+300000)throw invalid();
   await this.product(mapping);
-  return {user,provider:'revenuecat',scope:mapping.scope,environment:this.environment,transaction:p.store_purchase_identifier,product:mapping.storeId,quantity:p.quantity,state:p.status,purchasedAt:new Date(p.purchased_at).toISOString()};
+  return {user,provider:'revenuecat',scope:mapping.scope,environment:this.environment,transaction:p.store_purchase_identifier,product:mapping.storeId,quantity:p.quantity,state:p.status,purchasedAt:new Date(p.purchased_at).toISOString(),financials:nativeFinancials(p)};
  }
  async page(user,after=null){
   if(!uuid(user)||(after!==null&&!identifier(after)))throw invalid();
