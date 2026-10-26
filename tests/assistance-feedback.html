@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8"><title>Finite assistance integration</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap;max-width:700px}</style>
+<h1>Finite assistance integration</h1><p>Actual game + real local PostgreSQL ledger. Authentication is mocked; no live account, payment or advertisement.</p><pre id="result">Running…</pre><iframe title="Assistance test game" src="about:blank"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'),out=document.querySelector('#result'),checks=[];
+const $=id=>frame.contentDocument?.getElementById(id),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const assert=(condition,message)=>{if(!condition)throw Error(message);};
+async function until(fn,message){for(let i=0;i<400;i++){if(fn())return;await pause(25);}throw Error(message);}
+async function request(action,body={}){const result=await fetch('/__time-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,accountId:'11111111-1111-4111-8111-111111111111',...body})});const data=await result.json();if(!result.ok)throw Error(data.error);return data;}
+const wallet=()=>request('time-state');
+async function settled(){for(let i=0;i<200;i++){const state=await wallet();if(!state.reservedMs)return state;await pause(25);}throw Error('Reservation did not settle');}
+function record(text){checks.push(text);out.textContent='Running…\n'+checks.join('\n');}
+async function load(){const done=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src='/__time-game';await done;await until(()=>$('homePlay')&&!$('homePlay').disabled,'Boot failed');}
+const original=Object.keys(localStorage).filter(key=>key.startsWith('brick-breaker-')).map(key=>[key,localStorage.getItem(key)]);
+try{
+  for(const [key]of original)localStorage.removeItem(key);localStorage.setItem('brick-breaker-help-seen-v1','true');
+  await request('qa-reset');await load();
+  $('homeAccount').click();$('accountEmail').value='time-test@example.test';$('signInForm').requestSubmit();
+  await until(()=>!$('codePanel').hidden,'Code form missing');$('accountCode').value='12345678';$('verifyForm').requestSubmit();
+  await until(()=>!$('signedInPanel').hidden,'Sign-in did not complete');
+  await until(()=>!$('homePlay').disabled,'Signed-in stage did not finish loading');
+  await until(()=>$('accountMessage').textContent.includes('Signed in.'),'Account sign-in callback unfinished');
+  frame.contentDocument.querySelector('#account [data-close]').click();$('homePlay').click();
+  await until(()=>$('home').hidden&&!frame.contentDocument.querySelector('dialog[open]'),'Game did not enter or a dialog remained open');
+  $('launch').click();
+  await until(()=>$('prompt').hidden,'Stage did not launch');
+  $('auto').click();await until(()=>!$('assist15000').disabled,'Time bank did not load');assert($('assistBalance').textContent.includes('60'),'Wrong fixture balance');
+  $('assist15000').click();await until(()=>$('auto').getAttribute('aria-pressed')==='true','Finite activation failed');
+  await pause(1200);
+  const target=$('saveStatus');
+  target.dispatchEvent(new frame.contentWindow.PointerEvent('pointerdown',{pointerType:'touch',pointerId:41,bubbles:true,cancelable:true,clientX:10,clientY:90}));
+  await until(()=>$('auto').getAttribute('aria-pressed')==='false','Manual takeover failed');
+  target.dispatchEvent(new frame.contentWindow.PointerEvent('pointerup',{pointerType:'touch',pointerId:41,bubbles:true,cancelable:true,clientX:10,clientY:90}));
+  const partial=await settled();assert(partial.availableMs>57000&&partial.availableMs<60000,'Partial use charged the entire selection or no time');
+  record('Actual 15s reservation stops on HUD touch and returns its unused remainder');
+  $('auto').click();await until(()=>!$('assist30000').disabled,'Second activation unavailable');$('assist30000').click();
+  await until(()=>$('auto').getAttribute('aria-pressed')==='true','Second activation failed');await pause(400);$('pause').click();
+  const paused=await settled();assert(paused.availableMs<partial.availableMs&&paused.availableMs>partial.availableMs-1500,'Pause consumed hidden/full activation time');
+  await pause(400);assert((await wallet()).availableMs===paused.availableMs,'Paused physics charged time');
+  record('Pause settles actual time; waiting while paused does not debit or reactivate');
+  $('pause').click();$('auto').click();await until(()=>!$('assist15000').disabled,'Cancel test unavailable');
+  frame.contentWindow.timeQA.reserveDelay=800;$('assist15000').click();
+  await until(()=>frame.contentWindow.timeQA.calls.filter(call=>call.action==='time-reserve').length===3,'Reservation request did not start');
+  frame.contentDocument.querySelector('#assist [data-close]').click();
+  await pause(1100);assert($('auto').getAttribute('aria-pressed')==='false','Closed dialog started AI');
+  const cancelled=await settled();assert(cancelled.availableMs===paused.availableMs,'Cancelled in-flight activation charged time');
+  record('Closing the dialog during authorization cannot start AI or consume time');
+  const ledger=await request('qa-ledger');const consumed=ledger.find(row=>row.kind==='consume')?.ms||0;
+  assert(consumed===60000-cancelled.availableMs,'UI balance differs from the authoritative debit ledger');
+  record('Client balance reconciles to the real PostgreSQL consumption ledger');
+  out.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n');
+}catch(error){out.textContent='FAIL · '+error.message+'\n'+checks.join('\n')+'\nPrompt: '+($('promptTitle')?.textContent||'')+' / '+($('promptText')?.textContent||'')+'\nAccount: '+($('accountMessage')?.textContent||'')+'\nHome hidden: '+$('home')?.hidden+'; Home disabled: '+$('homePlay')?.disabled+'; Dialog: '+frame.contentDocument.querySelector('dialog[open]')?.id+'\nActions: '+(frame.contentWindow.timeQA?.calls||[]).map(call=>call.action).join(', ');console.error(error);}
+finally{
+  const done=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src='about:blank';await done;
+  for(const key of Object.keys(localStorage))if(key.startsWith('brick-breaker-'))localStorage.removeItem(key);
+  for(const [key,value]of original)localStorage.setItem(key,value);
+}
+</script>

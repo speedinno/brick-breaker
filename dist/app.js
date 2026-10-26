@@ -1,5 +1,7 @@
 import {PaddleInput,FixedSimulation,clampGain} from './controls.js';
 import {bindPaddleEvents,isInteractive} from './control-events.js';
+import {AssistanceSession} from './assistance.js';
+import {AssistancePanel} from './assistance-ui.js';
 import config from './cloud-config.js';
 import {fitViewport,dialogViewport} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
@@ -51,11 +53,14 @@ let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(pref
 const effects=new SoundEffects({enabled:options.sound===true});
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastSnapshot=0,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1,sessionStorageError=false;
 const focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
+let assistance=null;
 const input=new PaddleInput({touchGain:options.touchGain??2,pointerGain:options.pointerGain??1,onManual:()=>{
+  assistance?.stop('manual');
   auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');
 }});
 const simulation=new FixedSimulation();let controlEvents=null;
 function clearControls(){
+  assistance?.stop(document.hidden?'background':'pause');
   controlEvents?.cancel();input.reset();simulation.reset(performance.now());
   if(auto){auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');}
 }
@@ -79,6 +84,20 @@ const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×
 const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{updateStatus();account.render();}});
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
+let deviceId;try{deviceId=storage.getItem('brick-breaker-device-v1');if(!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(deviceId||'')){deviceId=crypto.randomUUID();storage.setItem('brick-breaker-device-v1',deviceId);}}catch{deviceId=crypto.randomUUID();}
+function createAssistance(){
+ const bank=new AssistanceSession({storage,api:(action,body)=>cloud.time(action,body),account:()=>cloud.userId,deviceId,onStop:reason=>{
+  if(assistance!==bank)return;
+  auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');
+  if(reason!=='manual')input.reset();
+  if(['expired','authorization','connection','revoked','reconciled'].includes(reason)&&game?.status==='playing'){
+    paused=true;prompt('assistEnded');
+  }
+ }});return bank;
+}
+assistance=createAssistance();
+const assistancePanel=new AssistancePanel({bank:assistance,cloud,open:openDialog,close:closeDialog,signIn:()=>account.show(),activate:beginAssistance});
+setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flush().catch(()=>{});},1000);
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
 function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled,touchGain:input.touchGain,pointerGain:input.pointerGain}));}catch{}}
 function sessionKey(id=store.accountId){return `brick-breaker-session-v3:${id?'user:'+id:'guest'}`;}
@@ -114,6 +133,10 @@ function enterGame(){if(booting||loading===true)return;$('home').hidden=true;$('
 function showHelp(){openDialog('help');}
 function syncHUD(){
   if(!game)return;
+  const autoLabel=auto?`Take control\n${Math.ceil(assistance.remainingMs()/1000)}s`:'AUTO';
+  if($('auto').textContent!==autoLabel)$('auto').textContent=autoLabel;
+  const autoDescription=auto?'Take control, '+Math.ceil(assistance.remainingMs()/1000)+' seconds remaining':'Autoplay time bank';
+  if($('auto').getAttribute('aria-label')!==autoDescription)$('auto').setAttribute('aria-label',autoDescription);
   const balls=String(game.status==='ready'?1:game.balls.length),remaining=String(game.remaining),lives='♥ '.repeat(game.lives).trim();
   if($('balls').textContent!==balls)$('balls').textContent=balls;
   if($('remaining').textContent!==remaining||!$('remaining').hasAttribute('aria-label')){$('remaining').textContent=remaining;$('remaining').setAttribute('aria-label',remaining+' bricks remaining');}
@@ -128,7 +151,8 @@ function prompt(kind){
   clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=difficultyProfile(game.level);
   const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):'Drag the paddle. Catch the boosts. Grow the swarm.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
-  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over'].includes(kind);$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',kind==='paused'?'Resume':'Pause');
+  states.assistEnded=['Your paddle is yours.','Autoplay has stopped. Continue manually, or open your time bank to check the balance and reconcile pending time.','Continue manually'];
+  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over','assistEnded'].includes(kind);$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',['paused','assistEnded'].includes(kind)?'Resume':'Pause');
 }
 function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
@@ -156,8 +180,8 @@ async function start(level=store.value.selected,{resume=false,enter=true,sync=tr
     definition=nextDefinition;currentHash=hash;const pattern=hydrateDefinition(definition);let restored=null;
     const snapshot=resume?readJSON(sessionKey()):null;if(snapshot?.level===level)restored=restoreGame(snapshot,pattern,event);
     game=restored||new Game({level,seed:crypto.getRandomValues(new Uint32Array(1))[0],mode:auto?'watch':'play',patternFactory:()=>pattern,onEvent:event});
-    run=restored?snapshot.run:null;auto=restored?Boolean(snapshot.auto):auto;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&snapshot.assisted||auto);
-    game.mode='play';if(auto)input.startAuto(game.paddle);paused=Boolean(restored&&game.status==='playing');paintVersion='';simulation.reset(performance.now());
+    run=restored?snapshot.run:null;auto=false;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&(snapshot.assisted||snapshot.auto));
+    game.mode='play';paused=Boolean(restored&&game.status==='playing');paintVersion='';simulation.reset(performance.now());
     store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('name').title=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
     prompt(restored?'resume':'ready');syncHUD();updateStatus();
   }catch(error){if(epoch===loadEpoch){$('prompt').classList.remove('loading');$('promptTitle').textContent='Your stage is safe.';$('promptText').textContent=error.message||'Please try again.';$('launch').textContent='Try again';$('watch').hidden=true;loading='failed';toast(error.message||'Could not open this stage.');}}
@@ -213,12 +237,19 @@ function draw(){
 function frame(t){
   if(gameplayInputEnabled()){
     simulation.frame(t,(dt,at)=>{
+      if(!gameplayInputEnabled())return false;
       input.applyThrough(at,game.paddle);
+      if(input.owner==='auto'&&!assistance.active){input.takeControl(game.paddle);return false;}
       game.target=input.desired(dt,game.paddle,()=>game.autoTarget());
+      const activeAuto=input.owner==='auto';
+      // The fixed simulation may run at 2x/4x. Bank seconds are real active
+      // seconds, so playback speed never multiplies the debit.
+      const physicsDt=activeAuto?assistance.consume(dt*1000/speed,game.status==='playing')*speed/1000:dt;
+      if(physicsDt<=0)return false;
       // Ready fields contain no ball. Active paddle motion always goes through
       // Game.step's swept trajectory, including fast input and AI takeover.
       if(game.status==='ready')game.paddle.x=game.target;
-      game.step(dt);
+      game.step(physicsDt);
     },speed);
   }else simulation.reset(t);
   draw();syncHUD();if(t-lastSnapshot>2000){lastSnapshot=t;if(game?.status==='playing'&&!paused&&$('home').hidden)saveSession();}requestAnimationFrame(frame);
@@ -229,8 +260,22 @@ document.addEventListener('keydown',e=>{
   const key=e.key.length===1?e.key.toLowerCase():e.key;
   if([' ','p','Escape'].includes(key)){e.preventDefault();if(e.repeat)return;if(key===' ')void action();else pause();}
 });document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);
-function setAuto(value){auto=value;if(game){game.mode='play';if(auto)input.startAuto(game.paddle);else input.takeControl(game.paddle);}if(auto)assisted=true;$('auto').setAttribute('aria-pressed',String(auto));}
-$('auto').onclick=()=>setAuto(!auto);$('watch').onclick=()=>{setAuto(true);void action();};$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
+async function beginAssistance(milliseconds){
+  const current=game,epoch=authEpoch,bank=assistance;
+  if(!cloud.signedIn)throw Error('Sign in to use your shared time bank.');
+  if(!current||!['ready','playing'].includes(current.status))throw Error('Open an unfinished stage before using autoplay.');
+  if(navigator.onLine===false)throw Error('Connect to authorize autoplay. Manual play is available offline.');
+  await ensureRun();
+  if(game!==current||epoch!==authEpoch||!$('assist').open)throw Error('Activation cancelled. Reopen the time bank.');
+  if(!run?.remote)throw Error('Could not authorize this stage. Reconnect and try again.');
+  await bank.start(run.runId,milliseconds);
+  if(game!==current||epoch!==authEpoch||!$('assist').open||document.hidden){bank.stop('cancelled');throw Error('Activation cancelled. Unused time will be reconciled.');}
+  closeDialog('assist');paused=false;auto=true;assisted=true;game.mode='play';input.startAuto(game.paddle);
+  $('auto').setAttribute('aria-pressed','true');$('pause').setAttribute('aria-label','Pause');
+  $('prompt').hidden=true;if(game.status==='ready')game.launch();saveSession();canvas.focus({preventScroll:true});
+}
+function takeControl(){assistance.stop('manual');input.takeControl(game.paddle);auto=false;syncHUD();}
+$('auto').onclick=()=>{if(auto)takeControl();else assistancePanel.show();};$('watch').onclick=()=>assistancePanel.show();$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
 for(const [id,property] of [['touchSensitivity','touchGain'],['pointerSensitivity','pointerGain']]){
   $(id).value=String(input[property]);$(id+'Value').textContent=input[property].toFixed(1)+'×';
   $(id).oninput=()=>{input[property]=clampGain($(id).value);$(id+'Value').textContent=input[property].toFixed(1)+'×';};
@@ -255,6 +300,9 @@ $('share').onclick=async()=>{const data={title:'Brick Breaker',text:`Narrow chan
 
 async function accountChanged(){
   const id=cloud.userId;if(id===accountIdentity&&!booting){account.render();return;}
+  assistance.stop('account');
+  try{assistance.persist();}catch{}
+  assistance=createAssistance();assistancePanel.bank=assistance;assistancePanel.epoch++;assistancePanel.busy=false;
   const epoch=++authEpoch;saveSession();accountIdentity=id;cloud.state=null;++loadEpoch;loading=true;game=null;run=null;store.switchAccount(id);updateStatus();
   if(id){try{await syncPending();}catch(error){if(epoch===authEpoch)account.message(error.message,true);}}
   if(epoch!==authEpoch)return;loading=false;account.render();updateStatus();if(!booting)await start(store.value.selected,{resume:true,enter:$('home').hidden,sync:false});

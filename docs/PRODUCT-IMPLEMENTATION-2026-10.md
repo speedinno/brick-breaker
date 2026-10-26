@@ -135,9 +135,77 @@ Still required before shipping: real provider transaction ownership/tombstones
 across account deletion, versioned trusted reward/configuration, a durable client
 time journal, finite UI replacing every legacy AUTO path, real ad/IAP/web
 adapters, mastery/progression improvements, metrics and native/device verification.
-The public development app **still has its old AUTO buttons** at this checkpoint;
+At foundation commit `0698376`, the public development app **still had its old AUTO buttons**;
 COM-01 is not passed. Do not publish this intermediate branch as the finished
 commercial build.
+
+## Finite assistance player flow (subsequent checkpoint)
+
+`dist/assistance.js` now requires a server-issued, account/device/run-bound
+reservation. `dist/assistance-ui.js` opens a time bank from both existing AUTO
+entry points. There is no normal UI path to unlimited assistance. The application
+sets its automated controller only after successful authorization. Legacy saved
+AUTO flags retain assisted history but cannot reactivate AI or spending authority.
+The underlying `Game` watch controller remains usable by engine regression
+tests; it is not a player-facing free-completion mode.
+
+The client keeps a durable request/consumption journal, carries fractional
+milliseconds across checkpoints, checkpoints outside input/physics work, and
+settles partial use. Final settlement may discard less than one millisecond of
+fractional use; no per-tick truncation occurs. At 2×/4× playback, each physics
+tick consumes its actual real-time share. A final partial tick ends exactly at
+the remaining authorization boundary, then pauses for manual handover. Tests
+cover this through the actual engine at multiple render/playback rates.
+
+Touch/key/pointer takeover stops charging at the corresponding control boundary;
+pause, background, loss and stage completion stop the activation. Closing the
+time bank while authorization is arriving cannot start AI afterward. Stale
+account operations cannot populate another account's wallet or pause its game.
+An expired or uncertain authorization never resumes automatically. Corrupt local
+journals retain server recovery controls; a corrupt cache can be removed only
+after authoritative absence of a pending reservation.
+
+The `/__assistance` fixture ran the **actual application and local PostgreSQL
+ledger**, with fake authentication only: four grouped checks passed for partial
+takeover, pause/no hidden debit, cancellation during delayed authorization, and
+agreement between the displayed balance and debit ledger. This is neither a
+provider sandbox purchase nor a native-device test. The fixture creates only
+disposable local credit, is guarded by `QA_FIXTURES=1`, and is excluded from
+packaged assets. Screenshot evidence is held locally in
+`.openai/local/product-redesign/assistance-ledger-pass.png`.
+
+`npm run build:web`, `npm run check`, and `npm test` passed **125/125** (37.33s)
+after the player flow was connected. The subsequent corrupt-journal case passed
+in the focused **13/13** assistance suite. Final verification below will supersede
+those intermediate counts. No production migration, API deployment, new APK or
+iPhone build is claimed at this checkpoint.
+
+Final check for this checkpoint: `npm run check` and `npm test` passed
+**126/126** (35.75s). Both browser fixtures were rerun: routing **5/5** and
+real-ledger integration **4/4** grouped checks passed. The routing fixture now
+starts from an isolated guest namespace and blanks the previous document before
+clearing storage, preventing its pagehide save from contaminating the next run.
+
+### Next implementation work, without reducing the original scope
+
+1. Add trusted/versioned economy configuration, bounded UTC manual rewards and
+   introduction, and persistent manual/clean-clear mastery. Preserve unknown
+   clean status for old snapshots rather than inventing a clean result. Server
+   completion must acquire the wallet lock before the run lock: adding a reward
+   trigger without reconciling the current reserve/completion lock order would
+   introduce a deadlock risk.
+2. Add verified provider transaction ownership/tombstones before live monetary
+   grants. Deleting an account must not make an old store transaction mintable
+   again. Complete refund/restoration and exact benefit/price provenance.
+3. Implement actual native IAP, owned-web checkout and native/web rewarded
+   adapters, with missing setup clearly unavailable. Registry discovery found
+   RevenueCat Capacitor 13.7.6 (Capacitor >=8), web 1.73.1 and community AdMob
+   8.2.1; these are researched candidates, **not installed integrations** yet.
+4. Add learning/revenue instrumentation, substantive critical review and the full
+   RES/CTL/PHY/COM/INT evidence table. Update the old native smoke's unrestricted
+   watch assumption; do not report an old APK smoke as a pass for this source.
+   Build/sync native packages and verify available hardware/toolchains, keeping
+   unavailable Apple/hardware/provider tests explicitly unverified.
 
 ## Verification and remaining scope
 

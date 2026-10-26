@@ -103,7 +103,8 @@ export class FixedSimulation {
     let steps = 0;
     while (this.pending + 1e-8 >= tickMs && steps < this.maxSteps) {
       this.cursor += tickMs; this.pending = Math.max(0, this.pending - tickMs);
-      update(this.step, this.cursor); steps++;
+      const proceed = update(this.step, this.cursor); steps++;
+      if(proceed===false){this.cursor+=this.pending;this.pending=0;break;}
     }
     if (steps === this.maxSteps && this.pending >= tickMs) {
       this.cursor += this.pending; this.pending = 0;

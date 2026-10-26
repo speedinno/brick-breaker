@@ -2,7 +2,7 @@ import {Game,MAX_BALLS,MAX_SHOTS} from './engine.js';
 const finite=(n,a,b)=>typeof n==='number'&&Number.isFinite(n)&&n>=a&&n<=b;
 export function snapshotGame(game,{auto=false,speed=1,run=null,assisted=auto}={}){
   if(!game||!['ready','playing'].includes(game.status))return null;
-  return {version:3,level:game.level,seed:game.seed,signature:game.pattern.signature,status:game.status,removed:game.bricks.filter(c=>c.hp===0).map(c=>c.id),balls:game.balls.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,r:b.r})),drops:game.drops.map(d=>({...d})),lives:game.lives,time:game.time,stageTime:game.stageTime,score:game.score,paddleX:game.paddle.x,peak:game.peakBalls,floorUntil:game.floorUntil,wideUntil:game.wideUntil,fireUntil:game.fireUntil,shootUntil:game.shootUntil,nextShot:game.nextShot,multiplierReadyAt:game.multiplierReadyAt,shots:game.shots.map(s=>({...s})),auto,speed,run,assisted};
+  return {version:3,level:game.level,seed:game.seed,signature:game.pattern.signature,status:game.status,removed:game.bricks.filter(c=>c.hp===0).map(c=>c.id),balls:game.balls.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,r:b.r})),drops:game.drops.map(d=>({...d})),lives:game.lives,time:game.time,stageTime:game.stageTime,score:game.score,paddleX:game.paddle.x,peak:game.peakBalls,floorUntil:game.floorUntil,wideUntil:game.wideUntil,fireUntil:game.fireUntil,shootUntil:game.shootUntil,nextShot:game.nextShot,multiplierReadyAt:game.multiplierReadyAt,shots:game.shots.map(s=>({...s})),auto:false,speed,run,assisted:Boolean(assisted||auto)};
 }
 export function restoreGame(snapshot,definitionPattern,onEvent){
   if(!snapshot||snapshot.version!==3||snapshot.signature!==definitionPattern.signature||!['ready','playing'].includes(snapshot.status)||!Number.isSafeInteger(snapshot.level)||snapshot.level<1||!Number.isInteger(snapshot.seed)||!finite(snapshot.lives,1,5)||!finite(snapshot.time,0,86400)||!finite(snapshot.stageTime,0,86400)||!Array.isArray(snapshot.removed)||snapshot.removed.length>2704||!Array.isArray(snapshot.balls)||snapshot.balls.length>MAX_BALLS||!Array.isArray(snapshot.drops)||snapshot.drops.length>30)return null;
@@ -24,5 +24,6 @@ export function restoreGame(snapshot,definitionPattern,onEvent){
   game.paddle.x=finite(snapshot.paddleX,0,416)?snapshot.paddleX:game.paddle.x;game.target=game.paddle.x;
   for(const key of ['floorUntil','wideUntil','fireUntil'])game[key]=finite(snapshot[key],0,86460)?snapshot[key]:0;
   game.peakBalls=finite(snapshot.peak,1,768)?Math.max(snapshot.peak,game.balls.length):Math.max(1,game.balls.length);
-  game.mode=snapshot.auto?'watch':'play';return game;
+  // Legacy AUTO flags preserve assistance history, never spending authority.
+  game.mode='play';return game;
 }
