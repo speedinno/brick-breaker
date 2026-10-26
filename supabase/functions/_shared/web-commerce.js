@@ -44,7 +44,7 @@ export async function findWebIntent(commerce,admin,id,user){
 async function apply(commerce,admin,intent,payment){
  if(payment.state!=='captured')return {state:payment.state};
  const result=await rpc(admin,'game_apply_web_payment',{p_id:intent.id,p_order:intent.order_id,p_payment:payment.payment,p_amount:payment.amount,p_currency:payment.currency,p_refunded:payment.refunded,p_purchased_at:payment.purchasedAt,p_fee:payment.fee,p_tax:payment.tax});
- return {state:result.state==='owned'||result.state==='partially_refunded'?'verified':result.state,refundedMs:result.refundedMs};
+ return {state:result.state==='owned'||result.state==='partially_refunded'?'verified':result.state,refundedMs:result.refundedMs,chargebackMs:result.chargebackMs,disputeReview:result.disputeReview};
 }
 /** @param {{paymentId?:string,signature?:string,requireSignature?:boolean}} options */
 export async function recoverWebCheckout(commerce,admin,intent,options={}){
@@ -68,4 +68,35 @@ export async function webhookWebPayment(commerce,admin,paymentId,{minimumRefund=
  // amount is never used to mint or reverse credit without a provider lookup.
  if(minimumRefund>0&&(verified.state!=='captured'||verified.refunded<minimumRefund))throw new WebCheckoutError('Refund reconciliation is pending.');
  return apply(commerce,admin,intent,verified);
+}
+async function readWebDispute(commerce,admin,disputeId){
+ if(!commerce)throw unavailable();const {provider}=commerce;
+ const raw=await provider.readDispute(disputeId),payment=await provider.readPayment(raw.payment_id),order=await provider.getOrder(payment.order_id),id=order.notes?.game_intent;
+ if(typeof id!=='string'||!/^[a-f\d-]{36}$/i.test(id)||order.notes?.game_scope!==provider.scope||order.notes?.game_environment!==provider.environment)return{ignored:true};
+ let intent=await findWebIntent(commerce,admin,id);provider.verifyOrder(order,intent);
+ if(intent.order_id&&intent.order_id!==order.id)throw new WebCheckoutError('Dispute order verification is pending.');
+ intent={...intent,order_id:order.id};
+ const dispute=provider.verifyDispute(raw,intent,payment),verified=provider.verifyPayment(payment,intent);
+ const previous=await admin.from('game_web_disputes').select('revision,status,phase,amount,amount_deducted,effective_deducted,needs_review,review_phase').eq('scope',provider.scope).eq('environment',provider.environment).eq('dispute_id',dispute.id).maybeSingle();
+ if(previous.error||previous.data&&!(typeof previous.data.revision==='number'&&Number.isSafeInteger(previous.data.revision)&&previous.data.revision>=0||typeof previous.data.revision==='string'&&/^(0|[1-9]\d{0,18})$/.test(previous.data.revision)))throw new WebCheckoutError('Dispute review state is unavailable.');
+ const record=previous.data?{revision:String(previous.data.revision),status:previous.data.status,phase:previous.data.phase,amount:Number(previous.data.amount),deducted:Number(previous.data.amount_deducted),effectiveDeducted:Number(previous.data.effective_deducted),needsReview:previous.data.needs_review,reviewPhase:previous.data.review_phase}:null;
+ const facts={scope:provider.scope,environment:provider.environment,intentId:intent.id,orderId:order.id,productId:intent.product_id,milliseconds:Number(intent.milliseconds),record,dispute,payment:{...verified,payment:payment.id,amount:payment.amount,currency:payment.currency}};
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(facts))),fingerprint=Array.from(new Uint8Array(digest),value=>value.toString(16).padStart(2,'0')).join('');
+ return{intent,order,facts,fingerprint};
+}
+export async function inspectWebDispute(commerce,admin,disputeId){const read=await readWebDispute(commerce,admin,disputeId);if('ignored' in read)return read;return{...read.facts,fingerprint:read.fingerprint};}
+/** @param {{hintPhase?:string,hintStatus?:string,minimumDeducted?:number,allowCorrection?:boolean,expectedFingerprint?:string}} options */
+export async function reconcileWebDispute(commerce,admin,disputeId,options={}){
+ const read=await readWebDispute(commerce,admin,disputeId);if('ignored' in read)return read;
+ const {intent,order,facts,fingerprint}=read,{dispute,payment:verified}=facts;
+ const phases=['fraud','retrieval','chargeback','pre_arbitration','arbitration'],rank=status=>status==='open'?0:status==='under_review'?1:2;
+ const hint=phases.indexOf(options.hintPhase??''),current=phases.indexOf(dispute.phase);
+ // Signed webhook facts are freshness hints, never grant/reversal authority.
+ // Retry if the independently read provider state has not caught up yet.
+ if(hint>=0&&(current<hint||current===hint&&options.hintStatus&&rank(dispute.status)<rank(options.hintStatus)))throw new WebCheckoutError('Dispute verification is still pending.');
+ if(current===hint&&dispute.status==='lost'&&Number.isSafeInteger(options.minimumDeducted)&&dispute.deducted<(options.minimumDeducted??0))throw new WebCheckoutError('Dispute verification is still pending.');
+ if(verified.state!=='captured'&&intent.purchase_id)throw new WebCheckoutError('Dispute payment verification is still pending.');
+ if(options.allowCorrection===true&&(!facts.record||!/^[a-f\d]{64}$/.test(options.expectedFingerprint??'')||options.expectedFingerprint!==fingerprint))throw new WebCheckoutError('The reviewed financial facts changed. Inspect the dispute again before resolving it.');
+ await attach(commerce,admin,intent,order);
+ return rpc(admin,'game_record_web_dispute',{p_id:intent.id,p_order:intent.order_id,p_dispute:dispute,p_payment:verified,p_allow_correction:options.allowCorrection===true,p_expected_revision:options.allowCorrection===true?facts.record?.revision:null});
 }

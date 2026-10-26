@@ -52,7 +52,7 @@ export class WebPurchaseService {
  }
  async status(owner,intentId){
   this.check(owner);const result=await this.cloud.api('purchase-web-status',{intentId});this.check(owner);
-  if(['verified','refunded'].includes(result.state)){this.clear(owner,intentId);this.quote=null;}
+  if(['verified','refunded','charged_back'].includes(result.state)){this.clear(owner,intentId);this.quote=null;}
   if(result.state==='account-deleted')throw Error('This receipt belongs to a deleted account. Contact support for assistance.');
   return result;
  }
@@ -74,7 +74,7 @@ export class WebPurchaseService {
     if(current?.intentId===quote.intentId)try{this.journal(owner,{...current,stage:'verify',paymentId:payload.razorpay_payment_id,signature:payload.razorpay_signature});}catch{}
     if(settled)return;
     settled=true;
-    Promise.resolve().then(()=>{this.check(owner);return this.cloud.api('purchase-web-confirm',{intentId:quote.intentId,paymentId:payload.razorpay_payment_id,signature:payload.razorpay_signature});}).then(value=>{this.check(owner);if(['verified','refunded'].includes(value.state)){this.clear(owner,quote.intentId);this.quote=null;}resolve(value);}).catch(reject);
+    Promise.resolve().then(()=>{this.check(owner);return this.cloud.api('purchase-web-confirm',{intentId:quote.intentId,paymentId:payload.razorpay_payment_id,signature:payload.razorpay_signature});}).then(value=>{this.check(owner);if(['verified','refunded','charged_back'].includes(value.state)){this.clear(owner,quote.intentId);this.quote=null;}resolve(value);}).catch(reject);
    };
    try{
     const widget=new this.Checkout({key:quote.keyId,amount:quote.amount,currency:quote.currency,order_id:quote.orderId,name:'SpeedInno · Brick Breaker',description:`${(quote.milliseconds/1000).toLocaleString()} seconds of autoplay`,handler,modal:{ondismiss:()=>{if(!settled){settled=true;resolve({state:'pending'});}}},theme:{color:'#ffc095'}});
@@ -89,11 +89,12 @@ export class WebPurchaseService {
   const key='brick-breaker-web-recovery-v1:'+owner+':'+this.configuration.environment,repair=key+':repair';this.pending(owner);
   if(this.journalCorrupt&&!this.storage.getItem(repair)){this.storage.removeItem(key);this.storage.setItem(repair,'1');}
   const result=await recoverPurchasePages({cloud:this.cloud,owner,storage:this.storage,key,action:'purchase-web-sync'});
-  if(!result.complete)return {state:'recovery-partial',wallet:result.wallet};
-  const pending=this.pending(owner);if(!pending){if(this.journalCorrupt){this.storage.removeItem(this.key(owner));this.journalCorrupt=false;}this.storage.removeItem(repair);return {state:'synced',wallet:result.wallet};}
-  const status=await this.status(owner,pending.intentId);if(['verified','refunded'].includes(status.state))return status;
+  const notices={chargeback:result.chargeback,disputeReview:result.disputeReview};
+  if(!result.complete)return {state:'recovery-partial',wallet:result.wallet,...notices};
+  const pending=this.pending(owner);if(!pending){if(this.journalCorrupt){this.storage.removeItem(this.key(owner));this.journalCorrupt=false;}this.storage.removeItem(repair);return {state:'synced',wallet:result.wallet,...notices};}
+  const status=await this.status(owner,pending.intentId);if(['verified','refunded','charged_back'].includes(status.state))return {...status,chargeback:result.chargeback,disputeReview:result.disputeReview||status.disputeReview};
   // A successful status lookup proves the intent already exists. Reopening its
   // quote cannot create a second provider order or silently open a payment UI.
-  const quote=await this.prepare(owner,pending);return {...quote,wallet:status.wallet};
+  const quote=await this.prepare(owner,pending);return {...quote,wallet:status.wallet,...notices};
  });}
 }

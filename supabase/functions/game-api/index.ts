@@ -3,7 +3,7 @@ import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHas
 import {readLimitedJson,readLimitedBytes,parseJsonObject,RequestError} from '../_shared/request.js';
 import {nativeCommerce,nativeCatalog,persistVerifiedPurchase} from '../_shared/native-commerce.js';
 import {equalSecret,PurchaseVerificationError} from '../_shared/revenuecat.js';
-import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebCheckout,webhookWebPayment} from '../_shared/web-commerce.js';
+import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebCheckout,webhookWebPayment,reconcileWebDispute} from '../_shared/web-commerce.js';
 import {verifyHmac,WebCheckoutError} from '../_shared/razorpay.js';
 import {AdMobVerifier,AdVerificationError} from '../_shared/admob-ssv.js';
 import {rewardedAdConfig,adPlacement} from '../_shared/ad-config.js';
@@ -69,6 +69,12 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
       if(!valid.some(Boolean))return reply({error:'Webhook authentication required'},401);
       const body=parseJsonObject(bytes);
       if(body.account_id!==webBilling.provider.merchantId)return reply({error:'Webhook account mismatch'},403);
+      if(['payment.dispute.created','payment.dispute.won','payment.dispute.lost','payment.dispute.closed','payment.dispute.under_review','payment.dispute.action_required'].includes(String(body.event))){
+        const dispute=(body.payload as {dispute?:{entity?:{id?:unknown,phase?:unknown,status?:unknown,amount_deducted?:unknown}}}|undefined)?.dispute?.entity;
+        if(typeof dispute?.id!=='string')return reply({error:'Dispute identifier required'},400);
+        const result=await reconcileWebDispute(webBilling,admin,dispute.id,{hintPhase:typeof dispute.phase==='string'?dispute.phase:undefined,hintStatus:typeof dispute.status==='string'?dispute.status:undefined,minimumDeducted:dispute.status==='lost'&&Number.isSafeInteger(dispute.amount_deducted)?Number(dispute.amount_deducted):undefined});
+        return reply({processed:!('ignored' in result&&result.ignored)});
+      }
       if(!['payment.captured','payment.authorized','payment.failed','order.paid','refund.processed','refund.failed'].includes(String(body.event)))return reply({ignored:true});
       const payload=body.payload as {payment?:{entity?:{id?:unknown}},refund?:{entity?:{payment_id?:unknown,amount?:unknown}}}|undefined;
       const paymentId=payload?.payment?.entity?.id??payload?.refund?.entity?.payment_id;
@@ -149,7 +155,7 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
         if(body.after)query=query.gt('id',body.after);
         const rows=await query;if(rows.error)throw new WebCheckoutError('Could not read purchase recovery. Try again later.');
         const results=await Promise.all((rows.data||[]).map(intent=>recoverWebCheckout(webBilling,admin,intent)));
-        return reply({next:rows.data?.length===5?rows.data.at(-1)?.id:null,processed:results.length,wallet:await rpc('game_time_state')});
+        return reply({next:rows.data?.length===5?rows.data.at(-1)?.id:null,processed:results.length,chargeback:results.some(result=>result.state==='charged_back'),disputeReview:results.some(result=>'disputeReview' in result&&result.disputeReview),wallet:await rpc('game_time_state')});
       }
       if(!safeUuid(body.intentId))return reply({error:'Invalid checkout ID'},400);
       if(body.action==='purchase-web-order'){

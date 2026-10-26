@@ -31,6 +31,17 @@ test('captured and partial/full refunded payments keep exact integer amounts and
  assert.equal(client.verifyPayment({...payment,status:'refunded',amount_refunded:7900},intent).refunded,7900);
  assert.throws(()=>client.verifyPayment({...payment,status:'refunded',amount_refunded:0},intent),/verification is unavailable/);
 });
+
+test('dispute verification binds payment, currency and bounded cash loss while excluding private evidence',async()=>{
+ const row={entity:'dispute',id:'disp_example',payment_id:payment.id,amount:2000,currency:'INR',amount_deducted:2000,status:'lost',phase:'chargeback',created_at:Math.floor(now/1000),evidence:{summary:'private customer communication'},reason_description:'private details'};
+ const {client}=provider();const result=client.verifyDispute(row,intent,payment);assert.equal(result.deducted,2000);assert(!JSON.stringify(result).includes('private'));assert.equal(result.paymentId,payment.id);
+ for(const change of [{payment_id:'pay_other'},{currency:'USD'},{amount:7901},{amount_deducted:2001},{status:'won'},{phase:'unknown'},{created_at:Math.floor(now/1000)+301}])assert.throws(()=>client.verifyDispute({...row,...change},intent,payment),/verification is unavailable/);
+ const verified=provider(async()=>Response.json(row));assert.equal((await verified.client.readDispute('disp_example')).id,'disp_example');assert.equal(verified.calls[0].url,'https://api.razorpay.com/v1/disputes/disp_example');await assert.rejects(()=>verified.client.readDispute('../secret'));
+});
+
+test('dispute discovery pages expose only bounded IDs and a resumable validated offset',async()=>{
+ const rows=Array.from({length:100},(_,index)=>({id:'disp_'+index,entity:'dispute'})),{client,calls}=provider(async()=>Response.json({entity:'collection',items:rows}));const page=await client.disputePage(100);assert.equal(page.next,200);assert.equal(page.ids.length,100);assert(calls[0].url.endsWith('/disputes?count=100&skip=100'));await assert.rejects(()=>client.disputePage(-1));await assert.rejects(()=>provider(async()=>Response.json({entity:'collection',items:[{id:'../other'}]})).client.disputePage());
+});
 test('checkout HMAC uses the server-held order ID, and raw webhook bytes cannot be reserialized',async()=>{
  const {client}=provider(),signature=createHmac('sha256',secret).update(intent.order_id+'|pay_example').digest('hex');assert.equal(await client.callbackSignature(intent,'pay_example',signature),true);assert.equal(await client.callbackSignature({...intent,order_id:'order_other'},'pay_example',signature),false);
  const raw=new TextEncoder().encode('{ "event": "payment.captured", "note": "₹" }\r\n'),hash=createHmac('sha256',secret).update(raw).digest('hex');assert.equal(await verifyHmac(raw,hash,secret),true);assert.equal(await verifyHmac(JSON.stringify(JSON.parse(new TextDecoder().decode(raw))),hash,secret),false);assert.equal(await verifyHmac(raw,'bad',secret),false);

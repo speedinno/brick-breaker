@@ -26,7 +26,7 @@ async function handle(body) {
   if(body.accountId!==user)throw Error('Test identity mismatch');
   if(body.action==='qa-ledger')return (await db.query('select kind,sum(amount_ms)::integer as ms from public.game_time_ledger group by kind')).rows;
   if(body.action?.startsWith('ad-')&&!adsFixture){if(body.action==='ad-catalog')return{available:false,reason:'Local fixture ads are disabled.'};throw Error('Local fixture ads are disabled');}
-  if(body.action?.startsWith('purchase-')||body.action==='qa-commerce-capture'){
+  if(body.action?.startsWith('purchase-')||body.action==='qa-commerce-capture'||body.action==='qa-commerce-dispute'){
     if(!commerceFixture){if(body.action==='purchase-catalog')return{available:false,reason:'Local fixture purchases are disabled.'};throw Error('Local fixture purchases are disabled');}
     return commerceFixture.handle(body);
   }

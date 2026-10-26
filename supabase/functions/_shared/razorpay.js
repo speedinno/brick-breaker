@@ -2,6 +2,8 @@ const ROOT='https://api.razorpay.com/v1';
 const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
 const orderId=value=>typeof value==='string'&&/^order_[A-Za-z0-9]{1,80}$/.test(value);
 const paymentId=value=>typeof value==='string'&&/^pay_[A-Za-z0-9]{1,80}$/.test(value);
+const disputeId=value=>typeof value==='string'&&/^disp_[A-Za-z0-9]{1,80}$/.test(value);
+const disputePhases=['fraud','retrieval','chargeback','pre_arbitration','arbitration'];
 const integer=(value,min=0,max=100000000)=>Number.isSafeInteger(value)&&value>=min&&value<=max;
 export class WebCheckoutError extends Error {}
 const failure=()=>new WebCheckoutError('Checkout verification is unavailable. Recover purchases after reconnecting.');
@@ -45,6 +47,19 @@ export class RazorpayCheckout {
  }
  async getOrder(id){if(!orderId(id))throw failure();return this.api('/orders/'+id);}
  async readPayment(id){if(!paymentId(id))throw failure();const payment=await this.api('/payments/'+id);if(payment?.entity!=='payment'||payment.id!==id||!orderId(payment.order_id))throw failure();return payment;}
+ async readDispute(id){if(!disputeId(id))throw failure();const row=await this.api('/disputes/'+id);if(row?.entity!=='dispute'||row.id!==id||!paymentId(row.payment_id))throw failure();return row;}
+ verifyDispute(row,intent,payment){
+  this.verifyPayment(payment,intent);
+  if(row?.entity!=='dispute'||!disputeId(row.id)||row.payment_id!==payment.id||!integer(row.amount,1,payment.amount)||row.currency!==intent.currency||!integer(row.amount_deducted,0,row.amount)||!['open','under_review','won','lost','closed'].includes(row.status)||!disputePhases.includes(row.phase)||row.status!=='lost'&&row.amount_deducted!==0||!integer(row.created_at,946684800,Math.floor(this.now()/1000)+300)||row.created_at<payment.created_at-300)throw failure();
+  // Retain only canonical financial facts, never evidence documents, contact
+  // fields or the raw payment/dispute payload returned by the provider.
+  return {id:row.id,paymentId:row.payment_id,amount:row.amount,currency:row.currency,deducted:row.amount_deducted,status:row.status,phase:row.phase,createdAt:new Date(row.created_at*1000).toISOString()};
+ }
+ async disputePage(skip=0){
+  if(!integer(skip,0,1000000))throw failure();const page=await this.api('/disputes?'+new URLSearchParams({count:'100',skip:String(skip)}));
+  if(page?.entity!=='collection'||!Array.isArray(page.items)||page.items.length>100||page.items.some(row=>!disputeId(row.id)))throw failure();
+  return{ids:page.items.map(row=>row.id),next:page.items.length===100?skip+100:null};
+ }
  verifyPayment(payment,intent){
   this.intent(intent);
   if(payment?.entity!=='payment'||!paymentId(payment.id)||payment.order_id!==intent.order_id||!orderId(intent.order_id)||payment.amount!==Number(intent.amount)||payment.currency!==intent.currency||!integer(payment.amount_refunded,0,payment.amount)||!integer(payment.created_at,946684800,Math.floor(this.now()/1000)+300)||payment.created_at<Date.parse(intent.created_at)/1000-300||![payment.fee,payment.tax].every(value=>value===null||value===undefined||integer(value)))throw failure();

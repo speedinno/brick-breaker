@@ -3,6 +3,7 @@ window.Razorpay=class LocalCheckout {
  constructor(options){this.options=options;}
  open(){
   const root=document.createElement('div');root.id='qaCheckout';root.setAttribute('role','dialog');root.setAttribute('aria-label','Local mock checkout');
+  root.dataset.orderId=this.options.order_id;
   Object.assign(root.style,{position:'fixed',inset:'10%',zIndex:'9999',background:'#20252d',color:'white',padding:'24px',border:'2px solid #ffc095',borderRadius:'20px',font:'16px system-ui'});
   const text=document.createElement('p');text.textContent=`Local mock checkout · ${(this.options.amount/100).toFixed(2)} ${this.options.currency}. No real payment.`;
   const complete=document.createElement('button');complete.id='qaCompletePayment';complete.textContent='Complete local test payment';Object.assign(complete.style,{minHeight:'48px',width:'100%',marginBottom:'16px'});

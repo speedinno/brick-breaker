@@ -16,3 +16,8 @@ test('switching accounts while a page is pending cannot save another account cur
  const {saved,storage}=setup();let finish;const cloud={userId:'a',api:()=>new Promise(resolve=>finish=resolve)};
  const task=recoverPurchasePages({cloud,owner:'a',storage,key:'a',action:'purchase-sync'}),rejected=assert.rejects(()=>task,/account changed/);cloud.userId='b';finish({next:'p1'});await rejected;assert.equal(saved.size,0);
 });
+
+test('deleted receipt and dispute notices survive a client restart in the middle of recovery',async()=>{
+ const {storage}=setup(),cloud={userId:'a',api:async(action,{after})=>after?{next:null}:{next:'p1',deletedAccountPurchase:true,chargeback:true,disputeReview:true}};
+ const options={cloud,owner:'a',storage,key:'a',action:'purchase-sync',maxPages:1};assert.equal((await recoverPurchasePages(options)).complete,false);const result=await recoverPurchasePages({...options});assert.equal(result.complete,true);assert.equal(result.deletedAccountPurchase,true);assert.equal(result.chargeback,true);assert.equal(result.disputeReview,true);
+});
