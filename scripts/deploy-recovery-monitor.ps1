@@ -17,6 +17,7 @@ $payload=New-RecoveryFailureAlert -Job $job -MetricDefinitions $metrics -Existin
 if($Plan){[ordered]@{subscription=$account.name;subscriptionId=$account.id;rule=$RuleName;job=$JobName;metric='Executions';dimension='state=Failed';threshold='Maximum > 0';evaluation='PT1M';window='PT5M';notificationActions=@($payload.properties.actions).Count;monitorsMissingExecutions=$false} | ConvertTo-Json;return}
 $root=Split-Path $PSScriptRoot -Parent
 if(& git -C $root status --porcelain --untracked-files=normal -- scripts/deploy-recovery-monitor.ps1 scripts/azure-cli.ps1 scripts/azure-profile.ps1){throw 'Commit the monitoring scripts before deployment.'}
+Invoke-Azure -Arguments @('provider','register','--namespace','Microsoft.Insights','--wait') | Out-Null
 Invoke-AzurePayload -Url $url -Payload $payload | Out-Null
 $actual=Invoke-Azure -Arguments @('rest','--method','get','--url',$url)
 if(!$actual.properties.enabled -or $actual.properties.scopes[0] -ne $job.id -or $actual.properties.criteria.allOf[0].metricName -ne 'Executions' -or $actual.properties.criteria.allOf[0].dimensions[0].values[0] -ne 'Failed'){throw 'The alert configuration could not be verified after deployment.'}
