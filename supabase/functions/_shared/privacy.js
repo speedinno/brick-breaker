@@ -43,6 +43,21 @@ export class RevenueCatPrivacy {
   if(body?.object!=='customer'||body.id!==subject||method==='GET'&&body.project_id!==this.projectId||method==='DELETE'&&(!Number.isSafeInteger(body.deleted_at)||body.deleted_at<946684800000||body.deleted_at>this.now()+300000))throw new PrivacyProviderError('invalid_response');
   return{absent:false};
  }
+ async customerPage(after=null){
+  const cursor=value=>typeof value==='string'&&value.length>0&&value.length<=1500&&value.isWellFormed()&&!/[\u0000-\u001f\u007f]/.test(value);
+  if(after!==null&&!cursor(after))throw new PrivacyProviderError('invalid_response');await this.verifyProject();
+  const path='/v2/projects/'+this.projectId+'/customers',body=await this.requestBody('/projects/'+this.projectId+'/customers?limit=20'+(after===null?'':'&starting_after='+encodeURIComponent(after)),'GET');
+  if(body?.object!=='list'||!Array.isArray(body.items)||body.items.length>20||body.items.some(item=>item?.object!=='customer'||item.project_id!==this.projectId||!cursor(item.id))||new Set(body.items.map(item=>item.id)).size!==body.items.length)throw new PrivacyProviderError('invalid_response');
+  let next=null;
+  if(body.next_page!==null){
+   let target;try{target=new URL(body.next_page,'https://api.revenuecat.com');}catch{throw new PrivacyProviderError('invalid_response');}
+   next=target.searchParams.get('starting_after');
+   if(typeof body.next_page!=='string'||target.origin!=='https://api.revenuecat.com'||target.pathname!==path||target.username||target.password||target.hash||!cursor(next)||next!==body.items.at(-1)?.id||next===after||[...target.searchParams.keys()].some(key=>!['starting_after','limit'].includes(key))||[...target.searchParams.keys()].length!==new Set(target.searchParams.keys()).size)throw new PrivacyProviderError('invalid_response');
+  }
+  // Game Auth IDs are canonical lowercase UUIDs. Other applications' custom
+  // IDs/anonymous SDK IDs can be paged past, but are never cleanup subjects.
+  return{customers:body.items.map(item=>item.id).filter(id=>uuid(id)&&id===id.toLowerCase()),next,count:body.items.length};
+ }
  async erase(job){
   if(job.provider!=='revenuecat'||job.scope!==this.projectId||job.environment!==this.environment)throw new PrivacyProviderError('config_missing');
   await this.verifyProject();

@@ -2,6 +2,7 @@ import {test,before,after} from 'node:test';import assert from 'node:assert/stri
 import {migrateGame} from './db-migrations.mjs';import {RevenueCatPrivacy,runPrivacyBatch} from '../supabase/functions/_shared/privacy.js';
 import {deletionStatus,prepareAccountDeletion,deletePreparedAccount} from '../supabase/functions/_shared/account-deletion.js';
 import {nativeCatalog,persistVerifiedPurchase} from '../supabase/functions/_shared/native-commerce.js';
+import {discoverPrivacyBatch} from '../scripts/privacy-discovery.mjs';
 import {mkdtemp,rmdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {fileURLToPath} from 'node:url';import {spawnSync} from 'node:child_process';
 let db;const project='proj_privacy';
 before(async()=>{db=new PGlite();await db.exec(`create schema auth;create table auth.users(id uuid primary key,email text);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema auth,public to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;`);await migrateGame(db);});
@@ -110,4 +111,36 @@ test('the privacy CLI fails closed before network work when setup or command arg
  const directory=await mkdtemp(join(tmpdir(),'brick-privacy-')),env={...process.env};for(const key of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MONETIZATION_ENVIRONMENT','PRIVACY_REVENUECAT_KEYS_JSON'])delete env[key];
  try{for(const args of [[],['--batch','51'],['--resolve-manual',crypto.randomUUID(),'--outcome','erased','--reference','person@example.invalid']]){const result=spawnSync(process.execPath,[fileURLToPath(new URL('../scripts/reconcile-privacy.mjs',import.meta.url)),...args],{cwd:directory,env,encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.equal(result.stdout,'');assert.match(result.stderr,/Privacy recovery is not configured|Choose one privacy/);}}
  finally{await rmdir(directory);}
+});
+test('customer discovery schedules only known retired identities and exact replay does not invalidate a worker',async()=>{
+ const retired=await account(),active=await account(),unknown=crypto.randomUUID(),observation=crypto.randomUUID();await remove(retired);
+ const observe=(id,subjects,scope=project,environment='sandbox')=>value('select game_discover_privacy_customers($1,$2,$3,$4) as value',[id,scope,environment,subjects]);
+ assert.equal(await observe(observation,[unknown,retired,active]),1);assert.equal((await jobs(active)).length,0);assert.equal((await jobs(unknown)).length,0);const [job]=await jobs(retired);assert.equal(job.subject,retired);await due(job.id);const leased=(await claim())[0];assert.equal(leased.id,job.id);
+ assert.equal(await observe(observation,[active,retired,unknown]),1);assert.equal((await jobs(retired))[0].lease_token,leased.leaseToken);assert.equal((await jobs(retired))[0].generation,leased.generation);
+ await assert.rejects(()=>observe(observation,[retired]),/identity conflict/);await assert.rejects(()=>observe(crypto.randomUUID(),[retired,retired]),/Invalid privacy discovery/);await assert.rejects(()=>observe(crypto.randomUUID(),[retired],project,'production'),/environment mismatch/);
+ assert.equal(await observe(crypto.randomUUID(),[retired]),1);assert.equal(await finish(leased,'absent'),false);await query("update game_privacy_jobs set next_attempt_at=now()+interval '2 days' where id=$1",[job.id]);
+});
+test('a retained-provider review is never silently turned back into an automatic erase by discovery',async()=>{
+ const {user,job}=await queued(),leased=(await claim())[0];await finish(leased,'permission_denied');await value("select game_resolve_manual_privacy($1,'manual_retained','retention-case-200') as value",[job.id]);
+ await value('select game_discover_privacy_customers($1,$2,$3,$4) as value',[crypto.randomUUID(),project,'sandbox',[user]]);let row=(await jobs(user))[0];assert.equal(row.state,'manual_review');assert.equal(row.outcome,'manual_retained');assert.equal(row.resolution_reference,'retention-case-200');await due(job.id);assert.deepEqual(await claim(),[]);
+ await value('select game_retry_privacy_job($1) as value',[job.id]);row=(await jobs(user))[0];assert.equal(row.outcome,null);assert.equal((await claim())[0].id,job.id);await query("update game_privacy_jobs set state='manual_review',lease_token=null,lease_until=null where id=$1",[job.id]);
+});
+test('the customer-page adapter validates scope and cursors while skipping unrelated custom IDs',async()=>{
+ const id=crypto.randomUUID(),other='other-app@example.invalid',path='/v2/projects/'+project+'/customers';
+ const f=providerFixture(url=>url.pathname==='/v2/projects'?projects():Response.json({object:'list',items:[{object:'customer',id,project_id:project},{object:'customer',id:other,project_id:project}],next_page:path+'?starting_after='+encodeURIComponent(other)}));
+ assert.deepEqual(await f.provider.customerPage(),{customers:[id],next:other,count:2});assert(f.calls.every(call=>call.method==='GET'));
+ for(const body of [
+  {object:'list',items:[{object:'customer',id,project_id:'proj_foreign'}],next_page:null},
+  {object:'list',items:[{object:'customer',id,project_id:project},{object:'customer',id,project_id:project}],next_page:null},
+  {object:'list',items:[{object:'customer',id,project_id:project}],next_page:'https://evil.invalid'+path+'?starting_after='+id},
+  {object:'list',items:[{object:'customer',id,project_id:project}],next_page:path+'?starting_after=wrong'},
+  {object:'list',items:[],next_page:path+'?starting_after='+id}
+ ]){const bad=providerFixture(url=>url.pathname==='/v2/projects'?projects():Response.json(body));await assert.rejects(()=>bad.provider.customerPage(),{code:'invalid_response'});assert.equal(bad.calls.length,2);}
+});
+test('the real discovery pipeline survives a committed SQL observation whose response was lost',async()=>{
+ const retired=await account(),active=await account();await remove(retired);let stored=null,loseResponse=true;
+ const f=providerFixture(url=>url.pathname==='/v2/projects'?projects():Response.json({object:'list',items:[retired,active,'unrelated-sdk-user'].map(id=>({object:'customer',id,project_id:project})),next_page:null}));
+ const options={identity:{provider:'revenuecat',projectId:project,environment:'sandbox',database:'https://db.example.invalid'},read:async()=>structuredClone(stored),write:async state=>{stored=structuredClone(state);},page:after=>f.provider.customerPage(after),observe:async(id,customers)=>{const matched=await value('select game_discover_privacy_customers($1,$2,$3,$4) as value',[id,project,'sandbox',customers]);if(loseResponse){loseResponse=false;throw Error('response lost after commit');}return matched;}};
+ await assert.rejects(()=>discoverPrivacyBatch(options),/response lost/);const [job]=await jobs(retired);assert.equal((await jobs(active)).length,0);await due(job.id);const leased=(await claim())[0];assert.equal(leased.id,job.id);
+ const result=await discoverPrivacyBatch(options);assert.equal(result.complete,true);assert.equal(result.matched,1);assert.equal(result.examined,3);assert.equal(f.calls.length,2);assert.equal(stored.pending,null);assert.equal(stored.cursor,null);assert.equal((await jobs(retired))[0].lease_token,leased.leaseToken);assert.equal(await finish(leased,'config_missing'),true);
 });

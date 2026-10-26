@@ -4,7 +4,7 @@ Implementation checkpoint, 26 October 2026. This is operator guidance for the re
 
 ## What commits together
 
-Apply migration `202610260010_privacy_outbox.sql` after migrations 001–009 in the matching deployment database. Native catalogs register the authenticated game UUID and RevenueCat project before exposing a public SDK key. Separate production and sandbox databases **and RevenueCat projects** are required: RevenueCat customer deletion applies to a project rather than one store environment.
+Apply migrations `202610260010_privacy_outbox.sql` and `202610260011_privacy_discovery.sql` after migrations 001–009 in the matching deployment database. Native catalogs register the authenticated game UUID and RevenueCat project before exposing a public SDK key. Separate production and sandbox databases **and RevenueCat projects** are required: RevenueCat customer deletion applies to a project rather than one store environment.
 
 The app saves a random deletion receipt before requesting preparation, then requires a fresh sign-in (15 minutes) to delete. Every device keeps its own receipt; repeated preparation of that receipt is idempotent. Official Supabase Auth deletion fires a `BEFORE DELETE` trigger. Its outbox jobs, receipt completion, auth removal and private-data cascades commit or roll back together. A lost delete response is recoverable with a POST to the API's `/privacy/deletion-status` suffix. The random receipt exposes only a boolean; it is not a public account-lookup endpoint. Keep receipts out of public logs and apply gateway request limits to preparation/status routes before release.
 
@@ -33,6 +33,26 @@ The adapter first proves the configured project is visible to its key. A missing
 
 The command is not a scheduler. Deploy it as a bounded scheduled job with protected secrets, failure alerts and private database access. Monitor oldest unfinished job, manual-review count, failed runs and time since the last successful worker run. An unrun command does not satisfy account-erasure operations.
 
+## Discover profiles recreated without a payment webhook
+
+Run a separate customer scan for **each** current or retired project in the keyring. This makes only provider GET requests; it queues matches for the existing verified erasure worker rather than deleting profiles directly:
+
+```powershell
+npm run recover:privacy -- --scan-customers proj_example --batch 10
+```
+
+Here the batch counts provider pages (20 customers each), while the default worker batch counts jobs. Repeat until the command returns `complete:true`. On each page the adapter validates the project, customer objects and same-origin pagination. It ignores unrelated custom/anonymous SDK IDs. The service-only SQL observation matches canonical game UUIDs to the retired-subject hash registry and checks that no active Auth account exists. Active or unknown identities cannot be queued. An operator's retained-provider decision stays in manual review; discovery cannot override it with automatic erasure.
+
+The private journal in `.openai/local/privacy-discovery-PROJECT-ENVIRONMENT.json` binds to the exact project, environment and database. It checkpoints a random observation ID and whole candidate page before applying it. A crash or lost acknowledgment replays that same observation idempotently, without repeatedly invalidating an existing worker. Provider page loops are detected across runs. The current cursor and candidate IDs are removed from the journal on completion; only cursor hashes are used for loop detection while a pass runs. A cursor can itself contain a provider's customer identifier, so protect this journal as private data and keep it on persistent storage between job executions. Do not copy it into logs or Git.
+
+After finishing a pass, start the next periodic pass deliberately:
+
+```powershell
+npm run recover:privacy -- --scan-customers proj_example --batch 10 --restart-scan
+```
+
+Use one scanner per project with its durable directory mounted. Schedule a new full pass at least daily, resume unfinished passes more frequently, and alert on stale/incomplete scans. Do not blindly pass `--restart-scan` on every scheduled invocation: that would repeatedly scan the beginning. Restarting an acknowledged cursor is also available if the provider invalidates it after customer deletion; review that provider error first. A saved **unacknowledged page cannot be discarded by this flag**. Recover its database observation before restarting. Stale process locks require checking the named process before removal. Completed passes are observations of provider pages, not a promise that another device cannot recreate a profile afterwards.
+
 ## Review and resolve exceptions
 
 Inspect job IDs and private subjects through the service-only database administration interface. Keep email addresses and UUID subjects out of shared tickets. The CLI deliberately returns only non-contact metadata:
@@ -57,6 +77,6 @@ These are mutually exclusive outcomes for one job. `retained` never means erased
 
 The database retains a namespaced hash of the retired game UUID to prevent late provider records being treated as a new person. This is **pseudonymous**, not anonymous. Completed job metadata, receipt capabilities, that retired-subject guard and financial tombstones currently have no automatic expiry. The operator must approve and document retention, access and backup schedules before publication.
 
-Verification so far uses disposable PostgreSQL, fake Auth and bounded HTTP provider fixtures. Real RevenueCat permissions, asynchronous timing, retired-project access and physical-device SDK caches still need sandbox/device checks. A provider profile recreated later without a purchase webhook needs periodic customer discovery/reconciliation; the late-receipt hook alone does not cover it. That discovery job, scheduled execution and real-provider end-to-end evidence remain release gates. The privacy notice must describe enabled behavior, retained records and actual operator policies accurately.
+Verification so far uses disposable PostgreSQL, fake Auth and bounded HTTP provider fixtures. Real RevenueCat permissions, asynchronous timing, cursor behavior after deletions, retired-project access and physical-device SDK caches still need sandbox/device checks. Periodic customer discovery and its private idempotent observation registry are implemented; scheduled execution, persistent worker storage/alerts and real-provider end-to-end evidence remain release gates. Observation metadata has no automatic expiry yet. The privacy notice must describe enabled behavior, retained records and actual operator policies accurately.
 
 Primary API references checked 26 October 2026: [RevenueCat customer deletion/read](https://www.revenuecat.com/docs/api-v2/customer), [project access/pagination](https://www.revenuecat.com/docs/api-v2/project). Provider responses are not proof of the operator's legal compliance.
