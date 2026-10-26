@@ -5,6 +5,10 @@ import {AssistancePanel} from './assistance-ui.js';
 import {PurchaseService} from './purchases.js';
 import {WebPurchaseService} from './web-purchases.js';
 import {PurchasePanel} from './purchases-ui.js';
+import {RewardedService} from './rewarded.js';
+import {RewardedPanel} from './rewarded-ui.js';
+import {NativeRewardedAdapter,H5RewardedAdapter} from './rewarded-adapters.js';
+import adRuntime from './ad-runtime.js';
 import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
 import {fitViewport,dialogViewport} from './viewport.js';
@@ -102,8 +106,22 @@ function createAssistance(){
 assistance=createAssistance();
 const assistancePanel=new AssistancePanel({bank:assistance,cloud,open:openDialog,close:closeDialog,signIn:()=>account.show(),activate:beginAssistance});
 const purchases=native?new PurchaseService({cloud,storage,platform:Capacitor.getPlatform()}):new WebPurchaseService({cloud,storage});
-const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!assistancePanel.busy&&!assistance.starting&&!assistance.active,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart:()=>{const token={game,authEpoch,loadEpoch,homeHidden:$('home').hidden};closeDialog('assist');return token;},externalEnd:token=>{if(token&&token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden&&paused&&!document.querySelector('dialog[open]'))openDialog('assist');}});
+let ignoredAssistCloses=0;const externalContexts=new Set();
+function externalStart(){
+ const token={game,authEpoch,loadEpoch,homeHidden:$('home').hidden,mute:{}};
+ externalContexts.add(token);effects.mute(token.mute);away();if($('assist').open){ignoredAssistCloses++;closeDialog('assist');}return token;
+}
+function externalEnd(token){
+ if(!token)return;externalContexts.delete(token);effects.unmute(token.mute);
+ if(token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden&&paused&&!document.querySelector('dialog[open]'))openDialog('assist');
+}
+const monetizationBusy=()=>assistancePanel.busy||assistance.starting||assistance.active;
+const rewardedAdapter=native?new NativeRewardedAdapter({available:()=>adRuntime.enabled&&Capacitor.isPluginAvailable('AdMob'),eligible:()=>$('adAdult').checked&&adRuntime.audienceReviewed,externalStart,externalEnd}):new H5RewardedAdapter({externalStart,externalEnd,sound:()=>effects.enabled});
+const rewarded=new RewardedService({cloud,storage,platform:native?Capacitor.getPlatform():'web',deviceId,adapter:rewardedAdapter,canPresent:()=>!document.hidden&&($('assist').open||[...externalContexts].some(token=>token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden))});
+const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!monetizationBusy()&&!rewarded.busy&&!rewarded.ready,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart,externalEnd});
+const adPanel=new RewardedPanel({service:rewarded,cloud,configured:()=>adRuntime.enabled&&adRuntime.audienceReviewed,canStart:()=>!monetizationBusy()&&!purchases.busy&&!purchasePanel.busy,onBusy:busy=>{assistancePanel.adBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart,externalEnd});
 assistancePanel.purchases=purchasePanel;
+assistancePanel.ads=adPanel;
 setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flush().catch(()=>{});},1000);
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
 function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled,touchGain:input.touchGain,pointerGain:input.pointerGain}));}catch{}}
@@ -211,10 +229,20 @@ async function action(){
   canvas.focus({preventScroll:true});
 }
 function pause(){if(!$('home').hidden||!game||loading)return;if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}else if(game.status==='playing'){paused=true;clearControls();prompt('paused');saveSession();}}
-function away(){clearControls();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();}
+function away(){
+ clearControls();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();
+ // A prepared offer is never kept ready across background/navigation. The
+ // journal returns its unopened slot on recovery. An external ad/consent form
+ // intentionally blurs the WebView, so its owning context is exempt.
+ if(!externalContexts.size&&(rewarded.ready||rewarded.busy)){rewarded.reset();adPanel.reset();assistancePanel.adBusy=false;}
+}
 function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}clearControls();saveSession();if(!$(id).open)$(id).showModal();}
 function closeDialog(id){if($(id).open)$(id).close();}
 for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{
+  if(dialog.id==='assist'){
+    if(ignoredAssistCloses)ignoredAssistCloses--;
+    else{rewarded.reset();adPanel.reset();assistancePanel.adBusy=false;}
+  }
   if(dialog.id==='homeConfirm'){
     const pending=homeReturn;homeReturn=null;
     if(pending?.resume&&game===pending.game&&game.status==='playing'&&$('home').hidden&&!document.querySelector('dialog[open]')){paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}
@@ -312,7 +340,7 @@ async function accountChanged(){
   assistance.stop('account');
   try{assistance.persist();}catch{}
   assistance=createAssistance();assistancePanel.bank=assistance;assistancePanel.epoch++;assistancePanel.busy=false;
-  purchases.reset();purchasePanel.reset();assistancePanel.checkoutBusy=false;
+  purchases.reset();purchasePanel.reset();rewarded.reset();adPanel.reset();assistancePanel.checkoutBusy=false;assistancePanel.adBusy=false;
   const epoch=++authEpoch;saveSession();accountIdentity=id;cloud.state=null;++loadEpoch;loading=true;game=null;run=null;store.switchAccount(id);updateStatus();
   if(id){try{await syncPending();}catch(error){if(epoch===authEpoch)account.message(error.message,true);}}
   if(epoch!==authEpoch)return;loading=false;account.render();updateStatus();if(!booting)await start(store.value.selected,{resume:true,enter:$('home').hidden,sync:false});

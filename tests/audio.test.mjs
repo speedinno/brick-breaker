@@ -12,3 +12,10 @@ test('audio resume failure is reported without silently switching the preference
  const sound=new SoundEffects({enabled:true,createContext:()=>({state:'suspended',resume:async()=>{throw Error('blocked');}})});
  assert.equal(await sound.unlock(),false);assert.equal(sound.enabled,true);assert.match(sound.error.message,/could not start/);assert.equal(sound.play(),false);
 });
+
+test('overlapping external surfaces mute existing tones without changing the player preference',async()=>{
+ let stops=0;const context={state:'running',currentTime:0,destination:{},createOscillator:()=>({frequency:{setValueAtTime(){}},connect(){},start(){},stop(){stops++;},disconnect(){}}),createGain:()=>({gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}})};
+ const sound=new SoundEffects({enabled:true,createContext:()=>context});await sound.unlock();assert.equal(sound.play(),true);assert.equal(stops,1);
+ const first={},second={};sound.mute(first);assert.equal(stops,2);sound.mute(second);assert.equal(sound.play(),false);sound.unmute(first);assert.equal(sound.play(),false);assert.equal(sound.enabled,true);sound.unmute(second);assert.equal(sound.play(),true);
+ sound.mute(first);sound.enabled=false;sound.unmute(first);assert.equal(sound.play(),false);
+});

@@ -11,7 +11,7 @@ export class AssistancePanel {
   render() {
     const signedIn = this.cloud.signedIn, wallet = this.bank.wallet;
     const balance = Number.isSafeInteger(wallet?.availableMs) && wallet.availableMs >= 0 ? wallet.availableMs : 0;
-    const pending=Boolean(wallet?.pending?.length||this.bank.journal||this.bank.starting||this.checkoutBusy);
+    const pending=Boolean(wallet?.pending?.length||this.bank.journal||this.bank.starting||this.checkoutBusy||this.adBusy||this.ads?.service.ready);
     $('assistSignIn').hidden = signedIn;
     $('assistRefresh').hidden = !signedIn;
     $('assistBalance').textContent = signedIn && wallet ? `${seconds(balance)} seconds available` : signedIn ? 'Loading your time bank…' : 'Sign in to protect your time bank across devices.';
@@ -22,12 +22,12 @@ export class AssistancePanel {
     const small = choices.length>0 && balance > 0 && balance < Math.min(...choices);
     $('assistRemainder').hidden = !small; $('assistRemainder').textContent = `Use remaining ${seconds(balance)} seconds`;
     $('assistRemainder').disabled = this.busy || pending;
-    $('assistRefresh').disabled = this.busy||this.checkoutBusy;
+    $('assistRefresh').disabled = this.busy||this.checkoutBusy||this.adBusy;
     const list = $('assistPending'); list.replaceChildren();
     for (const pending of wallet?.pending || []) {
       const item = document.createElement('div'), text = document.createElement('p'), button = document.createElement('button');
       text.textContent = 'Time is reserved by a previous activation. Recover it after its short authorization lease ends.';
-      button.className = 'secondary full'; button.textContent = 'Recover pending time'; button.disabled = this.busy;
+      button.className = 'secondary full'; button.textContent = 'Recover pending time'; button.disabled = this.busy||this.checkoutBusy||this.adBusy;
       button.onclick = () => void this.recover(pending.id); item.append(text, button); list.append(item);
     }
     const cfg=wallet?.config;
@@ -38,10 +38,11 @@ export class AssistancePanel {
       $('assistSetup').textContent=`${intro}Clear a different stage manually to earn ${seconds(cfg.manualMs)} seconds. ${wallet.manualRewardsRemaining} of ${cfg.manualPerDay} rewards left until ${reset} (midnight UTC). Rewards need a signed-in run started online. Assisted clears and imports do not earn time. Manual play stays free after the limit.`;
     }
     this.purchases?.render();
+    this.ads?.render();
   }
-  show() { this.open('assist'); this.message(''); this.render(); if (this.cloud.signedIn) void this.refresh().then(()=>this.purchases?.load()); }
+  show() { this.open('assist'); this.message(''); this.render(); if (this.cloud.signedIn) void this.refresh().then(async()=>{await this.purchases?.load();await this.ads?.load();}); }
   async refresh() {
-    if (this.busy) return;
+    if (this.busy||this.checkoutBusy||this.adBusy) return;
     const epoch = ++this.epoch, bank = this.bank; this.busy = true; this.render();
     try {
       if (bank.flushing) await bank.flushing;
@@ -53,7 +54,7 @@ export class AssistancePanel {
     finally { if (epoch === this.epoch) { this.busy = false; this.render(); } }
   }
   async start(ms) {
-    if (this.busy||this.checkoutBusy) return;
+    if (this.busy||this.checkoutBusy||this.adBusy||this.ads?.service.ready) return;
     const epoch = this.epoch;
     this.busy = true; this.message('Authorizing this activation…'); this.render();
     try { await this.activate(ms); }
@@ -61,7 +62,7 @@ export class AssistancePanel {
     finally { if(epoch===this.epoch){this.busy = false; this.render();} }
   }
   async recover(id) {
-    if (this.busy) return;
+    if (this.busy||this.checkoutBusy||this.adBusy) return;
     const epoch=this.epoch,bank=this.bank;
     this.busy = true; this.render();
     try { await bank.recoverRemote(id); await bank.refresh(); if(epoch===this.epoch)this.message('Unused reserved time returned.'); }

@@ -1,0 +1,14 @@
+import {readFile} from 'node:fs/promises';
+// Imported only behind QA_FIXTURES=1. The real app/service/adapter/UI run with
+// fake publisher callbacks and the existing disposable PostgreSQL fixture.
+export async function rewardedRoute(url,res){
+ let source,type;
+ if(url.pathname==='/__rewarded'){source=await readFile('tests/rewarded-feedback.html','utf8');type='text/html';}
+ else if(url.pathname==='/__rewarded-game'){
+  source=(await readFile('dist/index.html','utf8')).replace('<head>','<head><script src="/__time-mock.js"></script><script src="/__rewarded-sdk.js"></script>').replace('src="./app.js"','src="/__rewarded-app.js"');type='text/html';
+ }else if(url.pathname==='/__rewarded-app.js'){
+  source=(await readFile('dist/app.js','utf8')).replace("import adRuntime from './ad-runtime.js';","const adRuntime={enabled:true,audienceReviewed:true};").replace('new H5RewardedAdapter({externalStart','new H5RewardedAdapter({load:globalThis.__qaH5Load,consent:async()=>true,externalStart');type='text/javascript';
+ }else if(url.pathname==='/__rewarded-sdk.js'){source=await readFile('tests/rewarded-sdk-mock.js','utf8');type='text/javascript';}
+ else return false;
+ res.writeHead(200,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store'}).end(source);return true;
+}
