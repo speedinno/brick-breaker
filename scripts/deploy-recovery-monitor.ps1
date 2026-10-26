@@ -14,10 +14,10 @@ $resourceId="/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/provid
 $url="https://management.azure.com${resourceId}?api-version=2018-03-01"
 if($resources.Where({$_.type -eq 'Microsoft.Insights/metricAlerts' -and $_.name -eq $RuleName})){$existing=Invoke-Azure -Arguments @('rest','--method','get','--url',$url)}
 $payload=New-RecoveryFailureAlert -Job $job -MetricDefinitions $metrics -ExistingRule $existing
-if($Plan){[ordered]@{subscription=$account.name;subscriptionId=$account.id;rule=$RuleName;job=$JobName;metric='Executions';dimension='state=Failed';threshold='Maximum > 0';evaluation='PT1M';window='PT5M';notificationActions=@($payload.properties.actions).Count;monitorsMissingExecutions=$false} | ConvertTo-Json;return}
+if($Plan){[ordered]@{subscription=$account.name;subscriptionId=$account.id;rule=$RuleName;job=$JobName;metric='Executions';dimension='state=Failed';threshold='Maximum > 0';evaluation='PT1M';window='PT15M';notificationActions=@($payload.properties.actions).Count;monitorsMissingExecutions=$false} | ConvertTo-Json;return}
 $root=Split-Path $PSScriptRoot -Parent
 if(& git -C $root status --porcelain --untracked-files=normal -- scripts/deploy-recovery-monitor.ps1 scripts/azure-cli.ps1 scripts/azure-profile.ps1){throw 'Commit the monitoring scripts before deployment.'}
-Invoke-Azure -Arguments @('provider','register','--namespace','Microsoft.Insights','--wait') | Out-Null
+foreach($provider in @('Microsoft.Insights','Microsoft.AlertsManagement')){Invoke-Azure -Arguments @('provider','register','--namespace',$provider,'--wait') | Out-Null}
 Invoke-AzurePayload -Url $url -Payload $payload | Out-Null
 $actual=Invoke-Azure -Arguments @('rest','--method','get','--url',$url)
 if(!$actual.properties.enabled -or $actual.properties.scopes[0] -ne $job.id -or $actual.properties.criteria.allOf[0].metricName -ne 'Executions' -or $actual.properties.criteria.allOf[0].dimensions[0].values[0] -ne 'Failed'){throw 'The alert configuration could not be verified after deployment.'}

@@ -145,7 +145,7 @@ function New-RecoveryFailureAlert {
     $actions=@();if($ExistingRule){$actions=@($ExistingRule.properties.actions | Where-Object {$_})}
     return @{location='global';tags=$tags;properties=@{
         description='Recovery execution failed. Inspect safe worker logs and private SQL status. Missing executions require separate heartbeat monitoring. Notification actions must be configured by the operator.'
-        enabled=$true;severity=2;scopes=@($Job.id);evaluationFrequency='PT1M';windowSize='PT5M';autoMitigate=$true;targetResourceType='Microsoft.App/jobs';targetResourceRegion=$Job.location;actions=$actions
+        enabled=$true;severity=2;scopes=@($Job.id);evaluationFrequency='PT1M';windowSize='PT15M';autoMitigate=$true;targetResourceType='Microsoft.App/jobs';targetResourceRegion=$Job.location;actions=$actions
         criteria=@{'odata.type'='Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria';allOf=@(@{name='failed-recovery-execution';criterionType='StaticThresholdCriterion';metricNamespace='Microsoft.App/jobs';metricName='Executions';timeAggregation='Maximum';operator='GreaterThan';threshold=0;skipMetricValidation=$false;dimensions=@(@{name='state';operator='Include';values=@('Failed')})})}
     }}
 }

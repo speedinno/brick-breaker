@@ -24,8 +24,9 @@ function az{
 }
 $script=Join-Path $PSScriptRoot '../scripts/deploy-recovery-monitor.ps1'
 $plan=& $script -Plan | ConvertFrom-Json;Assert ($global:brickMonitorPuts -eq 0 -and $global:brickMonitorRegistrations -eq 0 -and $plan.notificationActions -eq 0 -and !$plan.monitorsMissingExecutions) 'Plan must not mutate or invent notification/absence coverage.'
-$receipt=& $script | ConvertFrom-Json;Assert ($global:brickMonitorPuts -eq 1 -and $global:brickMonitorRegistrations -eq 1 -and $receipt.enabled -and $receipt.notificationActions -eq 0 -and !$receipt.failureDeliveryTested) 'New alert must register its required provider without contact actions or fake tested delivery.'
+$receipt=& $script | ConvertFrom-Json;Assert ($global:brickMonitorPuts -eq 1 -and $global:brickMonitorRegistrations -eq 2 -and $receipt.enabled -and $receipt.notificationActions -eq 0 -and !$receipt.failureDeliveryTested) 'New alert must register its required provider without contact actions or fake tested delivery.'
 Assert ($global:brickMonitorBody.properties.criteria.allOf[0].dimensions[0].values[0] -eq 'Failed') 'Only failed executions satisfy the condition.'
+Assert ($global:brickMonitorBody.properties.windowSize -eq 'PT15M') 'Failure observation must allow for metric ingestion latency.'
 $global:brickMonitorExisting=$global:brickMonitorBody;$global:brickMonitorExisting.properties.actions=@(@{actionGroupId='/existing/operator-selected-group'});$global:brickMonitorExisting.tags | Add-Member -NotePropertyName owner -NotePropertyValue 'keep-owner';$global:brickMonitorBody=$null
 $receipt=& $script | ConvertFrom-Json;Assert ($receipt.notificationActions -eq 1 -and $global:brickMonitorBody.tags.owner -eq 'keep-owner') 'Updating a configured rule must preserve its operator-selected actions and owner.'
 $global:brickMonitorBadMetric=$true;$count=$global:brickMonitorPuts;$failed=$false;try{& $script | Out-Null}catch{$failed=$_.Exception.Message -match 'metric schema differs'};Assert ($failed -and $global:brickMonitorPuts -eq $count) 'Do not install a metric that the actual resource does not expose.'
