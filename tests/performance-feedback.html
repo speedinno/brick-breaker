@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>Current app frame observations</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px;display:flex;gap:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap;max-width:680px}button{font:inherit;padding:12px}</style>
+<section><h1>Observed app rendering</h1><p>Local fake identity/credit, real PostgreSQL and production app/engine. Programmatic UI activation, not real provider or physical-device evidence.</p><button id="begin">Run one 30-second, 4× assistance sample</button><button id="read">Read observations</button><pre id="result">Ready. No sample has run.</pre></section><iframe title="Observed game" src="about:blank"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'),out=document.querySelector('#result'),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const $=id=>frame.contentDocument.getElementById(id);
+async function until(fn,message){for(let i=0;i<400;i++){if(fn())return;await pause(25);}throw Error(message);}
+const read=()=>{const data=frame.contentWindow.brickQAObservation;out.textContent=JSON.stringify({state:data?.read(),stats:data?.stats()},null,2);};
+document.querySelector('#read').onclick=read;
+document.querySelector('#begin').onclick=async()=>{document.querySelector('#begin').disabled=true;try{
+ localStorage.setItem('brick-breaker-help-seen-v1','true');
+ const reset=await fetch('/__time-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'qa-reset',milliseconds:60000})});if(!reset.ok)throw Error('Disposable ledger reset failed');
+ const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src='/__observed-time-game';await loaded;
+ await until(()=>$('homePlay')&&!$('homePlay').disabled,'Boot did not finish');
+ $('homeAccount').click();await until(()=>$('account').open,'Account did not open');
+ $('accountEmail').value='time-test@example.test';$('signInForm').requestSubmit();await until(()=>!$('codePanel').hidden,'Local code form did not appear');
+ $('accountCode').value='12345678';$('verifyForm').requestSubmit();await until(()=>!$('signedInPanel').hidden,'Local identity did not load');await until(()=>$('accountMessage').textContent.includes('Signed in.')&&!$('homePlay').disabled,'Account callback did not finish');$('account').querySelector('[data-close]').click();
+ $('homePlay').click();await until(()=>$('home').hidden,'Game did not open');$('speed').click();$('speed').click();$('auto').click();await until(()=>$('assist').open,'Time bank did not open');
+ await until(()=>$('assist30000')&&!$('assist30000').disabled,'No authorized 30s activation was offered');$('assist30000').click();
+ await until(()=>!$('assist').open,'Activation did not finish');out.textContent='Sample running. Foreground frame delivery includes observer overhead.';
+ setTimeout(read,32000);
+ }catch(error){out.textContent='FAIL · '+error.message;}}
+</script>

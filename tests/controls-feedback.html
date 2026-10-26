@@ -8,7 +8,9 @@ const assert=(value,message)=>{if(!value)throw Error(message);};
 const doc=()=>frame.contentDocument,$=id=>doc().getElementById(id);
 async function until(fn,message){for(let i=0;i<200;i++){if(fn())return;await pause(25);}throw Error(message);}
 async function frames(count=6){for(let i=0;i<count;i++)await new Promise(resolve=>frame.contentWindow.requestAnimationFrame(resolve));}
-const snap=()=>{frame.contentWindow.dispatchEvent(new Event('pagehide'));return JSON.parse(frame.contentWindow.localStorage.getItem('brick-breaker-session-v3:guest'));};
+// Observing a current paddle position must not synthesize pagehide: the actual
+// lifecycle handler correctly pauses/cancels input on that event.
+const snap=()=>frame.contentWindow.brickQAObservation?.read();
 function pointer(target,type,id,x,y=500){target.dispatchEvent(new frame.contentWindow.PointerEvent(type,{bubbles:true,cancelable:true,pointerId:id,pointerType:'touch',isPrimary:id===11,clientX:x,clientY:y}));}
 function record(message){checks.push(message);out.textContent='Running…\n'+checks.join('\n');}
 let original,names=[];
@@ -18,7 +20,7 @@ try{
   // snapshot and would otherwise repopulate the just-cleared test namespace.
   frame.src='about:blank';await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
   for(const key of names)storage.removeItem(key);storage.setItem('brick-breaker-help-seen-v1','true');
-  frame.src='/?control-routing-fixture=1';
+  frame.src='/__observed-game?control-routing-fixture=1';
   await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
   await until(()=>$('homePlay')&&!$('homePlay').disabled,'Fresh boot failed');
   $('homePlay').click();await frames();$('launch').click();await until(()=>snap()?.status==='playing','Launch failed');

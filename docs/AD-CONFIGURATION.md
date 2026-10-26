@@ -1,6 +1,6 @@
-# Ad build configuration (implementation draft)
+# Ad build configuration
 
-This is the build/operator reference. The owner requested the complete account-creation guide after implementation; provider accounts, published messages, real callbacks and device validation are still outstanding. The default checkout has ads disabled and excludes the native AdMob plugin.
+This is the build/operator reference. Use the ordered [account setup guide](ACCOUNT-SETUP-2026-10.md) and [current product report](PRODUCT-COMPLETION-2026-10.md); provider accounts, published messages, real callbacks and device validation are still outstanding. The default checkout has ads disabled and excludes the native AdMob plugin.
 
 ## Public profile
 
@@ -38,7 +38,7 @@ An enabled client profile does not create a server offer. The backend separately
 
 Apply all migrations through `202610270015_operational_recovery.sql` to the intended environment before deploying the latest client/API/worker version. Do not rerun the two manually applied baseline migrations. Ordered account-bound wallet snapshots keep stale responses from overwriting newer debits/refunds/grants. Older server responses are accepted only until a client instance has seen its first versioned snapshot; they cannot overwrite a versioned response. Reservations, not displayed balances, remain spending authority.
 
-Google retries native SSV for a short interval. The current Azure API can cold-start more slowly than that interval. A dedicated `reward-callback` Supabase Edge Function and bounded durable recovery worker are now implemented; see [operational recovery](OPERATIONAL-RECOVERY.md). They have not yet been deployed/measured against Google, so reliable callback delivery and a running schedule/monitoring remain activation requirements. This does not purchase an always-on resource or claim the current zero-minimum container is ready for ad callbacks. SDK privacy/store disclosures must match enabled SDK behavior, including identifiers and diagnostic data. Review [Google's Data safety guidance](https://developers.google.com/admob/android/privacy/play-data-disclosure) against the exact shipped SDK/configuration.
+Google retries native SSV for a short interval. The current Azure API can cold-start more slowly than that interval. A dedicated `reward-callback` Supabase Edge Function and bounded durable recovery worker are now implemented; see [operational recovery](OPERATIONAL-RECOVERY.md). Both are deployed: automatic scheduled execution, advancing maintenance heartbeats and a portal failure alert were observed. Authentic Google callback delivery, human alert notification and independent missing-run observation remain activation requirements. This does not purchase an always-on resource or claim the current zero-minimum container is ready for ad callbacks. SDK privacy/store disclosures must match enabled SDK behavior, including identifiers and diagnostic data. Review [Google's Data safety guidance](https://developers.google.com/admob/android/privacy/play-data-disclosure) against the exact shipped SDK/configuration.
 
 ## Evidence so far
 
@@ -47,4 +47,4 @@ Google retries native SSV for a short interval. The current Azure API can cold-s
 - Profile tests cover validation, platform isolation, idempotent updates, exact restoration on disable and preservation of unmanaged configuration.
 - The real browser consent bridge passed five grouped checks with a local mock CMP and real PostgreSQL: no unsolicited UI, refusal without losing a reward slot, reopening/waiting for privacy changes, no automatic ad after acceptance and explicit cancellation. These are mock callbacks, not Google publisher approval or real consent-geography evidence.
 
-After validation the default disabled profile and three-plugin native registration were restored. No public APK, production database or production API was changed.
+After validation the default disabled profile and three-plugin native registration were restored. That SDK compilation checkpoint did not activate ads. Later database/API/worker rollout and build21 are recorded in the current report; production ad placements remain inactive.

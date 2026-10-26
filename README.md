@@ -1,6 +1,6 @@
 # Brick Breaker · Channels & Swarms
 
-**Chandrahas: start with [FINAL-HANDOFF.md](FINAL-HANDOFF.md)** for the current build, downloads, existing cloud setup and remaining owner-managed release steps.
+**Current candidate: 3.3.0/build21.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md) and [Android artifacts/iPhone build path](docs/MOBILE-BUILD-3.3.md). Provider activation, current physical-device acceptance, iPhone compilation/signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
 
 Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
@@ -10,9 +10,9 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Current mobile handoff:** [3.1.0 full-screen presentation](docs/MOBILE-PRESENTATION-3.1.md). This branch preserves Chandrahas's populated Azure/Supabase configuration from `dev`. Real email/cloud acceptance, monitored support email, production signing, physical-device beta and store submission remain owner-managed release gates. The [complete launch guide](CHANDRAHAS-LAUNCH-GUIDE.md) also contains explicitly dated 3.0.0 setup history; verify existing services before provisioning replacements.
+**Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 
-**Mobile API on Azure:** [Azure CLI deployment](docs/AZURE-API.md) prepares a dedicated API in SpeedInno Org Subscription, with Supabase Auth/Postgres and Resend SMTP. It uses ACR cloud builds without GitHub Actions or publishing a web game. Credentials and hosted acceptance are required before live use.
+**Mobile API on Azure:** [Azure CLI deployment](docs/AZURE-API.md) runs in SpeedInno Org Subscription, with Supabase Auth/Postgres and Resend SMTP. The current API, database migrations, dedicated reward ingress and scheduled recovery worker are deployed; hosted API checks and automatic maintenance execution passed. Commercial accounts/callbacks remain unverified. Deployment uses ACR builds without GitHub Actions.
 
 ## The journey
 
@@ -20,9 +20,9 @@ Clear the twelve starter stages in any order. Each clear earns **✓ Completed**
 
 Beyond the starters, twenty-two architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
 
-Drag to steer, launch through the entry and catch boosts. +3 adds three balls; ×3 triples the swarm up to 768; ↔ widens the paddle; — adds a temporary safety floor; ♨ enables temporary fireballs; the pink/purple shooting pickup fires piercing paddle shots for eight seconds. Gray walls remain. Watch/AUTO steers the paddle through the same simulation, with 1×/2×/4× playback. Keyboard: arrows/A/D move, Space launches/advances, P/Escape pauses.
+Drag to steer, launch through the entry and catch boosts. +3 adds three balls; ×3 triples the swarm up to768; ↔ widens the paddle; — adds a temporary safety floor; ♨ enables temporary fireballs; the pink/purple shooting pickup fires piercing paddle shots for eight seconds. Gray walls remain. Optional assistance uses the same simulation and a finite shared time bank, with1×/2×/4× playback; deliberate manual input takes over. Keyboard: arrows/A/D move, Space launches/advances, P/Escape pauses. Manual and clean mastery give completed stages a replay goal.
 
-Guest progress and the current field save on the device. Optional email accounts synchronize completed stages and personal history after Supabase is deployed. A current swarm is local to its device. Importing guest progress is explicit. Accounts have separate local namespaces, export and in-app/web deletion flows. There are no ads, purchases, tracking SDKs or competitive rewards.
+Guest progress and the current field save on the device. Optional email accounts synchronize completed stages/history; the current swarm remains local. Guest linking preserves progress without minting assistance time. Accounts have separate local namespaces, export and deletion/recovery flows. Real adapters for two consumable time packs and voluntary rewarded ads are implemented but unconfigured/inactive by default. There are no forced ads or subscriptions. Optional account play analytics is off by default and on the live API; no guest analytics identifier or external analytics SDK is added.
 
 ## Development
 

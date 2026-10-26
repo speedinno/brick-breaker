@@ -9,7 +9,7 @@ async function main(){
  }
  if(options.inspect&&options.resolve||options.expected&&!options.resolve||options.resolve&&!/^[a-f\d]{64}$/.test(options.expected??'')||!Number.isSafeInteger(options.batch)||options.batch<1||options.batch>200)throw Error('Choose one recovery operation and its required arguments.');
  const file={};try{for(const line of(await readFile('.env.api','utf8')).split(/\r?\n/)){const match=line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);if(match){let value=match[2];if(value.length>=2&&['"',"'"].includes(value[0])&&value.at(-1)===value[0])value=value.slice(1,-1);file[match[1]]=value;}}}catch(error){if(error.code!=='ENOENT')throw Error('The ignored configuration file could not be read.');}
- const env=key=>process.env[key]??file[key],commerce=webCommerce(env),database=env('SUPABASE_URL'),secret=env('SUPABASE_SERVICE_ROLE_KEY');
+ const env=key=>process.env[key]??file[key],commerce=webCommerce(env),database=env('SUPABASE_URL'),secret=env('SUPABASE_SERVICE_ROLE_KEY')||env('SUPABASE_SECRET_KEY');
  if(!commerce||!database||!secret||commerce.provider.environment!==env('MONETIZATION_ENVIRONMENT'))throw Error('Dispute recovery is not configured. Set matching Razorpay, monetization environment and server-side Supabase settings in the ignored configuration.');
  const admin=createClient(database,secret,{global:{fetch:(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])})},auth:{persistSession:false,autoRefreshToken:false}});
  if(options.inspect){console.log(JSON.stringify(await inspectWebDispute(commerce,admin,options.inspect),null,2));return;}

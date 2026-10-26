@@ -1,5 +1,7 @@
 # Product implementation and evidence — 26 October 2026
 
+**Historical chronological checkpoints.** The current reconciled decisions, twelve-part report and complete acceptance coverage are in [PRODUCT-COMPLETION-2026-10.md](PRODUCT-COMPLETION-2026-10.md). Later checkpoints supersede earlier pending/completed statements. Account activation order is in [ACCOUNT-SETUP-2026-10.md](ACCOUNT-SETUP-2026-10.md).
+
 Status: **in progress** on `codex/product-controls-economy`, starting at
 `db30b6235405f8869050232e478a318f05548386`. This record follows the owner's
 version 1.1 execution brief. It is not a release or a claim of completed scope.

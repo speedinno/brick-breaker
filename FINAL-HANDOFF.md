@@ -1,5 +1,7 @@
 # Brick Breaker — final handoff to Chandrahas
 
+**Current candidate supersedes this historical handoff:** see [3.3.0/build21](docs/MOBILE-BUILD-3.3.md), the [product report](docs/PRODUCT-COMPLETION-2026-10.md) and [ordered account setup](docs/ACCOUNT-SETUP-2026-10.md). The dated build20/build17 references below remain historical evidence.
+
 **Latest playtest update: 3.2.0, build 20.** See the
 [mobile feedback update](docs/MOBILE-FEEDBACK-3.2.md) for Home, Help, safe-area,
 automatic-save, guest-stage linking, cloud-status, sound-switch and pickup-pacing

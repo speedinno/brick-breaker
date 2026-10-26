@@ -1,6 +1,6 @@
 # Optional play analytics
 
-Implementation checkpoint, 27 October 2026. This is source and local integration evidence. Collection is **disabled by default**, and no production migration, collection job or player experiment has been deployed.
+Current operator reference, 27 October 2026. Production migrations and the scheduled retention worker are deployed and verified in [the current report](PRODUCT-COMPLETION-2026-10.md). Collection is **disabled by default and on the live API**; no real player study or collection outcome is claimed.
 
 ## Decision and scope
 
@@ -48,7 +48,7 @@ The actual priced native button or web quote must remain at least half intersect
 
 Native ad requests, `Showed`, `Rewarded`, dismissal and failure callbacks are separate. H5 request, `beforeAd`, `adViewed` and closure are separate; its final placement callback may occur without an ad, so no-fill cannot fabricate a display. Local preflight/SDK failures count as failed opportunities, not impressions. Duplicate callbacks are suppressed per opportunity. Account changes reject late observations without changing reward recovery.
 
-Pinned AdMob 8.2.1 exposes the rewarded `AdImpression` paid-value event. Only matching-unit, nonnegative integer micros, ISO currency and precision 0–3 are retained; network names and impression identifiers are discarded. Identical callbacks deduplicate; up to four conflicting normalized snapshots are retained as conflicting observations for later review. Do not add their values together or select the largest. A paid-value callback is labelled **client-reported SDK impression value**, not a verified publisher payout; unknown precision and missing/late callbacks remain explicit limitations. H5 supplies no equivalent monetary callback here. No revenue is inferred from an ad request, reward signal, SSV reward or a successful time-bank grant. Publisher-report reconciliation remains unfinished.
+Pinned AdMob 8.2.1 exposes the rewarded `AdImpression` paid-value event. Only matching-unit, nonnegative integer micros, ISO currency and precision 0–3 are retained; network names and impression identifiers are discarded. Identical callbacks deduplicate; up to four conflicting normalized snapshots are retained as conflicting observations for later review. Do not add their values together or select the largest. A paid-value callback is labelled **client-reported SDK impression value**, not a verified publisher payout; unknown precision and missing/late callbacks remain explicit limitations. H5 supplies no equivalent monetary callback here. No revenue is inferred from an ad request, reward signal, SSV reward or a successful time-bank grant. The reviewed [contribution tool](CONTRIBUTION-REPORT.md) accepts publisher-report evidence; no real report reconciliation has been performed.
 
 Primary sources checked 27 October 2026: [Google H5 callback semantics](https://developers.google.com/ad-placement/apis/adbreak), [Google AdMob impression-level value and precision](https://developers.google.com/admob/android/impression-level-ad-revenue), and installed `@capacitor-community/admob@8.2.1` rewarded/revenue TypeScript declarations. Local mocks exercise those callback boundaries; they do not prove real SDK delivery.
 
