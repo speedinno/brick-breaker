@@ -35,7 +35,7 @@ export class AccountPanel {
     $('accountDescription').textContent=signed?`Signed in as ${this.cloud.email}`:'Play without an account. Your device keeps your progress.';
     $('accountProgress').textContent=`${completedCount(p).toLocaleString()} stages completed${signed?' in this account':''} · ${p.pending.length?`${p.pending.length} saves waiting to upload`:signed?(this.cloud.syncError?'Cloud needs a retry':this.cloud.state?'Account synced':'Cloud not synced yet'):'Saved on this device'}`;
     const count=signed?unlinkedGuestCount(p,guest):0;$('guestProgress').hidden=!count;
-    $('guestProgressText').textContent=`${count} guest ${count===1?'stage is':'stages are'} still saved on this phone. Add them to this account to continue your progress. Signing out also returns to your guest save.`;
+    $('guestProgressText').textContent=`${count} guest ${count===1?'stage has':'stages have'} progress or mastery to link from this phone. Linking keeps your account’s existing progress. Signing out also returns to your guest save.`;
     $('importGuest').textContent=`Link ${count} guest ${count===1?'stage':'stages'} to my account`;
     if(signed)$('codePanel').hidden=true;
     $('historyIntro').textContent=signed?'Your best result and most recent clear for each stage.':'Your recent device history.';
@@ -43,7 +43,7 @@ export class AccountPanel {
   }
   renderHistory(rows,append=false){
     const list=$('historyList');if(!append)list.replaceChildren();
-    for(const r of rows){const li=document.createElement('li'),title=document.createElement('b'),detail=document.createElement('span');title.textContent=`✓ Stage ${r.level}`;const time=Number(r.best_seconds??r.seconds)||0,peak=Number(r.peak_balls??r.peak)||1;detail.textContent=`${Math.round(time)}s · ${peak} peak balls · ${(r.play_mode??r.mode)==='watch'?'AUTO':'Manual'}`;li.append(title,detail);list.append(li);}
+    for(const r of rows){const li=document.createElement('li'),title=document.createElement('b'),detail=document.createElement('span');title.textContent=`✓ Stage ${r.level}`;const time=Number(r.best_seconds??r.seconds)||0,peak=Number(r.peak_balls??r.peak)||1,manual=r.best_manual_seconds??r.manualSeconds,clean=r.best_clean_seconds??r.cleanSeconds;detail.textContent=`${Math.round(time)}s · ${peak} peak balls · ${(r.play_mode??r.mode)==='watch'?'Assisted':'Manual'}${manual!==null&&manual!==undefined?' · Manual best '+Math.round(Number(manual))+'s':''}${clean!==null&&clean!==undefined?' · ✦ Clean '+Math.round(Number(clean))+'s':''}`;li.append(title,detail);list.append(li);}
     if(!list.children.length){const li=document.createElement('li');li.textContent='Complete a stage to start your history.';list.append(li);}
   }
   async history(reset){

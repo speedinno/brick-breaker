@@ -5,8 +5,11 @@ export async function generateNotices(){
     if(seen.has(name))return;seen.add(name);const dir='node_modules/'+name;
     const pkg=JSON.parse(await readFile(dir+'/package.json','utf8'));
     const names=(await readdir(dir)).filter(n=>/^(licen[cs]e|copying|copyright|notice)(\.|$)/i.test(n)).sort();
-    if(!names.length)throw Error('Missing dependency license: '+name);
-    const texts=await Promise.all(names.map(async n=>n+'\n'+await readFile(dir+'/'+n,'utf8')));
+    // This published ESM package omits LICENSE. Keep the exact upstream,
+    // version-tagged license locally; do not silently skip unlicensed packages.
+    const fallback=name==='@revenuecat/purchases-typescript-internal-esm'&&pkg.version==='19.15.0'?'licenses/RevenueCat-hybrid-common-19.15.0.txt':null;
+    if(!names.length&&!fallback)throw Error('Missing dependency license: '+name);
+    const texts=names.length?await Promise.all(names.map(async n=>n+'\n'+await readFile(dir+'/'+n,'utf8'))):['Upstream tag 19.15.0: https://github.com/RevenueCat/purchases-hybrid-common/blob/19.15.0/LICENSE\n'+await readFile(fallback,'utf8')];
     sections.push(`${name}@${pkg.version}\n${'='.repeat(60)}\n${texts.join('\n\n')}`);
     for(const dep of Object.keys(pkg.dependencies||{}).sort())await collect(dep);
   }

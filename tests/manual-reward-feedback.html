@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>Manual clear and reward integration</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap;max-width:700px}</style>
+<h1>Manual clear and reward integration</h1><p>Scripted touch inputs play the actual game at 4×. Real local PostgreSQL validates completion and rewards. Authentication is mocked. This is not a human playtest.</p><pre id="result">Running…</pre><iframe title="Manual reward test game" src="about:blank"></iframe>
+<script type="module">
+import{createDefinition,hydrateDefinition}from'/catalog.js';
+import{restoreGame}from'/session.js';
+import{fitViewport}from'/viewport.js';
+const frame=document.querySelector('iframe'),out=document.querySelector('#result'),checks=[];
+const $=id=>frame.contentDocument?.getElementById(id),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const assert=(ok,message)=>{if(!ok)throw Error(message);};
+async function until(fn,message){for(let i=0;i<500;i++){if(fn())return;await pause(25);}throw Error(message);}
+async function request(action,body={}){const response=await fetch('/__time-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,accountId:'11111111-1111-4111-8111-111111111111',...body})});const data=await response.json();if(!response.ok)throw Error(data.error);return data;}
+const snap=()=>{frame.contentWindow.dispatchEvent(new Event('pagehide'));return JSON.parse(localStorage.getItem('brick-breaker-session-v3:user:11111111-1111-4111-8111-111111111111'));};
+const pattern=hydrateDefinition(createDefinition(1));
+let driver;const original=Object.keys(localStorage).filter(key=>key.startsWith('brick-breaker-')).map(key=>[key,localStorage.getItem(key)]);
+function record(message){checks.push(message);out.textContent='Running…\n'+checks.join('\n');}
+try{
+ for(const [key]of original)localStorage.removeItem(key);localStorage.setItem('brick-breaker-help-seen-v1','true');
+ await request('qa-reset',{milliseconds:0});
+ const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src='/__time-game';await loaded;await until(()=>$('homePlay')&&!$('homePlay').disabled,'Boot failed');
+ $('homeAccount').click();$('accountEmail').value='time-test@example.test';$('signInForm').requestSubmit();await until(()=>!$('codePanel').hidden,'OTP form missing');$('accountCode').value='12345678';$('verifyForm').requestSubmit();await until(()=>$('accountMessage').textContent.includes('Signed in.'),'Account initialization failed');
+ frame.contentDocument.querySelector('#account [data-close]').click();$('homePlay').click();await until(()=>$('home').hidden&&!frame.contentDocument.querySelector('dialog[open]'),'Gameplay did not open');
+ $('speed').click();$('speed').click();assert($('speed').textContent==='4×','Playback setup failed');$('launch').click();await until(()=>snap()?.status==='playing','Manual launch failed');
+ assert($('auto').getAttribute('aria-pressed')==='false','Test accidentally enabled paid/game autoplay');
+ const started=performance.now();let ended=false,lastProgress=0;
+ driver=setInterval(()=>{
+  const saved=snap();
+  if(!saved){ended=true;return;}
+  if(saved.status==='ready'){$('launch').click();return;}
+  const simulation=restoreGame(saved,pattern,()=>{});
+  if(!simulation)return;
+  simulation.paddle.w=simulation.time<simulation.wideUntil?simulation.basePaddleWidth*(118/82):simulation.basePaddleWidth;
+  const target=simulation.autoTarget(),view=fitViewport($('game').getBoundingClientRect().width,$('game').getBoundingClientRect().height);
+  const emit=(type,x)=>$('game').dispatchEvent(new frame.contentWindow.PointerEvent(type,{bubbles:true,cancelable:true,pointerType:'touch',pointerId:77,clientX:x,clientY:650}));
+  // Ordinary relative touch path, not the application's timed AI owner. The
+  // diagnostic snapshot and external aiming helper exist only in this fixture.
+  emit('pointerdown',200);emit('pointermove',200+(target-simulation.paddle.x)*view.scale/2);emit('pointerup',200);
+  if(performance.now()-lastProgress>1000){lastProgress=performance.now();out.textContent='Playing actual stage · '+Math.round((performance.now()-started)/1000)+'s elapsed\n'+saved.removed.length+' bricks broken · '+saved.balls.length+' balls · '+saved.lives+' lives\n'+checks.join('\n');}
+ },33);
+ while(!ended&&performance.now()-started<150000)await pause(100);
+ clearInterval(driver);driver=null;
+ assert(ended,'Scripted manual play did not finish within 150 seconds');
+ assert($('prompt').dataset.state==='won','Scripted manual play lost; this is a real failing playability check');
+ await until(()=>$('saveStatus').textContent==='Saved · cloud synced','Completion did not sync');
+ const state=await request('state');assert(state.starter_completed.includes(1),'Campaign tick missing');
+ assert(state.mastery.manual.some(([a,b])=>a<=1&&b>=1),'Manual mastery stamp missing');
+ assert(state.wallet.availableMs===45000,'First completed manual run did not deliver 30s introduction + 15s mission');
+ record('Actual touch-controlled clear saved its campaign tick and manual mastery');
+ record('Authoritative ledger granted exactly 45,000ms from the first manual clear');
+ $('goHome').click();assert($('homeMastery').textContent.includes('1 manual'),'Home omitted manual mastery');
+ $('homeStages').click();assert($('patternGrid').children[0].textContent.includes('Manual clear')||$('patternGrid').children[0].textContent.includes('Clean manual clear'),'Stage card omitted mastery');
+ record('Home and replay cards show the persistent manual/clean stamp');
+ out.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n')+'\nScripted completion, not evidence of human input or device comfort.';
+}catch(error){out.textContent='FAIL · '+error.message+'\n'+checks.join('\n')+'\nPrompt: '+($('promptTitle')?.textContent||'')+' / '+($('promptText')?.textContent||'');console.error(error);}
+finally{
+ if(driver)clearInterval(driver);const loaded=new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));frame.src='about:blank';await loaded;
+ for(const key of Object.keys(localStorage))if(key.startsWith('brick-breaker-'))localStorage.removeItem(key);for(const [key,value]of original)localStorage.setItem(key,value);
+}
+</script>

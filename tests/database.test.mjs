@@ -12,6 +12,8 @@ before(async()=>{
  db=new PGlite();await db.exec(`create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;insert into auth.users values('${alice}'),('${bob}');`);
  await db.exec(await readFile(new URL('../supabase/migrations/202610210001_game.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/migrations/202610210002_catalog_budget.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/202610260001_time_ledger.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/202610260002_rewards_mastery.sql',import.meta.url),'utf8'));
  for(let n=1;n<=14;n++)await publish(n);
 });
 after(async()=>{await db?.close();});

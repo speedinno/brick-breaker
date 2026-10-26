@@ -5,7 +5,6 @@ export class AssistancePanel {
     Object.assign(this, {bank, cloud, open, close, activate}); this.busy = false; this.epoch = 0;
     $('assistSignIn').onclick = () => { this.close('assist'); signIn(); };
     $('assistRefresh').onclick = () => void this.refresh();
-    for (const ms of [15000, 30000]) $('assist' + ms).onclick = () => void this.start(ms);
     $('assistRemainder').onclick = () => void this.start(Math.floor(this.bank.wallet?.availableMs || 0));
   }
   message(text, error = false) { $('assistMessage').textContent = text; $('assistMessage').classList.toggle('error', error); }
@@ -16,8 +15,11 @@ export class AssistancePanel {
     $('assistSignIn').hidden = signedIn;
     $('assistRefresh').hidden = !signedIn;
     $('assistBalance').textContent = signedIn && wallet ? `${seconds(balance)} seconds available` : signedIn ? 'Loading your time bank…' : 'Sign in to protect your time bank across devices.';
-    for (const ms of [15000, 30000]) $('assist' + ms).disabled = this.busy || !signedIn || balance < ms || pending;
-    const small = balance > 0 && balance < 15000;
+    const configured=wallet?.config?.activationMs;
+    const choices=Array.isArray(configured)?[...new Set(configured.filter(ms=>Number.isSafeInteger(ms)&&ms>0&&ms<=30000))]:[15000,30000];
+    const buttons=$('assistActivations');buttons.replaceChildren();
+    for(const ms of choices){const button=document.createElement('button');button.id='assist'+ms;button.className='primary';button.textContent=`Use ${seconds(ms)} seconds`;button.disabled=this.busy||!signedIn||balance<ms||pending;button.onclick=()=>void this.start(ms);buttons.append(button);}
+    const small = choices.length>0 && balance > 0 && balance < Math.min(...choices);
     $('assistRemainder').hidden = !small; $('assistRemainder').textContent = `Use remaining ${seconds(balance)} seconds`;
     $('assistRemainder').disabled = this.busy || pending;
     $('assistRefresh').disabled = this.busy;
@@ -28,7 +30,13 @@ export class AssistancePanel {
       button.className = 'secondary full'; button.textContent = 'Recover pending time'; button.disabled = this.busy;
       button.onclick = () => void this.recover(pending.id); item.append(text, button); list.append(item);
     }
-    $('assistSetup').hidden = balance > 0;
+    const cfg=wallet?.config;
+    $('assistSetup').hidden=!signedIn||!cfg;
+    if(cfg){
+      const intro=wallet.introClaimed?'':`First recorded manual clear: ${seconds(cfg.introMs)} seconds once. `;
+      const reset=new Date(wallet.nextReset).toLocaleString(undefined,{hour:'numeric',minute:'2-digit',day:'numeric',month:'short'});
+      $('assistSetup').textContent=`${intro}Clear a different stage manually to earn ${seconds(cfg.manualMs)} seconds. ${wallet.manualRewardsRemaining} of ${cfg.manualPerDay} rewards left until ${reset} (midnight UTC). Rewards need a signed-in run started online. Assisted clears and imports do not earn time. Manual play stays free after the limit.`;
+    }
   }
   show() { this.open('assist'); this.message(''); this.render(); if (this.cloud.signedIn) void this.refresh(); }
   async refresh() {

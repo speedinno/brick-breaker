@@ -46,7 +46,7 @@ export function makePattern(level,seed=1){
 export function circleRect(x,y,r,b){const nx=clamp(x,b.x,b.x+b.w),ny=clamp(y,b.y,b.y+b.h);return(x-nx)**2+(y-ny)**2<=r*r;}
 export class Game{
  constructor({seed=1,level=1,mode='play',onEvent=()=>{},patternFactory=makePattern}={}){this.seed=seed>>>0;this.level=Number.isSafeInteger(level)&&level>0?level:1;this.patternFactory=patternFactory;this.random=rng(this.seed^7523);this.emit=onEvent;this.mode=mode;this.score=0;this.lives=3;this.time=0;this.paddle={x:W/2+20,y:584,w:82};this.target=this.paddle.x;this.balls=[];this.drops=[];this.seen=new Set();this.stage();}
- stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.shootUntil=0;this.nextShot=0;this.multiplierReadyAt=this.time+8;this.shots=[];this.peakBalls=1;this.combo=0;this.challenge=difficultyProfile(this.level);this.basePaddleWidth=this.challenge.paddleWidth;this.paddle.w=this.basePaddleWidth;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
+ stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.stageLosses=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.shootUntil=0;this.nextShot=0;this.multiplierReadyAt=this.time+8;this.shots=[];this.peakBalls=1;this.combo=0;this.challenge=difficultyProfile(this.level);this.basePaddleWidth=this.challenge.paddleWidth;this.paddle.w=this.basePaddleWidth;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
  speed(){return this.challenge.speed;}
  ball(x,y,angle=-Math.PI/2){const speed=this.speed();return{x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:2.35};}
  launch(){if(this.status!=='ready')return;const y=this.paddle.y-8,dx=this.pattern.entry.x-this.paddle.x,dy=this.pattern.entry.y+3-y,angle=Math.atan2(dy,Math.abs(dx)<1?5:dx);this.balls=[this.ball(this.paddle.x,y,angle)];this.status='playing';this.emit({type:'launch'});}
@@ -122,7 +122,7 @@ export class Game{
   }
   this.drops=this.drops.filter(d=>d.y<H+16);this.checkWin();
   if(!this.balls.length&&this.status==='playing'){
-   this.lives--;this.drops=[];this.shots=[];this.shootUntil=0;
+   this.lives--;if(Number.isInteger(this.stageLosses))this.stageLosses++;this.drops=[];this.shots=[];this.shootUntil=0;
    if(this.lives<=0){this.status='over';this.emit({type:'over'});}
    else{this.status='ready';this.emit({type:'lost'});}
   }

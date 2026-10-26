@@ -25,7 +25,7 @@ async function identity() {
 before(async () => {
   db = new PGlite();
   await db.exec("create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;");
-  for (const name of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql']) await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url), 'utf8'));
+  for (const name of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql','202610260002_rewards_mastery.sql']) await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url), 'utf8'));
   await db.query("insert into public.game_catalog(version,level,definition,canonical_layout,layout_hash) values(3,1,'{}',$1,$2)", ['b'.repeat(2704), 'a'.repeat(64)]);
 });
 after(async () => db?.close());
@@ -51,10 +51,12 @@ test('verified transaction retries cannot duplicate a grant or change its owner/
   assert.equal((await state(a.user)).availableMs, 300000); assert.equal((await state(b.user)).availableMs, 0);
 });
 
-test('reservation atomically holds a bounded amount and permanently marks the run assisted', async () => {
+test('reservation holds bounded time; positive usage permanently marks assistance', async () => {
   const a = await identity(), id = uuid(); await grant(a.user, 45000);
   const result = await reserve(a.user, id, a.device, a.run, 30000);
   assert.equal(result.wallet.availableMs, 15000); assert.equal(result.wallet.reservedMs, 30000);
+  assert.equal((await db.query('select assisted from public.game_runs where id=$1', [a.run])).rows[0].assisted, false);
+  await checkpoint(a.user,id,a.device,1);
   assert.equal((await db.query('select assisted from public.game_runs where id=$1', [a.run])).rows[0].assisted, true);
   const retry = await reserve(a.user, id, a.device, a.run, 30000); assert.equal(retry.wallet.availableMs, 15000);
   await assert.rejects(() => reserve(a.user, uuid(), uuid(), a.run, 15000), /existing activation/);

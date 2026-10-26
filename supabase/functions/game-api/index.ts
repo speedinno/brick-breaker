@@ -8,7 +8,7 @@ const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.githu
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
 const businessErrors=new Set(['Authentication required','Stage is locked','Run ID already used','Too many attempts. Try again later.','Stage is not ready','This offline attempt expired. Replay the stage to save it online.','Stage version differs. Reconnect and replay this stage.','Attempt is too short','Invalid completion statistics','Invalid stage score','Invalid guest progress','Complete all starter stages first','Invalid history','Too many new stages. Try again later.']);
-for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired'])businessErrors.add(message);
+for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired','Reconcile autoplay before completing this run','Invalid mastery import'])businessErrors.add(message);
 async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
@@ -75,14 +75,21 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
       // Generate stages only on level/start requests, where the account's
       // generation budget is checked. Completion retries must never publish
       // an imported frontier or its locked successor in the background.
-      return reply(await rpc('game_complete',{p_run_id:body.runId,p_hash:body.hash,p_score:body.score,p_seconds:body.seconds,p_peak:body.peak,p_mode:body.mode}));
+      if(body.stageLosses!==undefined&&body.stageLosses!==null&&(!Number.isInteger(body.stageLosses)||Number(body.stageLosses)<0||Number(body.stageLosses)>5))return reply({error:'Invalid completion statistics'},400);
+      return reply(await rpc('game_complete',{p_run_id:body.runId,p_hash:body.hash,p_score:body.score,p_seconds:body.seconds,p_peak:body.peak,p_mode:body.mode,p_losses:body.stageLosses??null}));
     }
-    if(body.action==='import')return reply(await rpc('game_import_progress',{p_starters:body.starters,p_journey_next:body.journeyNext,p_records:body.records}));
+    if(body.action==='import')return reply(await rpc('game_link_progress',{p_starters:body.starters,p_journey_next:body.journeyNext,p_records:body.records,p_manual:(body.mastery as {manual?:unknown}|undefined)?.manual??[],p_clean:(body.mastery as {clean?:unknown}|undefined)?.clean??[]}));
     if(body.action==='history'||body.action==='export'){
       let query=client.from('game_completions').select(fields).eq('version',3).order('level',{ascending:false}).limit(100);
       if(body.before!==null&&body.before!==undefined){if(!safeLevel(body.before))return reply({error:'Invalid history cursor'},400);query=query.lt('level',body.before);}
       const result=await query;if(result.error)throw Error('Could not read history');
       const rows=result.data||[],nextBefore=rows.length===100?Number(rows.at(-1)?.level):null;
+      if(rows.length){
+        const mastery=await client.from('game_mastery').select('level,best_manual_seconds,best_clean_seconds').in('level',rows.map(row=>row.level));
+        if(mastery.error)throw Error('Could not read mastery history');
+        const byLevel=new Map((mastery.data||[]).map(row=>[String(row.level),row]));
+        for(const row of rows)Object.assign(row,byLevel.get(String(row.level))||{});
+      }
       return reply({...(body.action==='export'?{account:{id:user.id,email:user.email,createdAt:user.created_at},progress:await rpc('game_state')} : {}),history:rows,nextBefore});
     }
     if(body.action==='delete'){

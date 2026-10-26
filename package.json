@@ -18,11 +18,14 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@capacitor-community/admob": "8.2.1",
     "@capacitor/android": "8.5.3",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
     "@capacitor/haptics": "8.0.2",
     "@capacitor/ios": "8.5.3",
+    "@revenuecat/purchases-capacitor": "13.7.6",
+    "@revenuecat/purchases-js": "1.73.1",
     "@supabase/supabase-js": "2.118.0"
   },
   "devDependencies": {

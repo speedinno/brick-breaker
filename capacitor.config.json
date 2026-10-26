@@ -18,5 +18,10 @@
       "insetsHandling": "css",
       "initialViewportFitValueHint": "cover"
     }
-  }
+  },
+  "includePlugins": [
+    "@capacitor/app",
+    "@capacitor/haptics",
+    "@revenuecat/purchases-capacitor"
+  ]
 }

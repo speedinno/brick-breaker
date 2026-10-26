@@ -2,6 +2,7 @@ import {PaddleInput,FixedSimulation,clampGain} from './controls.js';
 import {bindPaddleEvents,isInteractive} from './control-events.js';
 import {AssistanceSession} from './assistance.js';
 import {AssistancePanel} from './assistance-ui.js';
+import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
 import {fitViewport,dialogViewport} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
@@ -81,7 +82,7 @@ function resizeBoard(){
 new ResizeObserver(resizeBoard).observe(canvas);
 window.addEventListener('resize',resizeBoard);
 const boosts={add:{color:'#34c9df',label:'+3'},triple:{color:'#a4ce25',label:'×3'},wide:{color:'#6bb447',label:'↔'},floor:{color:'#f3a275',label:'—'},fire:{color:'#e876aa',label:'♨'},laser:{color:'#ce79e7',label:'↑'}};
-const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{updateStatus();account.render();}});
+const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{if(assistance&&cloud.state?.wallet)assistance.wallet=cloud.state.wallet;updateStatus();account.render();}});
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
 let deviceId;try{deviceId=storage.getItem('brick-breaker-device-v1');if(!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(deviceId||'')){deviceId=crypto.randomUUID();storage.setItem('brick-breaker-device-v1',deviceId);}}catch{deviceId=crypto.randomUUID();}
@@ -101,7 +102,7 @@ setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flus
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
 function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled,touchGain:input.touchGain,pointerGain:input.pointerGain}));}catch{}}
 function sessionKey(id=store.accountId){return `brick-breaker-session-v3:${id?'user:'+id:'guest'}`;}
-function saveSession(){if(!game||loading)return;const snapshot=snapshotGame(game,{auto,speed,run,assisted});try{if(snapshot)storage.setItem(sessionKey(),JSON.stringify(snapshot));else storage.removeItem(sessionKey());sessionStorageError=false;}catch{sessionStorageError=true;}updateStatus();}
+function saveSession(){if(!game||loading)return;const snapshot=snapshotGame(game,{auto:false,speed,run,assisted});try{if(snapshot)storage.setItem(sessionKey(),JSON.stringify(snapshot));else storage.removeItem(sessionKey());sessionStorageError=false;}catch{sessionStorageError=true;}updateStatus();}
 function clearSession(id=store.accountId){try{storage.removeItem(sessionKey(id));}catch{}}
 function renderSound(){$('sound').setAttribute('aria-checked',String(effects.enabled));$('soundFeedback').textContent=!effects.enabled?'Sound disabled':effects.error?.message||'Sound enabled · use your phone’s media volume';$('soundFeedback').classList.toggle('error',Boolean(effects.enabled&&effects.error));}
 function tone(freq=500,duration=.05){effects.play(freq,duration);if(effects.error)renderSound();}
@@ -113,10 +114,11 @@ function updateStatus(){
   $('saveStatus').classList.toggle('pending',Boolean(error||p.pending.length||cloud.syncError||guestCount));
   $('homeSave').textContent=error?'Could not save on this phone. Check available storage.':guestCount?`${guestCount} guest stages are still on this phone. Open Account to link them.`:cloud.signedIn&&cloud.syncError?'Auto-saved on this phone · open Account to retry cloud sync.':cloud.signedIn?'Auto-save on · completed stages sync to your account.':'Auto-save on · no account needed to play.';
   $('homeCompleted').textContent=`${completedCount(p).toLocaleString()} STAGES CLEARED`;
+  $('homeMastery').textContent=`★ ${masteryCount(p)} manual · ✦ ${masteryCount(p,'clean')} clean clears`;
   $('homeStage').textContent=`STAGE ${String(game?.level||p.selected).padStart(2,'0')}`;
   $('homePlay').textContent=booting?'Getting ready…':loading==='failed'?`Retry · Stage ${p.selected}`:`${game&&(game.status==='playing'||game.score>0)?'Continue':'Play'} · Stage ${game?.level||p.selected}`;
   $('homePlay').disabled=Boolean(booting||loading===true);
-  if(game)$('completedIndicator').hidden=!isCompleted(p,game.level);
+  if(game){$('completedIndicator').hidden=!isCompleted(p,game.level);$('completedIndicator').textContent=masteryLabel(p,game.level)?.[0]||'✓';$('completedIndicator').title=masteryLabel(p,game.level)||'Completed';}
 }
 function showHome(){away();$('home').hidden=false;$('gameScreen').inert=true;updateStatus();$('home').focus({preventScroll:true});}
 let homeReturn=null;
@@ -162,7 +164,7 @@ function event(e){
   if(e.type==='over'){clearControls();clearSession();prompt('over');tone(140,.2);}
   if(e.type==='won'){
     clearControls();
-    const result={score:game.score,seconds:Math.round(game.stageTime*1000)/1000,peak:game.peakBalls,mode:assisted?'watch':'play'};
+    const result={score:game.score,seconds:Math.round(game.stageTime*1000)/1000,peak:game.peakBalls,mode:assisted?'watch':'play',stageLosses:game.stageLosses};
     store.complete(game.level,result);
     if(cloud.signedIn&&run){const pending={...result,level:game.level,runId:run.runId,hash:currentHash,remote:run.remote===true};store.save({...store.value,pending:[...store.value.pending.filter(p=>p.runId!==run.runId),pending]});}
     clearSession();updateStatus();prompt('won');tone(1040,.25);if($('gallery').open)journey.render();if(cloud.signedIn)void syncPending().catch(()=>updateStatus());
@@ -246,6 +248,7 @@ function frame(t){
       // seconds, so playback speed never multiplies the debit.
       const physicsDt=activeAuto?assistance.consume(dt*1000/speed,game.status==='playing')*speed/1000:dt;
       if(physicsDt<=0)return false;
+      if(activeAuto)assisted=true;
       // Ready fields contain no ball. Active paddle motion always goes through
       // Game.step's swept trajectory, including fast input and AI takeover.
       if(game.status==='ready')game.paddle.x=game.target;
@@ -270,7 +273,7 @@ async function beginAssistance(milliseconds){
   if(!run?.remote)throw Error('Could not authorize this stage. Reconnect and try again.');
   await bank.start(run.runId,milliseconds);
   if(game!==current||epoch!==authEpoch||!$('assist').open||document.hidden){bank.stop('cancelled');throw Error('Activation cancelled. Unused time will be reconciled.');}
-  closeDialog('assist');paused=false;auto=true;assisted=true;game.mode='play';input.startAuto(game.paddle);
+  closeDialog('assist');paused=false;auto=true;game.mode='play';input.startAuto(game.paddle);
   $('auto').setAttribute('aria-pressed','true');$('pause').setAttribute('aria-label','Pause');
   $('prompt').hidden=true;if(game.status==='ready')game.launch();saveSession();canvas.focus({preventScroll:true});
 }
@@ -317,7 +320,11 @@ async function syncPending(){
     const pending=store.value.pending.slice().sort((a,b)=>a.level-b.level);
     if(pending.some(p=>!p.remote)){
       const state=await cloud.importGuest(store.value);if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>!pending.some(item=>item.runId===p.runId))});
-    }else for(const item of pending){let state;try{state=await cloud.complete(item);}catch(error){if(!/expired/i.test(error.message))throw error;state=await cloud.importGuest(store.value);}if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>p.runId!==item.runId)});}
+    }else for(const item of pending){let state;try{
+      if(assistance.journal?.runId===item.runId)await assistance.flush();
+      state=await cloud.complete(item);
+      if(state.earnedTimeMs>0)toast(`+${state.earnedTimeMs/1000}s AUTOPLAY · MANUAL CLEAR`);
+    }catch(error){if(!/expired/i.test(error.message))throw error;state=await cloud.importGuest(store.value);}if(store.accountId!==id)throw Error('Your account changed. Try syncing again.');store.save({...mergeProgress(store.value,cloudProgress(state)),pending:store.value.pending.filter(p=>p.runId!==item.runId)});}
     if(store.accountId===id){updateStatus();account.render();}
   })();syncTask={id,promise};updateStatus();try{await promise;}finally{if(syncTask?.promise===promise)syncTask=null;updateStatus();account.render();}
 }

@@ -58,7 +58,7 @@ export class CloudAccount {
   async level(level){const row=await this.api('level',{level});return {...row.definition,published:true,hash:row.layout_hash};}
   async start(level,requestId){return this.api('start',{level,requestId});}
   async complete(run){return this.api('complete',run);}
-  async importGuest(progress){return this.api('import',{starters:progress.starters,journeyNext:progress.journeyNext,records:Object.values(progress.records).slice(-128)});}
+  async importGuest(progress){return this.api('import',{starters:progress.starters,journeyNext:progress.journeyNext,records:Object.values(progress.records).slice(-128),mastery:progress.mastery||{manual:[],clean:[]}});}
   async history(before=null){return this.api('history',{before});}
   async exportData(before=null){return this.api('export',{before});}
   async deleteAccount(){await this.api('delete');try{await this.client.auth.signOut({scope:'local'});}finally{this.session=null;this.state=null;this.syncError=null;await this.notifyChange();}}

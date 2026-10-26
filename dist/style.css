@@ -61,3 +61,5 @@ dialog h3{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px}
 .app{touch-action:none;user-select:none;-webkit-user-select:none}.sensitivity{width:100%;min-height:44px;accent-color:var(--accent);cursor:pointer}output{color:var(--accent);font-variant-numeric:tabular-nums}
 
 #auto[aria-pressed=true]{white-space:pre-line;font-size:10px;line-height:1.2;min-width:68px;padding:4px}
+
+.mastery-summary{color:var(--accent);font-size:12px;line-height:1.4;margin:0}.mastery-status{color:var(--accent)!important}

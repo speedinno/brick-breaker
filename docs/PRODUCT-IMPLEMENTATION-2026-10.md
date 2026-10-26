@@ -213,3 +213,15 @@ Controls, finite assistance, authoritative accounting, real commercial adapters,
 broader product selection, instrumentation and the full RES/CTL/PHY/COM/INT
 coverage audit remain part of the objective. No production commerce readiness,
 native device pass or final product selection is claimed by this interim record.
+
+## Manual earning and mastery checkpoint
+
+Migration 202610260002 adds immutable, typed economy versions, one introduction per account, and four distinct-stage manual rewards per UTC day. A run snapshots its reward evaluation, including a capped result, so retrying tomorrow cannot invent a reward. Completion and reservation use wallet-first locking. Only positively consumed assistance marks a run assisted; a canceled zero-use reservation does not forfeit manual credit. Unsettled reservations must reconcile before completion.
+
+Personal manual/clean stamps use compact int8multiranges and survive recent-history truncation and guest linking without earning currency from imported records. Manual and clean best times are separate from assisted times; unknown historical loss counts do not manufacture clean badges. The live database was read-only checked as PostgreSQL 17.11, supporting the required range functions. No production migration was applied.
+
+All 144 Node tests passed (42.84s), including real PostgreSQL tests for caps, UTC/config retries, imports, assistance eligibility, permissions and atomic rollback. The actual app plus local PostgreSQL browser fixture completed a stage through scripted touch input and passed three grouped checks: campaign/mastery persistence, exactly 45,000ms intro plus manual credit, and visible home/replay stamps. This scripted input trace is not a human playtest. Local evidence: .openai/local/product-redesign/manual-reward-pass.png.
+
+RevenueCat Capacitor 13.7.6, purchases-js 1.73.1 and AdMob 8.2.1 were installed and audited (zero npm vulnerabilities). Installation alone is not provider integration or sandbox verification. The default native plugin whitelist excludes AdMob until an app ID and consent setup are supplied; an absent Google Mobile Ads app ID must not crash free builds. A missing upstream npm license file is reproduced from the exact RevenueCat hybrid-common 19.15.0 source tag in licenses/. Build and syntax/catalog checks passed.
+
+The owner asked us to choose providers and give account setup instructions after implementation; no more account/credential requests are needed now. Stripe India invitation eligibility and Paddle's stored-value exclusion require care when selecting web checkout. Provider selection and approval remain distinct from working integration.
