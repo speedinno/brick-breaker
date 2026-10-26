@@ -15,6 +15,7 @@
     "recover:privacy": "node scripts/reconcile-privacy.mjs",
     "report:commercial": "node scripts/commercial-report.mjs",
     "prune:metrics": "node scripts/prune-play-metrics.mjs",
+    "report:play": "node scripts/play-metrics-report.mjs",
     "mobile:sync": "node scripts/sync-mobile.mjs",
     "android:open": "npx cap open android",
     "ios:open": "npx cap open ios"
