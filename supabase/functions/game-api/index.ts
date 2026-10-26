@@ -1,9 +1,12 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.118.0';
 import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHash,structuralDistance} from '../_shared/catalog.js';
 import {readLimitedJson,RequestError} from '../_shared/request.js';
+import {nativeCommerce,nativeCatalog,persistVerifiedPurchase} from '../_shared/native-commerce.js';
+import {equalSecret,PurchaseVerificationError} from '../_shared/revenuecat.js';
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
+const commerce=nativeCommerce((key:string)=>Deno.env.get(key));
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
@@ -37,6 +40,16 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'600'}});
   if(request.method!=='POST')return reply({error:'POST required'},405);
   try{
+    if(new URL(request.url).pathname.endsWith('/webhooks/revenuecat')){
+      if(!await equalSecret(request.headers.get('Authorization'),Deno.env.get('REVENUECAT_WEBHOOK_AUTH')))return reply({error:'Webhook authentication required'},401);
+      if(!commerce)return reply({error:'Purchase verification is not configured'},503);
+      const body=await readLimitedJson(request),event=body.event as Record<string,unknown>|undefined;
+      if(event?.type==='TEST')return reply({ignored:true});
+      if(typeof event?.transaction_id!=='string')return reply({ignored:true});
+      const receipts=await commerce.verifier.transaction(event.transaction_id);
+      for(const receipt of receipts)await persistVerifiedPurchase(admin,receipt);
+      return reply({processed:receipts.length});
+    }
     const bearer=request.headers.get('Authorization')||'';
     if(!/^Bearer \S+$/i.test(bearer))return reply({error:'Sign in to use cloud saves'},401);
     const auth=await admin.auth.getUser(bearer.slice(7));
@@ -45,6 +58,24 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
+    if(body.action==='purchase-catalog'){
+      if(!['android','ios','web'].includes(String(body.platform)))return reply({error:'Unknown game edition'},400);
+      if(body.platform==='web')return reply({available:false,reason:'Web checkout is not configured yet.'});
+      return reply(await nativeCatalog(commerce,admin,body.platform));
+    }
+    if(body.action==='purchase-sync'){
+      if(!commerce)return reply({error:'Purchases are not configured yet. Manual play is available.'},503);
+      const {records,next}=await commerce.verifier.page(user.id,body.after??null);
+      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt));
+      return reply({processed:results.length,deletedAccountPurchase:results.some(r=>r.state==='account-deleted'),next,wallet:await rpc('game_time_state')});
+    }
+    if(body.action==='purchase-verify'){
+      if(!commerce)return reply({error:'Purchases are not configured yet. Manual play is available.'},503);
+      const records=await commerce.verifier.transaction(body.transactionId);
+      if(records.some(r=>r.user!==user.id))return reply({error:'This purchase belongs to another game account.'},409);
+      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt));
+      return reply({verified:results.some(r=>r.state==='owned'),refunded:results.some(r=>r.state==='refunded'),deletedAccountPurchase:results.some(r=>r.state==='account-deleted'),wallet:await rpc('game_time_state')});
+    }
     if(typeof body.action==='string'&&body.action.startsWith('time-')){
       if(body.action==='time-state')return reply(await rpc('game_time_state'));
       if(!safeUuid(body.reservationId))return reply({error:'Invalid time reservation'},400);
@@ -95,14 +126,16 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     if(body.action==='delete'){
       const signedAt=Date.parse(user.last_sign_in_at||'');
       if(!Number.isFinite(signedAt)||signedAt>Date.now()+60000||Date.now()-signedAt>15*60*1000)return reply({error:'Sign out, sign in again, then delete your account within 15 minutes.'},409);
-      // All private game records have ON DELETE CASCADE; the shared catalog has
-      // no creator identifier and is intentionally retained for other players.
+      // Progress/balance cascade; minimal provider transaction tombstones lose
+      // their owner reference but remain non-mintable after account deletion.
+      // The shared catalog contains no creator identifier.
       const result=await admin.auth.admin.deleteUser(user.id);
       if(result.error)throw Error('Could not delete the account. Please try again.');
       return reply({deleted:true});
     }
     return reply({error:'Unknown action'},400);
   }catch(error){
+    if(error instanceof PurchaseVerificationError)return reply({error:error.message},503);
     if(error instanceof RequestError)return reply({error:error.message},error.status);
     const message=error instanceof Error?error.message:'Cloud request failed';
     // Known SQL/business errors contain no credentials. Do not return stack

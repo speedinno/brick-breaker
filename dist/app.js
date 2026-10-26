@@ -2,6 +2,8 @@ import {PaddleInput,FixedSimulation,clampGain} from './controls.js';
 import {bindPaddleEvents,isInteractive} from './control-events.js';
 import {AssistanceSession} from './assistance.js';
 import {AssistancePanel} from './assistance-ui.js';
+import {PurchaseService} from './purchases.js';
+import {PurchasePanel} from './purchases-ui.js';
 import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
 import {fitViewport,dialogViewport} from './viewport.js';
@@ -98,6 +100,9 @@ function createAssistance(){
 }
 assistance=createAssistance();
 const assistancePanel=new AssistancePanel({bank:assistance,cloud,open:openDialog,close:closeDialog,signIn:()=>account.show(),activate:beginAssistance});
+const purchases=new PurchaseService({cloud,storage,platform:native?Capacitor.getPlatform():'web'});
+const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!assistancePanel.busy&&!assistance.starting&&!assistance.active,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();}});
+assistancePanel.purchases=purchasePanel;
 setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flush().catch(()=>{});},1000);
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
 function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled,touchGain:input.touchGain,pointerGain:input.pointerGain}));}catch{}}
@@ -306,6 +311,7 @@ async function accountChanged(){
   assistance.stop('account');
   try{assistance.persist();}catch{}
   assistance=createAssistance();assistancePanel.bank=assistance;assistancePanel.epoch++;assistancePanel.busy=false;
+  purchases.reset();purchasePanel.reset();assistancePanel.checkoutBusy=false;
   const epoch=++authEpoch;saveSession();accountIdentity=id;cloud.state=null;++loadEpoch;loading=true;game=null;run=null;store.switchAccount(id);updateStatus();
   if(id){try{await syncPending();}catch(error){if(epoch===authEpoch)account.message(error.message,true);}}
   if(epoch!==authEpoch)return;loading=false;account.render();updateStatus();if(!booting)await start(store.value.selected,{resume:true,enter:$('home').hidden,sync:false});
