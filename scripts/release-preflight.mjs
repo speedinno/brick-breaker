@@ -7,7 +7,11 @@ const {version}=JSON.parse(await readFile(new URL('../package.json',import.meta.
 const android=await readFile('android/app/build.gradle','utf8'),ios=await readFile('ios/App/App.xcodeproj/project.pbxproj','utf8');
 const androidVersion=android.match(/\bversionName\s+"([^"]+)"/)?.[1],iosVersions=[...ios.matchAll(/\bMARKETING_VERSION\s*=\s*([^;\s]+)\s*;/g)].map(match=>match[1]);
 if(androidVersion!==version||!iosVersions.length||iosVersions.some(value=>value!==version))throw Error('Native/web versions differ');
+const androidBuild=Number(android.match(/\bversionCode\s+(\d+)/)?.[1]),iosBuilds=[...ios.matchAll(/\bCURRENT_PROJECT_VERSION\s*=\s*(\d+)\s*;/g)].map(match=>Number(match[1]));
+if(!Number.isSafeInteger(androidBuild)||androidBuild<1||!iosBuilds.length||iosBuilds.some(value=>value!==androidBuild))throw Error('Native build numbers differ');
+const home=await readFile('dist/index.html','utf8'),metrics=await readFile('dist/play-metrics.js','utf8');
+if(!home.includes(`Version ${version} · Build ${androidBuild}`)||!metrics.includes(`build='${version}'`))throw Error('Visible version or optional measurement build tag differs');
 const manifest=await readFile('ios/App/App/PrivacyInfo.xcprivacy','utf8');
-if(!manifest.includes('NSPrivacyCollectedDataTypeEmailAddress')||!ios.includes('PrivacyInfo.xcprivacy in Resources'))throw Error('Missing app privacy resource');
-console.log(JSON.stringify({candidateSourceChecks:true,productionConfigurationComplete:pending.length===0,pending,manualGates:['Real SMTP/account/deletion tests','Production signing','Physical-device and beta testing','Store disclosures, publisher verification and review']},null,2));
+if(!manifest.includes('NSPrivacyCollectedDataTypeEmailAddress')||!manifest.includes('NSPrivacyCollectedDataTypePurchaseHistory')||!manifest.includes('NSPrivacyCollectedDataTypePurposeAnalytics')||!ios.includes('PrivacyInfo.xcprivacy in Resources'))throw Error('Missing app privacy resource or collection-purpose categories');
+console.log(JSON.stringify({candidateSourceChecks:true,version,build:androidBuild,scope:'source and public cloud configuration; production readiness is not assessed',publicCloudConfigurationComplete:pending.length===0,pending,manualGates:['Release-candidate email-code/account/deletion checks','Configured provider sandbox and consent checks before commerce/ad activation','Production signing','Physical-device and beta testing','Archive privacy report, store disclosures, publisher verification and review']},null,2));
 if(production&&pending.length)process.exitCode=1;

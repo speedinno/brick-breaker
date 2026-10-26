@@ -1,0 +1,29 @@
+# Manual Azure DevOps Services pipeline. It consumes no GitHub Actions minutes.
+# Enable the organization's hosted macOS pool/parallelism before queuing it.
+# It produces unsigned archives; it does not publish an installable iPhone IPA.
+trigger: none
+pr: none
+
+pool:
+  vmImage: macOS-latest
+
+jobs:
+  - job: unsigned_ios
+    displayName: Build unsigned iPhone and simulator artifacts
+    timeoutInMinutes: 45
+    steps:
+      - checkout: self
+        clean: true
+        persistCredentials: false
+      - task: NodeTool@0
+        inputs:
+          versionSpec: 22.x
+        displayName: Use Node.js 22
+      - bash: bash scripts/build-ios.sh
+        displayName: Sync, check and compile the actual iOS project
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: build/ios-delivery
+          artifact: Brick-Breaker-iOS-unsigned
+          publishLocation: pipeline
+        displayName: Save unsigned builds, source receipt and checksums
