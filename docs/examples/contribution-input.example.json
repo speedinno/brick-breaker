@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "asOf": "2026-10-26",
+  "evidence": [],
+  "cohorts": [{
+    "id": "replace-with-reviewed-cohort",
+    "day": "2026-10-01",
+    "windowDays": 7,
+    "platform": "android",
+    "reportedCountry": null,
+    "identityBasis": "store_install_events",
+    "acquiredCount": null,
+    "countCoverage": "unknown",
+    "countEvidence": [],
+    "attribution": "allocated_calendar_total",
+    "reviewed": false,
+    "flows": {
+      "adProceeds": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "purchaseProceeds": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "acquisitionCost": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "hostingCost": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "supportCost": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "contentCost": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]},
+      "additionalMerchantTax": {"currency":"INR","micros":null,"coverage":"unknown","finality":"estimate","evidence":[]}
+    }
+  }]
+}
