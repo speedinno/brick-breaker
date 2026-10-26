@@ -5,12 +5,14 @@ import {PGlite} from '@electric-sql/pglite';
 import {createDefinition, definitionHash} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
 import {createWebCommerceFixture} from './web-commerce-fixture.mjs';
+import {deletionStatus,prepareAccountDeletion,deletePreparedAccount} from '../supabase/functions/_shared/account-deletion.js';
 const user = '11111111-1111-4111-8111-111111111111';
 let db, commerceFixture, adsFixture=false, queue = Promise.resolve();
-async function initialize(milliseconds = 60000, commerce=false, ads=false) {
+async function initialize(milliseconds = 60000, commerce=false, ads=false, privacy=false) {
   await db?.close(); db = new PGlite();
-  await db.exec(`create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;insert into auth.users values('${user}');`);
+  await db.exec(`create schema auth;create table auth.users(id uuid primary key,email text);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;insert into auth.users values('${user}','time-test@example.test');`);
   await migrateGame(db);
+  if(privacy)await db.query("select game_privacy_note_account($1,'proj_localPrivacy','sandbox')",[user]);
   for (let level=1;level<=12;level++) {
     const definition=createDefinition(level);
     await db.query('select public.game_publish_level($1,$2::jsonb,$3,$4)',[level,JSON.stringify(definition),canonicalLayout(definition.layout),await definitionHash(definition)]);
@@ -21,9 +23,15 @@ async function initialize(milliseconds = 60000, commerce=false, ads=false) {
   if(ads)await db.exec("insert into public.game_ad_placements(id,provider,platform,environment,request_unit,active) values('local-web-v1','h5','web','sandbox','ca-pub-1234567890123456',true)");
 }
 async function handle(body) {
-  if(body.action==='qa-reset'){await initialize(Number.isSafeInteger(body.milliseconds)&&body.milliseconds>=0?body.milliseconds:60000,body.commerce===true,body.ads===true);return {fixture:true};}
+  if(body.action==='qa-reset'){await initialize(Number.isSafeInteger(body.milliseconds)&&body.milliseconds>=0?body.milliseconds:60000,body.commerce===true,body.ads===true,body.privacy===true);return {fixture:true};}
   if(!db)await initialize();
   if(body.accountId!==user)throw Error('Test identity mismatch');
+  if(['delete','delete-prepare','privacy-status'].includes(body.action)){
+    const admin={rpc:async(_name,args)=>({data:(await db.query('select game_prepare_account_deletion($1,$2) as value',[args.p_user,args.p_request])).rows[0].value}),auth:{admin:{deleteUser:async id=>{await db.query('delete from auth.users where id=$1',[id]);return{};}}},from:()=>({select:()=>({eq:(_key,id)=>({maybeSingle:async()=>({data:(await db.query('select deleted_at from game_deletion_requests where id=$1',[id])).rows[0]??null})})})})};
+    const authUser={id:user,last_sign_in_at:new Date().toISOString()};
+    return body.action==='privacy-status'?deletionStatus(admin,body.requestId):body.action==='delete-prepare'?prepareAccountDeletion(admin,authUser,body.requestId):deletePreparedAccount(admin,authUser,body.requestId);
+  }
+  if(body.action==='qa-privacy-jobs')return(await db.query('select state,last_code,subject is not null as has_subject from game_privacy_jobs order by state')).rows;
   if(body.action==='qa-ledger')return (await db.query('select kind,sum(amount_ms)::integer as ms from public.game_time_ledger group by kind')).rows;
   if(body.action?.startsWith('ad-')&&!adsFixture){if(body.action==='ad-catalog')return{available:false,reason:'Local fixture ads are disabled.'};throw Error('Local fixture ads are disabled');}
   if(body.action?.startsWith('purchase-')||body.action==='qa-commerce-capture'||body.action==='qa-commerce-dispute'){

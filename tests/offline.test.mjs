@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile,stat} from 'node:fs/promises';
+import {build} from 'esbuild';
+import {fileURLToPath} from 'node:url';
+test('the offline cache covers the actual app and legal module dependency graph',async()=>{
+ const sw=await readFile(new URL('../dist/sw.js',import.meta.url),'utf8'),paths=sw.match(/const ASSETS=\[(.*?)\]/)[1].match(/'([^']+)'/g).map(x=>x.slice(1,-1));
+ const {metafile}=await build({absWorkingDir:fileURLToPath(new URL('..',import.meta.url)),entryPoints:['dist/app.js','dist/legal.js'],outdir:'offline-check',format:'esm',bundle:true,write:false,metafile:true,platform:'browser',logLevel:'silent'});
+ for(const path of Object.keys(metafile.inputs).filter(path=>path.startsWith('dist/')))assert(paths.includes('./'+path.slice(5)),'Offline module is missing: '+path);
+});
 test('all offline assets exist and every font is local',async()=>{
  const sw=await readFile(new URL('../dist/sw.js',import.meta.url),'utf8');const paths=sw.match(/const ASSETS=\[(.*?)\]/)[1].match(/'([^']+)'/g).map(x=>x.slice(1,-1));
  for(const path of paths){const file=path==='./'?'index.html':path.slice(2);assert((await stat(new URL('../dist/'+file,import.meta.url))).size>0);}

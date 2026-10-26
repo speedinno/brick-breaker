@@ -5,6 +5,7 @@ async function boundedFetch(input,init={},timeoutMs=12000){const controller=new 
 export class CloudAccount {
   constructor(onChange=()=>{},{settings=config,clientFactory=createClient,storage,onStatus=()=>{}}={}){
     this.apiUrl=settings.apiUrl||'';
+    this.deletionStatusUrl=(this.apiUrl||settings.supabaseUrl+'functions/v1/game-api').replace(/\/$/,'')+'/privacy/deletion-status';this.publishableKey=settings.publishableKey;
     if(this.apiUrl){let parsed;try{parsed=new URL(this.apiUrl);}catch{throw Error('Invalid API URL');}if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.search||parsed.hash)throw Error('Invalid API URL');}
     this.configured=allowedUrl(settings.supabaseUrl)&&typeof settings.publishableKey==='string'&&settings.publishableKey.length>20;
     // Use the same adapter as game saves: Android startup reconciles WebView
@@ -48,7 +49,7 @@ export class CloudAccount {
     const owner=this.userId;
     let result;try{result=await this.invoke({...body,action,accountId:owner});}catch{result={error:{}};}const {data,error}=result;
     if(this.userId!==owner){const failure=Error('Your account changed. Reopen Account and try again.');failure.status=409;failure.network=false;throw failure;}
-    const timeAction=action.startsWith('time-'),purchaseAction=action.startsWith('purchase-'),adAction=action.startsWith('ad-'),isolatedAction=timeAction||purchaseAction||adAction;
+    const timeAction=action.startsWith('time-'),purchaseAction=action.startsWith('purchase-'),adAction=action.startsWith('ad-'),isolatedAction=timeAction||purchaseAction||adAction||action==='delete'||action==='delete-prepare';
     if(error){let message=adAction?'Could not reach rewarded ads. Manual play remains available.':purchaseAction?'Could not reach purchases. Your receipt can be recovered later.':timeAction?'Could not reach your time bank. Manual play is available.':'Could not reach cloud saves. Your device progress is safe. Tap Sync now to retry.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;if(!isolatedAction&&this.userId===owner){this.syncError=failure;this.onStatus();}throw failure;}
     if(data?.error){const failure=Error(data.error);if(!isolatedAction){this.syncError=failure;this.onStatus();}throw failure;}
     if(['state','import','complete'].includes(action)){this.state=data;this.syncError=null;this.onStatus();}return data;
@@ -61,5 +62,18 @@ export class CloudAccount {
   async importGuest(progress){return this.api('import',{starters:progress.starters,journeyNext:progress.journeyNext,records:Object.values(progress.records).slice(-128),mastery:progress.mastery||{manual:[],clean:[]}});}
   async history(before=null){return this.api('history',{before});}
   async exportData(before=null){return this.api('export',{before});}
-  async deleteAccount(){await this.api('delete');try{await this.client.auth.signOut({scope:'local'});}finally{this.session=null;this.state=null;this.syncError=null;await this.notifyChange();}}
+  async deletionStatus(requestId){
+    this.require();
+    if(typeof requestId!=='string'||!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(requestId))throw Error('Invalid account deletion receipt');
+    let response;try{response=await boundedFetch(this.deletionStatusUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:this.publishableKey},body:JSON.stringify({requestId})},45000);}catch{throw Error('Could not confirm account deletion. Keep this app installed and retry.');}
+    if(!response.ok)throw Error('Could not confirm account deletion. Keep this app installed and retry.');const result=await response.json();if(typeof result?.deleted!=='boolean')throw Error('Invalid account deletion status');return{deleted:result.deleted};
+  }
+  async deleteAccount(requestId,{onDeleted=()=>{}}={}){
+    const owner=this.userId;let result;
+    try{result=await this.api('delete',{...(requestId?{requestId}:{})});if(result?.deleted!==true)throw Error('Account deletion needs confirmation.');}
+    catch(error){if(!requestId||(await this.deletionStatus(requestId)).deleted!==true)throw error;result={deleted:true,requestId,providerCleanup:'queued'};}
+    let cleanupError;try{await onDeleted(result);}catch(error){cleanupError=error;}
+    if(this.userId===owner){try{await this.client.auth.signOut({scope:'local'});}catch{}finally{this.session=null;this.state=null;this.syncError=null;await this.notifyChange();}}
+    if(cleanupError)throw cleanupError;return result;
+  }
 }

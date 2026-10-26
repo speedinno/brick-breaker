@@ -11,7 +11,7 @@ window.fetch=async(input,init={})=>{
   if(url.pathname==='/auth/v1/verify'||url.pathname==='/auth/v1/token')return Response.json({access_token:token,refresh_token:'local-fixture',expires_in:3600,token_type:'bearer',user});
   const body=JSON.parse(init.body||'{}');window.timeQA.calls.push(body);
   if(window.timeQA.fail)return Response.json({error:'Local test network interruption'},{status:503});
-  const response=await originalFetch('/__time-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const response=await originalFetch('/__time-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(url.pathname.endsWith('/privacy/deletion-status')?{...body,action:'privacy-status',accountId:user.id}:body)});
   if(body.action==='time-reserve'&&window.timeQA.reserveDelay)await new Promise(resolve=>setTimeout(resolve,window.timeQA.reserveDelay));
   return response;
 };

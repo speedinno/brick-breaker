@@ -7,6 +7,7 @@ import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebChecko
 import {verifyHmac,WebCheckoutError} from '../_shared/razorpay.js';
 import {AdMobVerifier,AdVerificationError} from '../_shared/admob-ssv.js';
 import {rewardedAdConfig,adPlacement} from '../_shared/ad-config.js';
+import {deletionStatus,prepareAccountDeletion,deletePreparedAccount} from '../_shared/account-deletion.js';
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
@@ -62,6 +63,10 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'600'}});
   if(request.method!=='POST')return reply({error:'POST required'},405);
   try{
+    if(new URL(request.url).pathname.endsWith('/privacy/deletion-status')){
+      const body=await readLimitedJson(request);
+      return reply(await deletionStatus(admin,body.requestId));
+    }
     if(new URL(request.url).pathname.endsWith('/webhooks/razorpay')){
       if(!webBilling)return reply({error:'Web checkout is not configured'},503);
       const bytes=await readLimitedBytes(request),signature=request.headers.get('X-Razorpay-Signature');
@@ -91,7 +96,7 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
       if(event?.type==='TEST')return reply({ignored:true});
       if(typeof event?.transaction_id!=='string')return reply({ignored:true});
       const receipts=await commerce.verifier.transaction(event.transaction_id);
-      for(const receipt of receipts)await persistVerifiedPurchase(admin,receipt);
+      for(const receipt of receipts)await persistVerifiedPurchase(admin,receipt,commerce.verifier.projectId);
       return reply({processed:receipts.length});
     }
     const bearer=request.headers.get('Authorization')||'';
@@ -132,19 +137,19 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     if(body.action==='purchase-catalog'){
       if(!['android','ios','web'].includes(String(body.platform)))return reply({error:'Unknown game edition'},400);
       if(body.platform==='web')return reply(!webBilling?{available:false,reason:'Web checkout is not configured yet.'}:webBilling.origins.has(origin||'')?await webCatalog(webBilling,admin):{available:false,reason:'Purchases are available only in the official game edition.'});
-      return reply(await nativeCatalog(commerce,admin,body.platform));
+      return reply(await nativeCatalog(commerce,admin,body.platform,user.id));
     }
     if(body.action==='purchase-sync'){
       if(!commerce)return reply({error:'Purchases are not configured yet. Manual play is available.'},503);
       const {records,next}=await commerce.verifier.page(user.id,body.after??null);
-      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt));
+      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt,commerce.verifier.projectId));
       return reply({processed:results.length,deletedAccountPurchase:results.some(r=>r.state==='account-deleted'),next,wallet:await rpc('game_time_state')});
     }
     if(body.action==='purchase-verify'){
       if(!commerce)return reply({error:'Purchases are not configured yet. Manual play is available.'},503);
       const records=await commerce.verifier.transaction(body.transactionId);
       if(records.some(r=>r.user!==user.id))return reply({error:'This purchase belongs to another game account.'},409);
-      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt));
+      const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt,commerce.verifier.projectId));
       return reply({verified:results.some(r=>r.state==='owned'),refunded:results.some(r=>r.state==='refunded'),deletedAccountPurchase:results.some(r=>r.state==='account-deleted'),wallet:await rpc('game_time_state')});
     }
     if(typeof body.action==='string'&&body.action.startsWith('purchase-web-')){
@@ -216,15 +221,12 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
       }
       return reply({...(body.action==='export'?{account:{id:user.id,email:user.email,createdAt:user.created_at},progress:await rpc('game_state')} : {}),history:rows,nextBefore});
     }
+    if(body.action==='delete-prepare')return reply(await prepareAccountDeletion(admin,user,body.requestId));
     if(body.action==='delete'){
-      const signedAt=Date.parse(user.last_sign_in_at||'');
-      if(!Number.isFinite(signedAt)||signedAt>Date.now()+60000||Date.now()-signedAt>15*60*1000)return reply({error:'Sign out, sign in again, then delete your account within 15 minutes.'},409);
       // Progress/balance cascade; minimal provider transaction tombstones lose
       // their owner reference but remain non-mintable after account deletion.
       // The shared catalog contains no creator identifier.
-      const result=await admin.auth.admin.deleteUser(user.id);
-      if(result.error)throw Error('Could not delete the account. Please try again.');
-      return reply({deleted:true});
+      return reply(await deletePreparedAccount(admin,user,body.requestId??crypto.randomUUID()));
     }
     return reply({error:'Unknown action'},400);
   }catch(error){

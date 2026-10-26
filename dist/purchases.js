@@ -3,17 +3,18 @@
 import {recoverPurchasePages} from './purchase-recovery.js';
 const changed=()=>Error('Your account changed. Reopen the time bank. Purchases stay with the account used at checkout.');
 export class PurchaseService {
- constructor({cloud,platform,storage,loadSDK=()=>import('./vendor/purchases.js')}){Object.assign(this,{cloud,platform,storage,loadSDK});this.items=[];this.busy=false;this.sdk=null;this.sdkOwner=null;this.configuration=null;this.catalogOwner=null;}
- check(owner){if(!owner||this.cloud.userId!==owner)throw changed();}
+ constructor({cloud,platform,storage,loadSDK=()=>import('./vendor/purchases.js')}){Object.assign(this,{cloud,platform,storage,loadSDK});this.items=[];this.busy=false;this.sdk=null;this.sdkOwner=null;this.configuration=null;this.catalogOwner=null;this.retiredOwners=new Set();this.identityTask=Promise.resolve();}
+ check(owner){if(!owner||this.cloud.userId!==owner||this.retiredOwners.has(owner))throw changed();}
  reset(){this.items=[];this.configuration=null;this.catalogOwner=null;}
  async exclusive(work){if(this.busy)throw Error('A purchase or recovery is already in progress.');this.busy=true;try{return await work();}finally{this.busy=false;}}
- async identified(owner,configuration){
+ identified(owner,configuration){const work=async()=>{
   this.check(owner);if(!this.sdk)this.sdk=await this.loadSDK();this.check(owner);
   if(this.sdkKey&&this.sdkKey!==configuration.publicKey)throw Error('Purchase settings changed. Restart the app before purchasing.');
-  if(!this.sdkOwner){await this.sdk.Purchases.configure({apiKey:configuration.publicKey,appUserID:owner});this.sdkOwner=owner;this.sdkKey=configuration.publicKey;}
+  if(!this.sdkKey){await this.sdk.Purchases.configure({apiKey:configuration.publicKey,appUserID:owner});this.sdkOwner=owner;this.sdkKey=configuration.publicKey;}
   else if(this.sdkOwner!==owner){await this.sdk.Purchases.logIn({appUserID:owner});this.sdkOwner=owner;}
   this.check(owner);return this.sdk;
- }
+ };const task=this.identityTask.catch(()=>{}).then(work);this.identityTask=task;return task;}
+ retire(owner){this.retiredOwners.add(owner);this.reset();const task=this.identityTask.catch(()=>{}).then(async()=>{if(this.sdkOwner===owner){await this.sdk.Purchases.logOut();this.sdkOwner=null;}});this.identityTask=task;return task;}
  key(owner){return 'brick-breaker-purchase-pending-v1:'+owner;}
  journal(owner,value){try{if(!this.storage?.setItem)throw Error();this.storage.setItem(this.key(owner),JSON.stringify(value));}catch{throw Error('Device storage is unavailable. Reopen the app before purchasing.');}}
  pending(owner){try{return JSON.parse(this.storage?.getItem(this.key(owner))||'null');}catch{return null;}}

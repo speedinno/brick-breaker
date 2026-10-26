@@ -20,6 +20,7 @@ import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextReq
 import {SoundEffects} from './audio.js';
 import {snapshotGame,restoreGame} from './session.js';
 import {durableStorage} from './storage.js';
+import {AccountPrivacy} from './account-privacy.js';
 import {CloudAccount} from './cloud.js';
 import {JourneyMap} from './journey-ui.js';
 import {AccountPanel} from './account-ui.js';
@@ -56,6 +57,7 @@ document.addEventListener('focusin',updateKeyboardInset);
 document.addEventListener('focusout',()=>requestAnimationFrame(updateKeyboardInset));
 let viewport=fitViewport(416,660);
 let storage;try{storage=durableStorage(localStorage,native?window.BrickBreakerStorage:null);}catch{storage={getItem:()=>null,setItem:()=>{throw Error('Storage unavailable');},removeItem:()=>{}};}
+const privacy=new AccountPrivacy(storage);storage=privacy.storage;
 const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,lastSound=0;
@@ -371,7 +373,10 @@ async function syncPending(){
   })();syncTask={id,promise};updateStatus();try{await promise;}finally{if(syncTask?.promise===promise)syncTask=null;updateStatus();account.render();}
 }
 async function importGuest(){if(!cloud.signedIn)throw Error('Sign in to link guest stages.');const id=cloud.userId,guest=new ProgressStore(storage).value,wasEmpty=completedCount(store.value)===0,state=await cloud.importGuest(guest);if(cloud.userId!==id||store.accountId!==id)throw Error('Your account changed. Reopen Account and try again.');store.save({...mergeProgress(store.value,cloudProgress(state)),...(wasEmpty?{selected:guest.selected}:{})});account.render();updateStatus();journey.render();if(wasEmpty)await start(store.value.selected,{resume:true,enter:$('home').hidden});}
-async function deleteAccount(){const id=cloud.userId;if(!id)return;await cloud.deleteAccount();new ProgressStore(storage,id).clear();clearSession(id);account.render();updateStatus();}
+async function deleteAccount(){
+ const id=cloud.userId;if(!id)return;const intent=privacy.prepare(id),prepared=await cloud.api('delete-prepare',{requestId:intent.requestId});privacy.canonical(id,prepared.requestId);
+ await cloud.deleteAccount(prepared.requestId,{onDeleted:async()=>{privacy.seal(id);let sdkError;try{await purchases.retire?.(id);}catch{sdkError=Error('Your account is deleted. Restart the app to finish purchase-profile cleanup.');}privacy.purge(id);account.clearPrivateFields();if(sdkError)throw sdkError;}});account.render();updateStatus();
+}
 window.addEventListener('online',()=>{if(cloud.signedIn)void syncPending().catch(()=>toast('Your device saves will upload when the connection returns.'));});
 window.addEventListener('offline',()=>{if(cloud.signedIn){cloud.syncError=Error('You are offline. Your device progress is safe. Reconnect, then tap Sync now.');updateStatus();account.render();}});
 window.addEventListener('storage',e=>{if(e.key===store.key){store.save(mergeProgress(store.value,store.read()));updateStatus();if($('gallery').open)journey.render();}});
@@ -384,6 +389,7 @@ if(native){
 if(!readJSON(store.key)){const legacy=readJSON('brick-breaker-channel-v2');if(Number.isSafeInteger(legacy?.best)&&legacy.best>=0&&legacy.best<=1e12)store.save({...store.value,best:legacy.best});}
 requestAnimationFrame(frame);updateStatus();
 setTimeout(()=>$('splash').hidden=true,reduced?150:650);
+try{await privacy.recover(id=>cloud.deletionStatus(id));}catch{account.message('Account deletion recovery needs a connection or available device storage. Keep this app installed and retry.',true);}
 try{await cloud.init();}catch{account.message('Cloud saving is offline. You can keep playing.',true);}
 booting=false;loading=false;await start(store.value.selected,{resume:true,enter:false,sync:!cloud.signedIn});
 const requested=new URLSearchParams(location.search).get('account');if(requested){account.show();if(requested==='delete'&&cloud.signedIn)$('requestDelete').click();if(requested==='export'&&cloud.signedIn)$('exportHistory').click();}

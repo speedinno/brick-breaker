@@ -12,6 +12,7 @@
     "configure:cloud": "node scripts/configure-cloud.mjs",
     "configure:ads": "node scripts/configure-ads.mjs",
     "recover:disputes": "node scripts/reconcile-web-disputes.mjs",
+    "recover:privacy": "node scripts/reconcile-privacy.mjs",
     "mobile:sync": "node scripts/sync-mobile.mjs",
     "android:open": "npx cap open android",
     "ios:open": "npx cap open ios"
