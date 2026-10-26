@@ -12,6 +12,11 @@ test('failed cloud reads invalidate the synced indicator, and a real retry clear
  await cloud.progress();assert.equal(cloud.syncError,null);fail=true;await assert.rejects(()=>cloud.progress());assert(cloud.syncError);assert.deepEqual(cloud.state.starter_completed,[1]);
  fail=false;await cloud.progress();assert.equal(cloud.syncError,null);assert.equal(updates,3);
 });
+test('time-bank outages cannot incorrectly mark successfully synced stage saves as failed',async()=>{
+ let fail=false;const cloud=make(async()=>fail?{error:{}}:{data:{starter_completed:[1]}});cloud.session={user:{id:'a'}};
+ await cloud.progress();fail=true;await assert.rejects(()=>cloud.time('state'),/time bank/);
+ assert.equal(cloud.syncError,null);assert.deepEqual(cloud.state.starter_completed,[1]);
+});
 
 test('SDK sign-in event and verify completion await a single account load',async()=>{
  let callback,finish,loads=0;const session={user:{id:'a'}};

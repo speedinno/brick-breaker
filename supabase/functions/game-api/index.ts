@@ -6,7 +6,9 @@ const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:Abor
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
+const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
 const businessErrors=new Set(['Authentication required','Stage is locked','Run ID already used','Too many attempts. Try again later.','Stage is not ready','This offline attempt expired. Replay the stage to save it online.','Stage version differs. Reconnect and replay this stage.','Attempt is too short','Invalid completion statistics','Invalid stage score','Invalid guest progress','Complete all starter stages first','Invalid history','Too many new stages. Try again later.']);
+for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired'])businessErrors.add(message);
 async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
@@ -43,6 +45,21 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
+    if(typeof body.action==='string'&&body.action.startsWith('time-')){
+      if(body.action==='time-state')return reply(await rpc('game_time_state'));
+      if(!safeUuid(body.reservationId))return reply({error:'Invalid time reservation'},400);
+      if(body.action==='time-recover')return reply(await rpc('game_recover_time',{p_id:body.reservationId}));
+      if(!safeUuid(body.deviceId))return reply({error:'Invalid activation device'},400);
+      if(body.action==='time-reserve'){
+        if(!safeUuid(body.runId)||!Number.isSafeInteger(body.milliseconds)||Number(body.milliseconds)<1||Number(body.milliseconds)>30000)return reply({error:'Invalid time reservation'},400);
+        return reply(await rpc('game_reserve_time',{p_id:body.reservationId,p_device:body.deviceId,p_run:body.runId,p_ms:body.milliseconds}));
+      }
+      if(body.action==='time-checkpoint'||body.action==='time-settle'){
+        if(!Number.isSafeInteger(body.consumedMs)||Number(body.consumedMs)<0||Number(body.consumedMs)>30000)return reply({error:'Invalid consumed time'},400);
+        return reply(await rpc(body.action==='time-checkpoint'?'game_checkpoint_time':'game_settle_time',{p_id:body.reservationId,p_device:body.deviceId,p_consumed:body.consumedMs}));
+      }
+      return reply({error:'Unknown time action'},400);
+    }
     if(body.action==='state')return reply(await rpc('game_state'));
     if(body.action==='level'||body.action==='start'){
       if(!safeLevel(body.level))return reply({error:'Invalid stage'},400);
@@ -87,6 +104,6 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     if(businessErrors.has(message))return reply({error:message},400);
     // Provider errors may contain familiar words such as "stage" plus private
     // diagnostics. Only exact, controlled business messages leave the server.
-    return reply({error:'Cloud saving is unavailable. Please try again.'},503);
+    return reply({error:'The game service is unavailable. Please try again.'},503);
   }
 });

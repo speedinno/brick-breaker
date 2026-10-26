@@ -1,5 +1,7 @@
+import {PaddleInput,FixedSimulation,clampGain} from './controls.js';
+import {bindPaddleEvents,isInteractive} from './control-events.js';
 import config from './cloud-config.js';
-import {fitViewport,worldX,dialogViewport} from './viewport.js';
+import {fitViewport,dialogViewport} from './viewport.js';
 import {difficultyProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
@@ -47,9 +49,19 @@ const readJSON=key=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{
 const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(storage),cache=new LevelCache();
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,lastSound=0;
 const effects=new SoundEffects({enabled:options.sound===true});
-let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastTime=0,accumulator=0,lastSnapshot=0,drag=false,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1,sessionStorageError=false;
-const keys=new Set(),focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
+let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastSnapshot=0,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1,sessionStorageError=false;
+const focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
+const input=new PaddleInput({touchGain:options.touchGain??2,pointerGain:options.pointerGain??1,onManual:()=>{
+  auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');
+}});
+const simulation=new FixedSimulation();let controlEvents=null;
+function clearControls(){
+  controlEvents?.cancel();input.reset();simulation.reset(performance.now());
+  if(auto){auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');}
+}
+function gameplayInputEnabled(){return Boolean(game&&$('home').hidden&&!paused&&!loading&&!document.hidden&&!document.querySelector('dialog[open]'));}
 function resizeBoard(){
+  clearControls();
   const rect=canvas.getBoundingClientRect();
   viewport=fitViewport(rect.width,rect.height,window.devicePixelRatio);
   canvas.width=viewport.pixelsWide;canvas.height=viewport.pixelsHigh;
@@ -68,7 +80,7 @@ const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{updateStatus(
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}
-function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled}));}catch{}}
+function persistOptions(){try{storage.setItem('brick-breaker-options-v3',JSON.stringify({reduced,haptics,sound:effects.enabled,touchGain:input.touchGain,pointerGain:input.pointerGain}));}catch{}}
 function sessionKey(id=store.accountId){return `brick-breaker-session-v3:${id?'user:'+id:'guest'}`;}
 function saveSession(){if(!game||loading)return;const snapshot=snapshotGame(game,{auto,speed,run,assisted});try{if(snapshot)storage.setItem(sessionKey(),JSON.stringify(snapshot));else storage.removeItem(sessionKey());sessionStorageError=false;}catch{sessionStorageError=true;}updateStatus();}
 function clearSession(id=store.accountId){try{storage.removeItem(sessionKey(id));}catch{}}
@@ -122,9 +134,10 @@ function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
   if((e.type==='break'||e.type==='hit')&&performance.now()-lastSound>55){lastSound=performance.now();tone(620+Math.min(100,game?.combo||0)*5);}
   if(e.type==='power'){toast({add:`+3 · ${e.before} → ${e.balls} BALLS`,triple:`×3 · ${e.before} → ${e.balls} BALLS`,wide:'WIDE PADDLE · SAME BALL COUNT',floor:'SAFETY FLOOR',fire:'FIREBALLS',laser:'PADDLE SHOOTER · 8s'}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
-  if(e.type==='lost'){saveSession();prompt('lost');tone(140,.2);}
-  if(e.type==='over'){clearSession();prompt('over');tone(140,.2);}
+  if(e.type==='lost'){clearControls();saveSession();prompt('lost');tone(140,.2);}
+  if(e.type==='over'){clearControls();clearSession();prompt('over');tone(140,.2);}
   if(e.type==='won'){
+    clearControls();
     const result={score:game.score,seconds:Math.round(game.stageTime*1000)/1000,peak:game.peakBalls,mode:assisted?'watch':'play'};
     store.complete(game.level,result);
     if(cloud.signedIn&&run){const pending={...result,level:game.level,runId:run.runId,hash:currentHash,remote:run.remote===true};store.save({...store.value,pending:[...store.value.pending.filter(p=>p.runId!==run.runId),pending]});}
@@ -135,7 +148,7 @@ function event(e){
 async function start(level=store.value.selected,{resume=false,enter=true,sync=true}={}){
   if(!isUnlocked(store.value,level)){toast('Finish earlier stages to unlock this stage.');return;}
   if(enter)enterGame();
-  saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;keys.clear();drag=false;clearTimeout(toastTimer);$('toast').classList.remove('show');$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
+  saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;clearControls();clearTimeout(toastTimer);$('toast').classList.remove('show');$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
   try{
     if(sync&&cloud.signedIn&&navigator.onLine!==false)await syncPending().catch(()=>{});
     const nextDefinition=await cache.load(level,cloud),hash=nextDefinition.hash||await definitionHash(nextDefinition);
@@ -144,7 +157,7 @@ async function start(level=store.value.selected,{resume=false,enter=true,sync=tr
     const snapshot=resume?readJSON(sessionKey()):null;if(snapshot?.level===level)restored=restoreGame(snapshot,pattern,event);
     game=restored||new Game({level,seed:crypto.getRandomValues(new Uint32Array(1))[0],mode:auto?'watch':'play',patternFactory:()=>pattern,onEvent:event});
     run=restored?snapshot.run:null;auto=restored?Boolean(snapshot.auto):auto;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&snapshot.assisted||auto);
-    game.mode=auto?'watch':'play';paused=Boolean(restored&&game.status==='playing');paintVersion='';accumulator=0;
+    game.mode='play';if(auto)input.startAuto(game.paddle);paused=Boolean(restored&&game.status==='playing');paintVersion='';simulation.reset(performance.now());
     store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('name').title=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
     prompt(restored?'resume':'ready');syncHUD();updateStatus();
   }catch(error){if(epoch===loadEpoch){$('prompt').classList.remove('loading');$('promptTitle').textContent='Your stage is safe.';$('promptText').textContent=error.message||'Please try again.';$('launch').textContent='Try again';$('watch').hidden=true;loading='failed';toast(error.message||'Could not open this stage.');}}
@@ -159,15 +172,15 @@ async function action(){
   if(!$('home').hidden)return;
   if([...document.querySelectorAll('dialog')].some(d=>d.open))return;
   if(loading==='failed'){loading=false;await start(wantedLevel,{resume:true});return;}if(loading||!game)return;
-  if(paused){paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');return;}
+  if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');return;}
   if(game.status==='won'){await start(suggestedNext(game.level));return;}
   if(game.status==='over'){await start(game.level);return;}
   if(game.status==='ready'){const activeGame=game,epoch=authEpoch;loading=true;try{await ensureRun();if(epoch!==authEpoch||game!==activeGame)return;game.paddle.x=clamp(game.target,game.paddle.w/2+2,W-game.paddle.w/2-2);game.launch();}catch(error){if(epoch===authEpoch&&game===activeGame){toast(error.message);prompt('ready');}}finally{if(epoch===authEpoch&&game===activeGame){loading=false;saveSession();}}}
   canvas.focus({preventScroll:true});
 }
-function pause(){if(!$('home').hidden||!game||loading)return;if(paused){paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}else if(game.status==='playing'){paused=true;keys.clear();prompt('paused');saveSession();}}
-function away(){keys.clear();drag=false;if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();}
-function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}keys.clear();drag=false;saveSession();if(!$(id).open)$(id).showModal();}
+function pause(){if(!$('home').hidden||!game||loading)return;if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}else if(game.status==='playing'){paused=true;clearControls();prompt('paused');saveSession();}}
+function away(){clearControls();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();}
+function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}clearControls();saveSession();if(!$(id).open)$(id).showModal();}
 function closeDialog(id){if($(id).open)$(id).close();}
 for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{
   if(dialog.id==='homeConfirm'){
@@ -198,20 +211,31 @@ function draw(){
   ctx.strokeStyle='#414750';ctx.lineWidth=3;ctx.strokeRect(1.5,16.5,W-3,H-18);
 }
 function frame(t){
-  const dt=Math.min(.05,(t-lastTime)/1000||0);lastTime=t;
-  if(game&&$('home').hidden&&!paused&&!loading&&![...document.querySelectorAll('dialog')].some(d=>d.open)){
-    if(keys.has('ArrowLeft')||keys.has('a'))game.target-=420*dt;if(keys.has('ArrowRight')||keys.has('d'))game.target+=420*dt;game.target=clamp(game.target,0,W);
-    if(game.status==='ready')game.paddle.x=clamp(game.target,game.paddle.w/2+2,W-game.paddle.w/2-2);
-    accumulator+=dt*speed;let steps=0;while(accumulator>=1/120&&steps++<28){game.step(1/120);accumulator-=1/120;}if(steps>=28)accumulator=0;
-  }else accumulator=0;
+  if(gameplayInputEnabled()){
+    simulation.frame(t,(dt,at)=>{
+      input.applyThrough(at,game.paddle);
+      game.target=input.desired(dt,game.paddle,()=>game.autoTarget());
+      // Ready fields contain no ball. Active paddle motion always goes through
+      // Game.step's swept trajectory, including fast input and AI takeover.
+      if(game.status==='ready')game.paddle.x=game.target;
+      game.step(dt);
+    },speed);
+  }else simulation.reset(t);
   draw();syncHUD();if(t-lastSnapshot>2000){lastSnapshot=t;if(game?.status==='playing'&&!paused&&$('home').hidden)saveSession();}requestAnimationFrame(frame);
 }
-function pointer(e){if(!game||loading)return;const rect=canvas.getBoundingClientRect();game.target=worldX(e.clientX,rect.left,viewport);}
-canvas.addEventListener('pointerdown',e=>{if(!game)return;drag=true;canvas.setPointerCapture(e.pointerId);if(auto)setAuto(false);pointer(e);});canvas.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'&&!auto||drag)pointer(e);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(kind,()=>drag=false);
-document.addEventListener('keydown',e=>{if(!$('home').hidden||[...document.querySelectorAll('dialog')].some(d=>d.open))return;if(e.target.matches('button,input,a')&&[' ','Enter'].includes(e.key))return;const key=e.key.length===1?e.key.toLowerCase():e.key;if(['ArrowLeft','ArrowRight','a','d',' ','p','Escape'].includes(key)){e.preventDefault();if(e.repeat&&[' ','p','Escape'].includes(key))return;keys.add(key);if(key===' ')void action();if(key==='p'||key==='Escape')pause();}});document.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
-document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);
-function setAuto(value){auto=value;if(game)game.mode=auto?'watch':'play';if(auto)assisted=true;$('auto').setAttribute('aria-pressed',String(auto));}
+controlEvents=bindPaddleEvents({surface:$('gameScreen'),focusTarget:canvas,input,enabled:gameplayInputEnabled,scale:()=>viewport.scale});
+document.addEventListener('keydown',e=>{
+  if(!$('home').hidden||document.querySelector('dialog[open]')||isInteractive(e.target)||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
+  const key=e.key.length===1?e.key.toLowerCase():e.key;
+  if([' ','p','Escape'].includes(key)){e.preventDefault();if(e.repeat)return;if(key===' ')void action();else pause();}
+});document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);
+function setAuto(value){auto=value;if(game){game.mode='play';if(auto)input.startAuto(game.paddle);else input.takeControl(game.paddle);}if(auto)assisted=true;$('auto').setAttribute('aria-pressed',String(auto));}
 $('auto').onclick=()=>setAuto(!auto);$('watch').onclick=()=>{setAuto(true);void action();};$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
+for(const [id,property] of [['touchSensitivity','touchGain'],['pointerSensitivity','pointerGain']]){
+  $(id).value=String(input[property]);$(id+'Value').textContent=input[property].toFixed(1)+'×';
+  $(id).oninput=()=>{input[property]=clampGain($(id).value);$(id+'Value').textContent=input[property].toFixed(1)+'×';};
+  $(id).onchange=persistOptions;
+}
 $('sound').onclick=async()=>{effects.enabled=!effects.enabled;persistOptions();renderSound();if(effects.enabled){if(await effects.unlock())tone(620,.18);renderSound();}};
 // Unlock again after an OS audio interruption, using a real touch/key gesture.
 for(const kind of ['pointerdown','keydown'])document.addEventListener(kind,()=>{if(effects.enabled)void effects.unlock().then(renderSound);},{capture:true});

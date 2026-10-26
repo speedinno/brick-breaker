@@ -1,3 +1,4 @@
+import {advanceCircle,PADDLE_ANGLE} from './physics.js';
 import {difficultyProfile} from './difficulty.js';
 import {generateDefinition,patternFromLayout} from './generated.js';
 export const W=416,H=660,COLS=52,ROWS=52,CELL=8,OX=0,OY=18,MAX_BALLS=768;
@@ -71,13 +72,59 @@ export class Game{
   for(const shot of this.shots){const oldY=shot.y;shot.y-=SHOT_SPEED*dt;const col=clamp(Math.floor(shot.x/CELL),0,COLS-1),bottom=Math.min(ROWS-1,Math.floor((oldY-OY)/CELL)),top=Math.max(0,Math.floor((shot.y-OY)/CELL));for(let row=bottom;row>=top;row--){const cell=this.grid.get(row*COLS+col);if(cell&&cell.type!=='wall')this.damage(cell);}}
   this.shots=this.shots.filter(s=>s.y>-12);
  }
- autoTarget(){const p=this.paddle,candidates=this.balls.filter(b=>b.vy>30&&b.y<p.y),next=candidates.sort((a,b)=>(p.y-a.y)/a.vy-(p.y-b.y)/b.vy)[0];let dest=p.x,eta=Infinity;if(next){eta=(p.y-next.y)/next.vy;let x=next.x+next.vx*eta;const span=W-2*next.r;x=((x-next.r)%(2*span)+2*span)%(2*span);const landing=next.r+(x>span?2*span-x:x);const aim=this.pattern.entry.x+Math.sin(this.time*1.73)*2,angle=Math.atan2(aim-landing,p.y-this.pattern.entry.y);dest=landing-clamp(angle/1.12,-.85,.85)*p.w/2;}const drop=this.drops.filter(d=>d.y<p.y).sort((a,b)=>b.y-a.y)[0];if(drop){const catchEta=(p.y-drop.y)/96;if(catchEta<eta-.1||eta>.8)dest=drop.x;}return dest;}
- step(dt){if(this.status!=='playing')return;dt=clamp(dt,0,1/30);this.time+=dt;this.stageTime+=dt;if(this.mode==='watch')this.target=this.autoTarget();this.paddle.w=this.time<this.wideUntil?this.basePaddleWidth*(118/82):this.basePaddleWidth;const p=this.paddle;this.target=clamp(this.target,p.w/2+2,W-p.w/2-2);p.x+=clamp(this.target-p.x,-1500*dt,1500*dt);
+ autoTarget(){const p=this.paddle,candidates=this.balls.filter(b=>b.vy>30&&b.y<p.y),next=candidates.sort((a,b)=>(p.y-a.y)/a.vy-(p.y-b.y)/b.vy)[0];let dest=p.x,eta=Infinity;if(next){eta=(p.y-next.y)/next.vy;let x=next.x+next.vx*eta;const span=W-2*next.r;x=((x-next.r)%(2*span)+2*span)%(2*span);const landing=next.r+(x>span?2*span-x:x);const aim=this.pattern.entry.x+Math.sin(this.time*1.73)*2,angle=Math.atan2(aim-landing,p.y-this.pattern.entry.y);dest=landing-clamp(angle/PADDLE_ANGLE,-.85,.85)*p.w/2;}const drop=this.drops.filter(d=>d.y<p.y).sort((a,b)=>b.y-a.y)[0];if(drop){const catchEta=(p.y-drop.y)/96;if(catchEta<eta-.1||eta>.8)dest=drop.x;}return dest;}
+ // Broad phase includes the entire residual sweep, not just its endpoint.
+ colliders(ball,dt){
+  const x2=ball.x+ball.vx*dt,y2=ball.y+ball.vy*dt;
+  const left=Math.max(0,Math.floor((Math.min(ball.x,x2)-ball.r-OX)/CELL));
+  const right=Math.min(COLS-1,Math.floor((Math.max(ball.x,x2)+ball.r-OX)/CELL));
+  const top=Math.max(0,Math.floor((Math.min(ball.y,y2)-ball.r-OY)/CELL));
+  const bottom=Math.min(ROWS-1,Math.floor((Math.max(ball.y,y2)+ball.r-OY)/CELL));
+  const cells=[];
+  for(let r=top;r<=bottom;r++)for(let c=left;c<=right;c++){
+   const cell=this.grid.get(r*COLS+c);if(cell)cells.push(cell);
+  }
+  return cells;
+ }
+ step(dt){
+  if(this.status!=='playing'||!Number.isFinite(dt)||dt<=0)return;
+  dt=clamp(dt,0,1/30);this.time+=dt;this.stageTime+=dt;
+  if(this.mode==='watch')this.target=this.autoTarget();
+  const p=this.paddle;
+  p.w=this.time<this.wideUntil?this.basePaddleWidth*(118/82):this.basePaddleWidth;
+  this.target=clamp(this.target,p.w/2+2,W-p.w/2-2);
+  const distance=this.target-p.x,movement=clamp(distance,-1500*dt,1500*dt);
+  const paddle={x:p.x,y:p.y,w:p.w,vx:Math.sign(movement)*1500,movingUntil:Math.abs(movement)/1500};
   this.stepShots(dt);
-  for(const b of this.balls){const substeps=Math.max(1,Math.ceil(this.speed()*dt/1.8)),sub=dt/substeps;for(let step=0;step<substeps;step++){const oldY=b.y;b.x+=b.vx*sub;b.y+=b.vy*sub;if(b.x<b.r){b.x=b.r;b.vx=Math.abs(b.vx);}if(b.x>W-b.r){b.x=W-b.r;b.vx=-Math.abs(b.vx);}if(b.y<b.r){b.y=b.r;b.vy=Math.abs(b.vy);}if(b.vy>0&&oldY+b.r<=p.y+4&&b.y+b.r>=p.y&&Math.abs(b.x-p.x)<p.w/2+b.r){const offset=clamp((b.x-p.x)/(p.w/2),-.96,.96),angle=-Math.PI/2+offset*1.12;b.vx=Math.cos(angle)*this.speed();b.vy=Math.sin(angle)*this.speed();b.y=p.y-b.r-.01;this.emit({type:'bounce'});}if(this.time<this.floorUntil&&b.y>H-13&&b.vy>0){b.y=H-13;b.vy=-Math.abs(b.vy);}
-   if(b.y<OY+ROWS*CELL+b.r&&b.y>OY-b.r){const minC=clamp(Math.floor((b.x-b.r-OX)/CELL),0,COLS-1),maxC=clamp(Math.floor((b.x+b.r-OX)/CELL),0,COLS-1),minR=clamp(Math.floor((b.y-b.r-OY)/CELL),0,ROWS-1),maxR=clamp(Math.floor((b.y+b.r-OY)/CELL),0,ROWS-1);let hit;for(let r=minR;r<=maxR&&!hit;r++)for(let c=minC;c<=maxC;c++){const cell=this.grid.get(r*COLS+c);if(cell&&circleRect(b.x,b.y,b.r,cell)){hit=cell;break;}}if(hit){if(hit.type!=='wall')this.damage(hit);if(!(this.time<this.fireUntil&&hit.type==='brick')){let nx=b.x-clamp(b.x,hit.x,hit.x+hit.w),ny=b.y-clamp(b.y,hit.y,hit.y+hit.h),distance=Math.hypot(nx,ny);if(distance>1e-8){nx/=distance;ny/=distance;b.x+=nx*(b.r-distance+.02);b.y+=ny*(b.r-distance+.02);}else{const edges=[{d:Math.abs(b.x-hit.x),x:-1,y:0},{d:Math.abs(hit.x+hit.w-b.x),x:1,y:0},{d:Math.abs(b.y-hit.y),x:0,y:-1},{d:Math.abs(hit.y+hit.h-b.y),x:0,y:1}].sort((a,b)=>a.d-b.d);nx=edges[0].x;ny=edges[0].y;b.x+=nx*(edges[0].d+b.r+.02);b.y+=ny*(edges[0].d+b.r+.02);}const dot=b.vx*nx+b.vy*ny;if(dot<0){b.vx-=2*dot*nx;b.vy-=2*dot*ny;}if(hit.type==='wall'&&this.time-this.lastHit>5){const a=(this.random()-.5)*.09,c=Math.cos(a),s=Math.sin(a),vx=b.vx;b.vx=vx*c-b.vy*s;b.vy=vx*s+b.vy*c;const inward=b.vx*nx+b.vy*ny;if(inward<0){b.vx-=2*inward*nx;b.vy-=2*inward*ny;}}}}}
-   if(Math.abs(b.vy)<35){b.vy=(b.vy<0?-1:1)*35;b.vx=(b.vx<0?-1:1)*Math.sqrt(Math.max(0,this.speed()**2-35**2));}
-   if(Math.abs(b.vx)<18){b.vx=(b.vx<0?-1:1)*18;b.vy=(b.vy<0?-1:1)*Math.sqrt(Math.max(0,this.speed()**2-18**2));}
-  }}this.balls=this.balls.filter(b=>b.y<H+12&&Number.isFinite(b.x+b.y+b.vx+b.vy));for(const d of this.drops){d.y+=96*dt;if(d.y>=p.y-11&&d.y<=p.y+10&&Math.abs(d.x-p.x)<p.w/2+10){this.power(d.kind);d.y=H+40;}}this.drops=this.drops.filter(d=>d.y<H+16);this.checkWin();if(!this.balls.length&&this.status==='playing'){this.lives--;this.drops=[];this.shots=[];this.shootUntil=0;if(this.lives<=0){this.status='over';this.emit({type:'over'});}else{this.status='ready';this.emit({type:'lost'});}}
+  const world={
+   bounds:{width:W,floor:this.time<this.floorUntil?H-11:undefined},paddle,speed:this.speed(),
+   colliders:(b,remaining)=>this.colliders(b,remaining),
+   impact:cell=>{if(cell.type!=='wall')this.damage(cell);},
+   pierce:cell=>this.time<this.fireUntil&&cell.type==='brick',
+   bounce:()=>this.emit({type:'bounce'}),
+   // Only a development harness can supply a trace callback. No public URL,
+   // menu or completion shortcut enables it in the application.
+   trace:this.physicsTrace,
+   exhausted:detail=>{this.physicsExhaustions=(this.physicsExhaustions||0)+1;this.lastPhysicsExhaustion=detail;},
+  };
+  for(const b of this.balls){
+   if(this.physicsTrace){
+    if(!b.diagnosticId)b.diagnosticId=this.physicsNextBallId=(this.physicsNextBallId||0)+1;
+    world.trace=event=>this.physicsTrace({...event,ballId:b.diagnosticId});
+   }
+   advanceCircle(b,dt,world);
+  }
+  p.x+=movement;
+  this.balls=this.balls.filter(b=>b.y<H+12&&Number.isFinite(b.x+b.y+b.vx+b.vy));
+  for(const d of this.drops){
+   d.y+=96*dt;
+   if(d.y>=p.y-11&&d.y<=p.y+10&&Math.abs(d.x-p.x)<p.w/2+10){this.power(d.kind);d.y=H+40;}
+  }
+  this.drops=this.drops.filter(d=>d.y<H+16);this.checkWin();
+  if(!this.balls.length&&this.status==='playing'){
+   this.lives--;this.drops=[];this.shots=[];this.shootUntil=0;
+   if(this.lives<=0){this.status='over';this.emit({type:'over'});}
+   else{this.status='ready';this.emit({type:'lost'});}
+  }
  }
 }

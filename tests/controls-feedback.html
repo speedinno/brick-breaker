@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>Control routing acceptance</title>
+<style>body{background:#14171c;color:#eee;font:14px system-ui;margin:20px}iframe{width:393px;height:852px;border:0}pre{white-space:pre-wrap}#result{font-size:16px}</style>
+<h1>Control routing acceptance</h1><p>Disposable localhost guest. Synthetic Pointer Events verify routing, not physical touch/capture or trackpad comfort.</p><pre id="result">Running…</pre><iframe title="Control test game" src="/"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'),out=document.querySelector('#result'),checks=[];
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const assert=(value,message)=>{if(!value)throw Error(message);};
+const doc=()=>frame.contentDocument,$=id=>doc().getElementById(id);
+async function until(fn,message){for(let i=0;i<200;i++){if(fn())return;await pause(25);}throw Error(message);}
+async function frames(count=6){for(let i=0;i<count;i++)await new Promise(resolve=>frame.contentWindow.requestAnimationFrame(resolve));}
+const snap=()=>{frame.contentWindow.dispatchEvent(new Event('pagehide'));return JSON.parse(frame.contentWindow.localStorage.getItem('brick-breaker-session-v3:guest'));};
+function pointer(target,type,id,x,y=500){target.dispatchEvent(new frame.contentWindow.PointerEvent(type,{bubbles:true,cancelable:true,pointerId:id,pointerType:'touch',isPrimary:id===11,clientX:x,clientY:y}));}
+function record(message){checks.push(message);out.textContent='Running…\n'+checks.join('\n');}
+let original;const names=['brick-breaker-v3:guest','brick-breaker-session-v3:guest','brick-breaker-help-seen-v1'];
+try{
+  await until(()=>$('homePlay')&&!$('homePlay').disabled,'Boot failed');
+  const storage=frame.contentWindow.localStorage;original=Object.fromEntries(names.map(key=>[key,storage.getItem(key)]));
+  for(const key of names)storage.removeItem(key);storage.setItem('brick-breaker-help-seen-v1','true');
+  frame.src='/?control-routing-fixture=1';
+  await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+  await until(()=>$('homePlay')&&!$('homePlay').disabled,'Fresh boot failed');
+  $('homePlay').click();await frames();$('launch').click();await until(()=>snap()?.status==='playing','Launch failed');
+  const x0=snap().paddleX;
+  pointer($('saveStatus'),'pointerdown',11,2);await frames();assert(Math.abs(snap().paddleX-x0)<1e-7,'Touch down jumped');
+  pointer($('saveStatus'),'pointermove',11,2,300);await frames();assert(Math.abs(snap().paddleX-x0)<1e-7,'Vertical touch drifted');
+  pointer($('remaining'),'pointerdown',12,350);pointer($('remaining'),'pointermove',12,390);await frames();assert(Math.abs(snap().paddleX-x0)<1e-7,'Second pointer stole control');
+  pointer($('saveStatus'),'pointermove',11,12);await frames();assert(snap().paddleX>x0,'Decorative HUD did not route movement');record('HUD drag, no pickup jump, vertical stability and second-pointer exclusion');
+  pointer($('saveStatus'),'pointermove',11,1000);await frames(24);const edge=snap().paddleX;
+  pointer($('saveStatus'),'pointermove',11,999);await frames();assert(snap().paddleX<edge,'Edge reversal dead zone');record('Clamped drag consumes excess movement and reverses immediately');
+  pointer($('goHome'),'pointerup',11,999);
+  $('goHome').dispatchEvent(new frame.contentWindow.PointerEvent('click',{bubbles:true,cancelable:true,pointerId:11,pointerType:'touch'}));
+  assert(!$('homeConfirm').open&&$('home').hidden,'Captured gameplay pointer clicked crossed Home');record('Crossed button release cannot trigger Home');
+  const released=snap().paddleX;pointer($('remaining'),'pointermove',12,10);await frames();assert(Math.abs(snap().paddleX-released)<1e-7,'Existing second finger inherited ownership');
+  pointer($('remaining'),'pointerup',12,10);pointer($('remaining'),'pointerdown',13,30);pointer($('remaining'),'pointermove',13,20);await frames();assert(snap().paddleX<released,'Fresh clutch failed');
+  $('pause').click();const stopped=snap().paddleX;pointer($('game'),'pointermove',13,300);await frames();assert(Math.abs(snap().paddleX-stopped)<1e-7,'Paused input moved paddle');
+  $('pause').click();await frames();assert(Math.abs(snap().paddleX-stopped)<1e-7,'Resume replayed stale gesture');record('Fresh clutch works; pause cancels old pointer without a resume jump');
+  const event=new frame.contentWindow.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true,ctrlKey:true});doc().body.dispatchEvent(event);assert(!event.defaultPrevented,'Modifier shortcut stolen');
+  $('goHome').click();assert($('homeConfirm').open,'Intentional UI gesture was suppressed');$('keepPlaying').click();record('Independent UI action and modifier shortcut remain available');
+  out.textContent='PASS · '+checks.length+' checks\n'+checks.join('\n');
+}catch(error){out.textContent='FAIL · '+error.message+'\n'+checks.join('\n');console.error(error);}
+finally{if(original){const storage=frame.contentWindow.localStorage;frame.src='about:blank';await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));for(const [key,value]of Object.entries(original)){if(value===null)storage.removeItem(key);else storage.setItem(key,value);}}}
+</script>
