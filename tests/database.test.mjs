@@ -1,6 +1,6 @@
+import {migrateGame} from './db-migrations.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {createDefinition,definitionHash} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
@@ -10,10 +10,7 @@ async function asUser(id,sql,args=[]){await db.exec(`set role authenticated;sele
 async function publish(level){const d=createDefinition(level);return (await db.query('select public.game_publish_level($1,$2::jsonb,$3,$4) as value',[level,JSON.stringify(d),canonicalLayout(d.layout),await definitionHash(d)])).rows[0].value;}
 before(async()=>{
  db=new PGlite();await db.exec(`create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;insert into auth.users values('${alice}'),('${bob}');`);
- await db.exec(await readFile(new URL('../supabase/migrations/202610210001_game.sql',import.meta.url),'utf8'));
- await db.exec(await readFile(new URL('../supabase/migrations/202610210002_catalog_budget.sql',import.meta.url),'utf8'));
- await db.exec(await readFile(new URL('../supabase/migrations/202610260001_time_ledger.sql',import.meta.url),'utf8'));
- await db.exec(await readFile(new URL('../supabase/migrations/202610260002_rewards_mastery.sql',import.meta.url),'utf8'));
+ await migrateGame(db);
  for(let n=1;n<=14;n++)await publish(n);
 });
 after(async()=>{await db?.close();});

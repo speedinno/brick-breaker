@@ -1,6 +1,6 @@
+import {migrateGame} from './db-migrations.mjs';
 import {before, after, test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 let db;
 const uuid = () => crypto.randomUUID();
@@ -25,10 +25,42 @@ async function identity() {
 before(async () => {
   db = new PGlite();
   await db.exec("create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;");
-  for (const name of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql','202610260002_rewards_mastery.sql']) await db.exec(await readFile(new URL('../supabase/migrations/' + name, import.meta.url), 'utf8'));
+  await migrateGame(db);
   await db.query("insert into public.game_catalog(version,level,definition,canonical_layout,layout_hash) values(3,1,'{}',$1,$2)", ['b'.repeat(2704), 'a'.repeat(64)]);
 });
 after(async () => db?.close());
+
+test('partial refunds revoke only their cumulative source amount and leave remaining time usable',async()=>{
+ const {user,run,device}=await identity(),lot=await grant(user,100000),id=uuid();
+ await db.query('select public.game_reverse_credit_partial($1,30000)',[lot]);
+ assert.equal((await state(user)).availableMs,70000);
+ await db.query('select public.game_reverse_credit_partial($1,20000)',[lot]);assert.equal((await state(user)).availableMs,70000);
+ await reserve(user,id,device,run,15000);assert.equal((await checkpoint(user,id,device,1000)).authorizationValid,true);
+ await settle(user,id,device,1000);assert.equal((await state(user)).availableMs,69000);
+});
+test('a partial refund during an issued lease revokes renewal without releasing held time twice',async()=>{
+ const {user,run,device}=await identity(),lot=await grant(user,100000),id=uuid();
+ await reserve(user,id,device,run,30000);await checkpoint(user,id,device,20000);
+ await db.query('select public.game_reverse_credit_partial($1,90000)',[lot]);
+ const stopped=await checkpoint(user,id,device,20000);assert.equal(stopped.authorizationValid,false);assert.equal(stopped.wallet.availableMs,0);assert.equal(stopped.wallet.reservedMs,10000);
+ await settle(user,id,device,25000);const wallet=await state(user);assert.equal(wallet.availableMs,0);assert.equal(wallet.reservedMs,0);assert.equal(wallet.refundedConsumedMs,15000);
+ const row=(await db.query('select * from public.game_credit_lots where id=$1',[lot])).rows[0];assert.equal(Number(row.reversed_ms),75000);assert.equal(Number(row.consumed_ms),25000);
+});
+test('full refund after partial refund is cumulative and cannot claw an unrelated lot',async()=>{
+ const {user}=await identity(),lot=await grant(user,100000);await grant(user,1000);
+ await db.query('select public.game_reverse_credit_partial($1,30000)',[lot]);await db.query('select public.game_reverse_credit($1)',[lot]);await db.query('select public.game_reverse_credit_partial($1,10000)',[lot]);
+ assert.equal((await state(user)).availableMs,1000);assert.equal((await state(user)).refundedConsumedMs,0);
+});
+test('partial refund boundaries agree with an independent final-balance model',async()=>{
+ let seed=84213;const random=max=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed%max;};
+ for(let n=0;n<30;n++){
+  const {user,run,device}=await identity(),lot=await grant(user,100000),id=uuid(),before=random(15001),after=before+random(30001-before),refund=random(100001);
+  await reserve(user,id,device,run,30000);await checkpoint(user,id,device,before);
+  await db.query('select public.game_reverse_credit_partial($1,$2)',[lot,refund]);await settle(user,id,device,after);
+  const wallet=await state(user);assert.equal(wallet.availableMs,Math.max(0,100000-after-refund));assert.equal(wallet.refundedConsumedMs,Math.max(0,after-(100000-refund)));assert.equal(wallet.reservedMs,0);
+  await db.query('select public.game_reverse_credit_partial($1,$2)',[lot,Math.floor(refund/2)]);assert.equal((await state(user)).availableMs,wallet.availableMs);
+ }
+});
 
 test('wallet RLS exposes only its owner; grants, reversals and settlement primitive are private', async () => {
   const a = await identity(), b = await identity(); await grant(a.user, 30000); await grant(b.user, 90000);
@@ -39,6 +71,7 @@ test('wallet RLS exposes only its owner; grants, reversals and settlement primit
     `select public.game_credit_verified('${a.user}','intro','forged',30000,'web','x')`,
     `select public.game_apply_time('${uuid()}','${a.device}',0,true,false)`,
     `select public.game_reverse_credit('${uuid()}')`,
+    `select public.game_reverse_credit_partial('${uuid()}',1)`,
   ]) await assert.rejects(() => asUser(a.user, sql), /permission denied/);
 });
 

@@ -1,6 +1,6 @@
+import {migrateGame} from './db-migrations.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {createDefinition,definitionHash} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
@@ -15,7 +15,7 @@ async function start(user,level=1){const id=crypto.randomUUID();await rpc(user,'
 async function finish(user,level=1,{id,mode='play',losses=0,seconds=2}={}){id??=await start(user,level);const stage=stages.get(level);const state=await rpc(user,'game_complete($1,$2,$3,$4,$5,$6,$7)',[id,stage.hash,stage.score,seconds,10,mode,losses]);return{id,state};}
 before(async()=>{
  db=new PGlite();await db.exec("create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;");
- for(const file of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql','202610260002_rewards_mastery.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'));
+ await migrateGame(db);
  for(let level=1;level<=12;level++){const d=createDefinition(level),hash=await definitionHash(d);await db.query('select public.game_publish_level($1,$2::jsonb,$3,$4)',[level,JSON.stringify(d),canonicalLayout(d.layout),hash]);stages.set(level,{hash,score:[...d.layout].filter(c=>c==='b'||c==='g').length*10+1000});}
 });
 after(async()=>db?.close());

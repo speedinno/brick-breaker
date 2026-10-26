@@ -1,12 +1,15 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.118.0';
 import {createDefinition,validateCatalogDefinition,canonicalLayout,definitionHash,structuralDistance} from '../_shared/catalog.js';
-import {readLimitedJson,RequestError} from '../_shared/request.js';
+import {readLimitedJson,readLimitedBytes,parseJsonObject,RequestError} from '../_shared/request.js';
 import {nativeCommerce,nativeCatalog,persistVerifiedPurchase} from '../_shared/native-commerce.js';
 import {equalSecret,PurchaseVerificationError} from '../_shared/revenuecat.js';
+import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebCheckout,webhookWebPayment} from '../_shared/web-commerce.js';
+import {verifyHmac,WebCheckoutError} from '../_shared/razorpay.js';
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
 const commerce=nativeCommerce((key:string)=>Deno.env.get(key));
+const webBilling=webCommerce((key:string)=>Deno.env.get(key));
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
@@ -40,6 +43,22 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'600'}});
   if(request.method!=='POST')return reply({error:'POST required'},405);
   try{
+    if(new URL(request.url).pathname.endsWith('/webhooks/razorpay')){
+      if(!webBilling)return reply({error:'Web checkout is not configured'},503);
+      const bytes=await readLimitedBytes(request),signature=request.headers.get('X-Razorpay-Signature');
+      const valid=await Promise.all(webBilling.secrets.map(secret=>verifyHmac(bytes,signature,secret)));
+      if(!valid.some(Boolean))return reply({error:'Webhook authentication required'},401);
+      const body=parseJsonObject(bytes);
+      if(body.account_id!==webBilling.provider.merchantId)return reply({error:'Webhook account mismatch'},403);
+      if(!['payment.captured','payment.authorized','payment.failed','order.paid','refund.processed','refund.failed'].includes(String(body.event)))return reply({ignored:true});
+      const payload=body.payload as {payment?:{entity?:{id?:unknown}},refund?:{entity?:{payment_id?:unknown,amount?:unknown}}}|undefined;
+      const paymentId=payload?.payment?.entity?.id??payload?.refund?.entity?.payment_id;
+      if(typeof paymentId!=='string')return reply({ignored:true});
+      const amount=payload?.refund?.entity?.amount;
+      const minimumRefund=body.event==='refund.processed'&&Number.isSafeInteger(amount)&&Number(amount)>0?Number(amount):0;
+      const result=await webhookWebPayment(webBilling,admin,paymentId,{minimumRefund});
+      return reply({processed:!('ignored' in result&&result.ignored)});
+    }
     if(new URL(request.url).pathname.endsWith('/webhooks/revenuecat')){
       if(!await equalSecret(request.headers.get('Authorization'),Deno.env.get('REVENUECAT_WEBHOOK_AUTH')))return reply({error:'Webhook authentication required'},401);
       if(!commerce)return reply({error:'Purchase verification is not configured'},503);
@@ -60,7 +79,7 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
     if(body.action==='purchase-catalog'){
       if(!['android','ios','web'].includes(String(body.platform)))return reply({error:'Unknown game edition'},400);
-      if(body.platform==='web')return reply({available:false,reason:'Web checkout is not configured yet.'});
+      if(body.platform==='web')return reply(!webBilling?{available:false,reason:'Web checkout is not configured yet.'}:webBilling.origins.has(origin||'')?await webCatalog(webBilling,admin):{available:false,reason:'Purchases are available only in the official game edition.'});
       return reply(await nativeCatalog(commerce,admin,body.platform));
     }
     if(body.action==='purchase-sync'){
@@ -75,6 +94,28 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
       if(records.some(r=>r.user!==user.id))return reply({error:'This purchase belongs to another game account.'},409);
       const results=[];for(const receipt of records)results.push(await persistVerifiedPurchase(admin,receipt));
       return reply({verified:results.some(r=>r.state==='owned'),refunded:results.some(r=>r.state==='refunded'),deletedAccountPurchase:results.some(r=>r.state==='account-deleted'),wallet:await rpc('game_time_state')});
+    }
+    if(typeof body.action==='string'&&body.action.startsWith('purchase-web-')){
+      if(!webBilling?.origins.has(origin||''))return reply({error:'Checkout is unavailable in this game edition.'},403);
+      if(body.action==='purchase-web-sync'){
+        if(body.after!==null&&body.after!==undefined&&!safeUuid(body.after))return reply({error:'Invalid purchase recovery cursor'},400);
+        let query=admin.from('game_web_orders').select('*').eq('owner_user_id',user.id).eq('scope',webBilling.provider.scope).eq('environment',webBilling.provider.environment).order('id',{ascending:true}).limit(5);
+        if(body.after)query=query.gt('id',body.after);
+        const rows=await query;if(rows.error)throw new WebCheckoutError('Could not read purchase recovery. Try again later.');
+        const results=await Promise.all((rows.data||[]).map(intent=>recoverWebCheckout(webBilling,admin,intent)));
+        return reply({next:rows.data?.length===5?rows.data.at(-1)?.id:null,processed:results.length,wallet:await rpc('game_time_state')});
+      }
+      if(!safeUuid(body.intentId))return reply({error:'Invalid checkout ID'},400);
+      if(body.action==='purchase-web-order'){
+        if(!safeUuid(body.priceId))return reply({error:'Invalid time pack'},400);
+        return reply(await prepareWebCheckout(webBilling,admin,user.id,body.intentId,body.priceId));
+      }
+      const intent=await findWebIntent(webBilling,admin,body.intentId,user.id);
+      if(body.action==='purchase-web-confirm'||body.action==='purchase-web-status'){
+        const result=await recoverWebCheckout(webBilling,admin,intent,body.action==='purchase-web-confirm'?{paymentId:body.paymentId,signature:body.signature,requireSignature:true}:{});
+        return reply({...result,wallet:await rpc('game_time_state')});
+      }
+      return reply({error:'Unknown checkout action'},400);
     }
     if(typeof body.action==='string'&&body.action.startsWith('time-')){
       if(body.action==='time-state')return reply(await rpc('game_time_state'));
@@ -135,7 +176,7 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     }
     return reply({error:'Unknown action'},400);
   }catch(error){
-    if(error instanceof PurchaseVerificationError)return reply({error:error.message},503);
+    if(error instanceof PurchaseVerificationError||error instanceof WebCheckoutError)return reply({error:error.message},503);
     if(error instanceof RequestError)return reply({error:error.message},error.status);
     const message=error instanceof Error?error.message:'Cloud request failed';
     // Known SQL/business errors contain no credentials. Do not return stack

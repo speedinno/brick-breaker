@@ -1,26 +1,32 @@
+import {migrateGame} from './db-migrations.mjs';
 // Disposable localhost integration fixture. Loaded only by server.mjs when
 // QA_FIXTURES=1. No production credentials, store transaction or ad event.
 import {PGlite} from '@electric-sql/pglite';
-import {readFile} from 'node:fs/promises';
 import {createDefinition, definitionHash} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
+import {createWebCommerceFixture} from './web-commerce-fixture.mjs';
 const user = '11111111-1111-4111-8111-111111111111';
-let db, queue = Promise.resolve();
-async function initialize(milliseconds = 60000) {
+let db, commerceFixture, queue = Promise.resolve();
+async function initialize(milliseconds = 60000, commerce=false) {
   await db?.close(); db = new PGlite();
   await db.exec(`create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;insert into auth.users values('${user}');`);
-  for (const name of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql','202610260002_rewards_mastery.sql']) await db.exec(await readFile(new URL('../supabase/migrations/'+name, import.meta.url), 'utf8'));
+  await migrateGame(db);
   for (let level=1;level<=12;level++) {
     const definition=createDefinition(level);
     await db.query('select public.game_publish_level($1,$2::jsonb,$3,$4)',[level,JSON.stringify(definition),canonicalLayout(definition.layout),await definitionHash(definition)]);
   }
   if(milliseconds>0)await db.query("select public.game_credit_verified($1,'intro','localhost-fixture',$2,'server','fixture-v1')",[user,milliseconds]);
+  commerceFixture=commerce?await createWebCommerceFixture(db,user):null;
 }
 async function handle(body) {
-  if(body.action==='qa-reset'){await initialize(Number.isSafeInteger(body.milliseconds)&&body.milliseconds>=0?body.milliseconds:60000);return {fixture:true};}
+  if(body.action==='qa-reset'){await initialize(Number.isSafeInteger(body.milliseconds)&&body.milliseconds>=0?body.milliseconds:60000,body.commerce===true);return {fixture:true};}
   if(!db)await initialize();
   if(body.accountId!==user)throw Error('Test identity mismatch');
   if(body.action==='qa-ledger')return (await db.query('select kind,sum(amount_ms)::integer as ms from public.game_time_ledger group by kind')).rows;
+  if(body.action?.startsWith('purchase-')||body.action==='qa-commerce-capture'){
+    if(!commerceFixture){if(body.action==='purchase-catalog')return{available:false,reason:'Local fixture purchases are disabled.'};throw Error('Local fixture purchases are disabled');}
+    return commerceFixture.handle(body);
+  }
   await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${user}',false);`);
   async function rpc(sql,args=[]){return (await db.query('select public.'+sql+' as value',args)).rows[0].value;}
   try{

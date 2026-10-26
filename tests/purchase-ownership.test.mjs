@@ -1,6 +1,6 @@
+import {migrateGame} from './db-migrations.mjs';
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {createDefinition,definitionHash} from '../dist/catalog.js';
 import {canonicalLayout} from '../dist/generated.js';
@@ -11,7 +11,7 @@ async function record(user,transaction=crypto.randomUUID(),{state='owned',produc
 async function balance(user){return(await rpc(user,'game_time_state()')).availableMs;}
 before(async()=>{
  db=new PGlite();await db.exec("create schema auth;create table auth.users(id uuid primary key);create role anon;create role authenticated;create role service_role bypassrls;grant usage on schema public,auth to anon,authenticated,service_role;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;");
- for(const name of ['202610210001_game.sql','202610210002_catalog_budget.sql','202610260001_time_ledger.sql','202610260002_rewards_mastery.sql','202610260003_purchase_ownership.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+name,import.meta.url),'utf8'));
+ await migrateGame(db);
  await db.exec("insert into public.game_purchase_products(provider,scope,environment,product_id,platform,benefit_key,milliseconds,config_version,available) values('revenuecat','play_store:app123','production','pack300','android','time_300',300000,'purchase-v1',true),('revenuecat','play_store:app123','sandbox','pack300','android','time_300',300000,'purchase-v1',true),('revenuecat','play_store:app123','production','pack900','android','time_900',900000,'purchase-v2',true);");
  const d=createDefinition(1);await db.query('select public.game_publish_level(1,$1::jsonb,$2,$3)',[JSON.stringify(d),canonicalLayout(d.layout),await definitionHash(d)]);
 });

@@ -3,6 +3,7 @@ import {bindPaddleEvents,isInteractive} from './control-events.js';
 import {AssistanceSession} from './assistance.js';
 import {AssistancePanel} from './assistance-ui.js';
 import {PurchaseService} from './purchases.js';
+import {WebPurchaseService} from './web-purchases.js';
 import {PurchasePanel} from './purchases-ui.js';
 import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
@@ -100,8 +101,8 @@ function createAssistance(){
 }
 assistance=createAssistance();
 const assistancePanel=new AssistancePanel({bank:assistance,cloud,open:openDialog,close:closeDialog,signIn:()=>account.show(),activate:beginAssistance});
-const purchases=new PurchaseService({cloud,storage,platform:native?Capacitor.getPlatform():'web'});
-const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!assistancePanel.busy&&!assistance.starting&&!assistance.active,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();}});
+const purchases=native?new PurchaseService({cloud,storage,platform:Capacitor.getPlatform()}):new WebPurchaseService({cloud,storage});
+const purchasePanel=new PurchasePanel({service:purchases,cloud,canStart:()=>!assistancePanel.busy&&!assistance.starting&&!assistance.active,onBusy:busy=>{assistancePanel.checkoutBusy=busy;assistancePanel.render();},onWallet:wallet=>{assistance.wallet=wallet;assistancePanel.render();},externalStart:()=>{const token={game,authEpoch,loadEpoch,homeHidden:$('home').hidden};closeDialog('assist');return token;},externalEnd:token=>{if(token&&token.game===game&&token.authEpoch===authEpoch&&token.loadEpoch===loadEpoch&&token.homeHidden===$('home').hidden&&paused&&!document.querySelector('dialog[open]'))openDialog('assist');}});
 assistancePanel.purchases=purchasePanel;
 setInterval(()=>{if(assistance.active&&!assistance.flushing)void assistance.flush().catch(()=>{});},1000);
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400);}

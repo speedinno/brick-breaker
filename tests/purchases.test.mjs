@@ -54,7 +54,7 @@ test('restore paginates authoritative history and synchronizes an existing balan
 });
 test('recovery cannot loop forever or erase a still-unverified receipt',async()=>{
  const t=setup();await t.service.load();t.service.journal('account-a',{transaction:'GPA.unknown'});t.cloud.api=async()=>({next:'same',wallet:{availableMs:0}});
- await assert.rejects(()=>t.service.recover(),/longer than expected/);assert.equal(t.service.pending('account-a').transaction,'GPA.unknown');
+ await assert.rejects(()=>t.service.recover(),/invalid page/);assert.equal(t.service.pending('account-a').transaction,'GPA.unknown');
 });
 test('storage failure prevents checkout before money can be charged',async()=>{
  const t=setup();await t.service.load();t.service.storage.setItem=()=>{throw Error();};

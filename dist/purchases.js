@@ -1,5 +1,6 @@
 // SDK callbacks do not change a balance. Only an authenticated, independently
 // verified backend response can update the shared bank.
+import {recoverPurchasePages} from './purchase-recovery.js';
 const changed=()=>Error('Your account changed. Reopen the time bank. Purchases stay with the account used at checkout.');
 export class PurchaseService {
  constructor({cloud,platform,storage,loadSDK=()=>import('./vendor/purchases.js')}){Object.assign(this,{cloud,platform,storage,loadSDK});this.items=[];this.busy=false;this.sdk=null;this.sdkOwner=null;this.configuration=null;this.catalogOwner=null;}
@@ -59,12 +60,9 @@ export class PurchaseService {
   const owner=this.cloud.userId;this.check(owner);
   if(!this.configuration?.available||this.catalogOwner!==owner)throw Error('Refresh the time packs before recovering purchases.');
   const sdk=await this.identified(owner,this.configuration);await sdk.Purchases.restorePurchases();this.check(owner);
-  let after=null,result,seen=new Set();
-  do{
-   result=await this.cloud.api('purchase-sync',{after});this.check(owner);
-   if(result.deletedAccountPurchase)throw Error('A receipt belongs to a deleted account. Contact support for purchase assistance.');
-   after=result.next??null;if(after&&(seen.has(after)||seen.size>=100))throw Error('Recovery is taking longer than expected. Reopen the time bank to continue.');if(after)seen.add(after);
-  }while(after);
+  const result=await recoverPurchasePages({cloud:this.cloud,owner,storage:this.storage,key:'brick-breaker-native-recovery-v1:'+owner+':'+(this.configuration.environment||'production'),action:'purchase-sync'});
+  if(result.deletedAccountPurchase)throw Error('A receipt belongs to a deleted account. Contact support for purchase assistance.');
+  if(!result.complete)return {state:'recovery-partial',wallet:result.wallet};
   const pending=this.pending(owner);
   if(pending?.transaction)return this.verify(owner,pending.transaction);
   return {state:'synced',wallet:result.wallet,pending:!!pending};
