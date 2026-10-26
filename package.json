@@ -11,6 +11,7 @@
     "build:web": "node scripts/build-web.mjs",
     "configure:cloud": "node scripts/configure-cloud.mjs",
     "configure:ads": "node scripts/configure-ads.mjs",
+    "migrate:database": "node scripts/migrate-database.mjs",
     "recover:disputes": "node scripts/reconcile-web-disputes.mjs",
     "recover:privacy": "node scripts/reconcile-privacy.mjs",
     "report:commercial": "node scripts/commercial-report.mjs",

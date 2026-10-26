@@ -102,10 +102,13 @@ signing files are not uploaded to the build service. The script loads keys
 without printing them and places them in Azure Container Apps secrets. The
 Resend key belongs in Supabase's custom SMTP settings; this API does not use it.
 
-Apply **both** `supabase/migrations/*.sql` migrations to the new project before
-deployment. If using the Supabase CLI, sign in with the current CLI, link the
-correct project, and run `supabase db push`. A previous expired CLI access token
-must be replaced by the owner; do not reset an existing production database.
+Apply the pending migrations through 015 before deployment using the
+[checksum-tracked database runner](DATABASE-MIGRATIONS.md). Its default mode is
+read-only. The original two migrations were run manually in this project;
+use the documented baseline adoption option instead of rerunning them.
+This runner has its own private journal and does not populate Supabase CLI
+history. Reconcile that history before any later `supabase db push`; do not
+reset an existing production database.
 
 ## Deploy
 
