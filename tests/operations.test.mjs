@@ -29,7 +29,8 @@ test('player/anonymous roles cannot acquire worker authority, read journals or r
  await db.exec('set role service_role');try{assert.equal((await scalar('select game_operation_status() as value')).adReviews,0);}finally{await db.exec('reset role');}
 });
 test('the real worker runs bounded maintenance with no provider keys or external request and preserves unrelated task results',async()=>{
- const result=await runOperations({admin,settings,batch:2,request:()=>{throw Error('No external request expected');}});assert.deepEqual(result.tasks.map(t=>t.kind),['ad_reconcile','metrics_prune']);assert(result.tasks.every(t=>t.outcome==='success'));assert.equal(result.configuration.privacy,false);assert.equal(result.configuration.web,false);assert(!JSON.stringify(result).includes('fixture.example'));
+ await db.query("update game_operation_jobs set finished_at=now()-interval '1 day' where job_key='lease-test'");
+ const result=await runOperations({admin,settings,batch:2,request:()=>{throw Error('No external request expected');}});assert.deepEqual(result.tasks.map(t=>t.kind),['ad_reconcile','metrics_prune']);assert(result.tasks.every(t=>t.outcome==='success'));assert.equal(result.configuration.privacy,false);assert.equal(result.configuration.web,false);assert(!JSON.stringify(result).includes('fixture.example'));assert(!result.issues.includes('job_overdue'));assert.equal(result.failed,false);
  const broken=name=>name==='PRIVACY_REVENUECAT_KEYS_JSON'?'["invalid"]':settings(name),invalid=await runOperations({admin,settings:broken,batch:2});assert(invalid.tasks.some(t=>t.kind==='privacy_configuration'&&t.outcome==='error'));assert(invalid.tasks.some(t=>t.kind==='metrics_prune'&&t.outcome==='success'));assert.equal(invalid.failed,true);
 });
 test('a lost discovery SQL response replays its database journal and observation ID without invalidating cleanup twice',async()=>{

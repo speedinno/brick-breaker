@@ -13,13 +13,47 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
+$azureApiVersion = '2026-07-01'
+. (Join-Path $PSScriptRoot 'azure-profile.ps1')
 
 function Invoke-Azure {
     param([string[]]$Arguments)
     # Explicit subscription on EVERY operation; never switch the CLI default.
-    $raw = & az @Arguments --subscription $SubscriptionId --only-show-errors --output json
-    if ($LASTEXITCODE -ne 0) { throw "Azure CLI operation failed: $($Arguments[0]) $($Arguments[1]). Check the preceding Azure error." }
-    if ($raw) { ($raw -join "`n") | ConvertFrom-Json }
+    $command = Get-Command az -ErrorAction Stop
+    if ($command.CommandType -eq 'Application') {
+        $start = [Diagnostics.ProcessStartInfo]::new(); $start.UseShellExecute=$false; $start.CreateNoWindow=$true
+        if ([IO.Path]::GetExtension($command.Source) -eq '.cmd') {
+            $start.FileName=Join-Path (Split-Path (Split-Path $command.Source -Parent) -Parent) 'python.exe'
+            if (!(Test-Path -LiteralPath $start.FileName)) { throw 'Cannot locate the installed Azure CLI runtime.' }
+            $start.ArgumentList.Add('-IBm'); $start.ArgumentList.Add('azure.cli')
+        } else { $start.FileName=$command.Source }
+        foreach ($item in ($Arguments+@('--subscription',$SubscriptionId,'--only-show-errors','--output','json'))) { $start.ArgumentList.Add($item) }
+        $start.RedirectStandardOutput=$true; $start.RedirectStandardError=$true
+        $process=[Diagnostics.Process]::new(); $process.StartInfo=$start
+        try {
+            $process.Start() | Out-Null; $stdout=$process.StandardOutput.ReadToEndAsync(); $stderr=$process.StandardError.ReadToEndAsync(); $process.WaitForExit()
+            $raw=$stdout.GetAwaiter().GetResult(); $diagnostic=$stderr.GetAwaiter().GetResult()
+            if ($process.ExitCode -ne 0) {
+                if ($diagnostic -match 'AADSTS|az login|Please run|Refresh Token') { throw 'Azure authentication needs renewal. Sign in with Azure CLI and retry.' }
+                throw "Azure CLI operation failed: $($Arguments[0]) $($Arguments[1]). Private diagnostics are not printed."
+            }
+        } finally { $process.Dispose() }
+    } else {
+        # Unit tests supply a local az function; no shell/network is used.
+        $raw = & az @Arguments --subscription $SubscriptionId --only-show-errors --output json
+        if ($LASTEXITCODE -ne 0) { throw "Azure CLI operation failed: $($Arguments[0]) $($Arguments[1])." }
+    }
+    if ($raw) { try { ($raw -join "`n") | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Azure CLI returned an invalid JSON response. Private output is not printed.' } }
+}
+
+function Invoke-AzurePayload {
+    param([string]$Url,$Payload)
+    $temporary=[IO.Path]::GetTempFileName()
+    try {
+        if (!$IsWindows) { [IO.File]::SetUnixFileMode($temporary,([IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite)) }
+        [IO.File]::WriteAllText($temporary,($Payload | ConvertTo-Json -Depth 60),[Text.UTF8Encoding]::new($false))
+        Invoke-Azure -Arguments @('rest','--method','put','--url',$Url,'--body',('@'+$temporary),'--headers','Content-Type=application/json')
+    } finally { Remove-Item -LiteralPath $temporary -ErrorAction SilentlyContinue }
 }
 
 if ($SubscriptionId -eq 'acd1c944-4dfe-4258-aeba-87356ecf6b2e') { throw 'Sigzio Dev is explicitly excluded from this deployment.' }
@@ -33,11 +67,11 @@ $planInfo = [ordered]@{
     subscription = $account.name; subscriptionId = $account.id; location = $Location
     resourceGroup = $ResourceGroup; registry = $RegistryName; environment = $EnvironmentName
     app = $AppName; image = "${RegistryName}.azurecr.io/brick-breaker-api:$imageTag"
-    source = $source; minReplicas = $MinReplicas; maxReplicas = 2; cpu = 0.5; memory = '1Gi'
+    source = $source; armApiVersion=$azureApiVersion; minReplicas = $MinReplicas; maxReplicas = 2; cpu = 0.5; memory = '1Gi'
     build = 'Azure Container Registry Tasks (no GitHub Actions or local Docker)'
 }
 if ($Plan) { $planInfo | ConvertTo-Json; return }
-$dirtyApi = & git -C $repoRoot status --porcelain --untracked-files=normal -- supabase/functions Dockerfile.api .dockerignore scripts/deploy-api.ps1
+$dirtyApi = & git -C $repoRoot status --porcelain --untracked-files=normal -- supabase/functions Dockerfile.api .dockerignore scripts/deploy-api.ps1 scripts/azure-profile.ps1 scripts/operations.mjs scripts/run-operations.mjs scripts/dispute-recovery.mjs scripts/privacy-discovery.mjs scripts/private-settings.mjs
 if ($dirtyApi) { throw 'Commit the API/container/deployment changes before deploying so the image tag identifies its source.' }
 
 if (!(Test-Path -LiteralPath $SecretsFile -PathType Leaf)) { throw 'Create the ignored .env.api file using .env.api.example first. Do not pass keys on the command line.' }
@@ -71,6 +105,9 @@ foreach ($nativeOrigin in @('https://localhost', 'capacitor://localhost')) {
     if ($nativeOrigin -notin $configuredOrigins) { throw "ALLOWED_ORIGINS must include $nativeOrigin for mobile builds." }
 }
 $origins = $configuredOrigins -join ','
+$settings.ALLOWED_ORIGINS=$origins; $settings.SUPABASE_URL=$projectUrl.AbsoluteUri.TrimEnd('/')
+# Validate explicitly supplied provider settings before any provisioning/build.
+$initialState=New-AzureEnvironmentState -Settings $settings
 
 # Fail before provisioning if the supplied keys do not reach the project.
 # Values are passed only in headers and are never printed or written to receipts.
@@ -82,8 +119,13 @@ $backend = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth
 if ($backend.StatusCode -ne 200) { throw 'Supabase server credential validation failed. Check the project URL and server secret/service-role key.' }
 $publicSettings = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/auth/v1/settings') -Headers @{ apikey = $settings.SUPABASE_ANON_KEY } -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
 if ($publicSettings.StatusCode -ne 200) { throw 'Supabase public key validation failed.' }
-$schema = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/rest/v1/game_players?select=user_id,catalog_window,catalog_requests&limit=0') -Headers $healthHeaders -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
-if ($schema.StatusCode -ne 200) { throw 'Apply both Supabase migrations before deploying the API. Required player/quota columns were not accessible.' }
+foreach ($table in @('game_players','game_time_reservations','game_purchases','game_web_disputes','game_native_financial_observations','game_metric_preferences','game_operation_jobs')) {
+    $schema = Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + "/rest/v1/${table}?select=*&limit=0") -Headers $healthHeaders -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
+    if ($schema.StatusCode -ne 200) { throw 'Apply all pending game migrations through operational recovery (015) before deploying this API. Do not rerun the initial schema.' }
+}
+$operationStatus=Invoke-WebRequest -Uri ($projectUrl.AbsoluteUri.TrimEnd('/') + '/rest/v1/rpc/game_operation_status') -Method Post -ContentType 'application/json' -Body '{}' -Headers $healthHeaders -UserAgent $deploymentAgent -SkipHttpErrorCheck -TimeoutSec 20
+if ($operationStatus.StatusCode -ne 200) { throw 'Operational schema/RPC preflight failed. Apply the pending migrations before deployment.' }
+try { $operationHealth=$operationStatus.Content | ConvertFrom-Json -ErrorAction Stop; if ($operationHealth.jobs -isnot [array]) { throw 'Missing jobs' } } catch { throw 'Operational schema preflight returned an invalid status.' }
 
 foreach ($provider in @('Microsoft.App', 'Microsoft.ContainerRegistry', 'Microsoft.ManagedIdentity')) {
     Write-Host "Ensuring resource provider: $provider"
@@ -97,6 +139,16 @@ if ($groupExists) {
     Invoke-Azure -Arguments @('group', 'create', '--name', $ResourceGroup, '--location', $Location, '--tags', 'application=brick-breaker') | Out-Null
 }
 $resources = @(Invoke-Azure -Arguments @('resource', 'list', '--resource-group', $ResourceGroup))
+$existingApp=$null; $existingSecrets=@()
+if ($resources.Where({ $_.type -eq 'Microsoft.App/containerApps' -and $_.name -eq $AppName })) {
+    $existingApp=Invoke-Azure -Arguments @('containerapp','show','--name',$AppName,'--resource-group',$ResourceGroup)
+    $existingSecrets=@(Invoke-Azure -Arguments @('containerapp','secret','list','--name',$AppName,'--resource-group',$ResourceGroup,'--show-values'))
+}
+$resolvedState=New-AzureEnvironmentState -Settings $settings -ExistingResource $existingApp -ExistingSecrets $existingSecrets
+if (($resolvedState.Variables | Where-Object name -eq 'PLAY_METRICS_ENABLED').value -eq 'true') {
+    $recentPrune=@($operationHealth.jobs | Where-Object { $_.kind -eq 'metrics_prune' -and $_.lastSuccessAt -and [DateTimeOffset]::Parse($_.lastSuccessAt) -gt [DateTimeOffset]::UtcNow.AddMinutes(-20) })
+    if (!$recentPrune.Count) { throw 'Optional analytics needs a recently successful retention worker before enabling collection. Keep PLAY_METRICS_ENABLED=false until operations are verified.' }
+}
 if (!$resources.Where({ $_.type -eq 'Microsoft.ContainerRegistry/registries' -and $_.name -eq $RegistryName })) {
     Write-Host 'Creating a private container registry.'
     Invoke-Azure -Arguments @('acr', 'create', '--resource-group', $ResourceGroup, '--name', $RegistryName, '--location', $Location, '--sku', 'Basic', '--admin-enabled', 'false') | Out-Null
@@ -114,15 +166,11 @@ $assignmentHash = [System.Security.Cryptography.SHA256]::HashData([Text.Encoding
 $assignmentName = [guid]::new([byte[]]$assignmentHash[0..15]).ToString()
 Invoke-Azure -Arguments @('role', 'assignment', 'create', '--name', $assignmentName, '--assignee-object-id', $identity.principalId, '--assignee-principal-type', 'ServicePrincipal', '--role', 'AcrPull', '--scope', $registry.id) | Out-Null
 $image = "$($registry.loginServer)/brick-breaker-api:$imageTag"
-$secretArgs = @("supabase-public=$($settings.SUPABASE_ANON_KEY)", "supabase-service=$($settings.SUPABASE_SERVICE_ROLE_KEY)")
-$envArgs = @("SUPABASE_URL=$($projectUrl.AbsoluteUri.TrimEnd('/'))", 'SUPABASE_ANON_KEY=secretref:supabase-public', 'SUPABASE_SERVICE_ROLE_KEY=secretref:supabase-service', "ALLOWED_ORIGINS=$origins", 'PORT=8000')
-if ($resources.Where({ $_.type -eq 'Microsoft.App/containerApps' -and $_.name -eq $AppName })) {
-    Invoke-Azure -Arguments (@('containerapp', 'secret', 'set', '--name', $AppName, '--resource-group', $ResourceGroup, '--secrets') + $secretArgs) | Out-Null
-    Invoke-Azure -Arguments (@('containerapp', 'update', '--name', $AppName, '--resource-group', $ResourceGroup, '--image', $image, '--min-replicas', "$MinReplicas", '--max-replicas', '2', '--set-env-vars') + $envArgs) | Out-Null
-} else {
-    Write-Host 'Creating the API Container App with managed-identity image pulls.'
-    Invoke-Azure -Arguments (@('containerapp', 'create', '--name', $AppName, '--resource-group', $ResourceGroup, '--environment', $EnvironmentName, '--image', $image, '--registry-server', $registry.loginServer, '--registry-identity', $identity.id, '--user-assigned', $identity.id, '--ingress', 'external', '--target-port', '8000', '--transport', 'http', '--cpu', '0.5', '--memory', '1Gi', '--min-replicas', "$MinReplicas", '--max-replicas', '2', '--secrets') + $secretArgs + @('--env-vars') + $envArgs) | Out-Null
-}
+$environmentId="/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.App/managedEnvironments/$EnvironmentName"
+$resourceId="/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroup/providers/Microsoft.App/containerApps/$AppName"
+$payload=New-ApiAzurePayload -Settings $settings -ExistingResource $existingApp -ExistingSecrets $existingSecrets -AppName $AppName -Location $Location -Image $image -EnvironmentId $environmentId -IdentityId $identity.id -RegistryServer $registry.loginServer -MinReplicas $MinReplicas
+Write-Host 'Applying the API image and private managed configuration.'
+Invoke-AzurePayload -Url "https://management.azure.com${resourceId}?api-version=$azureApiVersion" -Payload $payload | Out-Null
 $app = Invoke-Azure -Arguments @('containerapp', 'show', '--name', $AppName, '--resource-group', $ResourceGroup)
 $apiUrl = "https://$($app.properties.configuration.ingress.fqdn)"
 $healthy = $false

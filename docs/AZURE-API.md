@@ -4,6 +4,16 @@ This deployment hosts only the game API. Android and iPhone continue to use
 bundled game assets, Supabase Auth/Postgres, and Supabase SMTP backed by Resend.
 It does not publish a web game or use GitHub Actions.
 
+## Current source deployment changes — 27 October 2026
+
+The 21 October deployment below is historical. The current branch adds finite assistance, verified commerce and operational recovery; its migrations/API/worker are **not yet deployed**. The deployment script now refuses to build/roll out this API until all pending migrations through `202610270015_operational_recovery.sql` and the private status RPC are available. Do not rerun the two baseline migrations the owner already applied manually.
+
+`scripts/azure-profile.ps1` builds API and worker resource bodies. API updates preserve existing secret values/references, environment settings, traffic, ownership tags and managed identities; missing file values do not silently remove recovery credentials. It maps only approved provider settings from `.env.api`. Resend, Cloudflare, Supabase management and worker-only deletion keys are not newly copied into the API. Known server settings use Azure secret references. Optional analytics defaults off and cannot enable through the deploy script without a recently successful retention job.
+
+The API script sends secret-bearing changes through a private UTF-8 temporary request file, removes it on success/failure and keeps values out of process arguments, image builds, plans and receipts. Native Azure CLI execution uses its installed Python entry point directly on Windows, avoiding `az.cmd` argument re-interpretation. Raw CLI diagnostics that might expose private data are not printed. The pinned ARM API is `2026-07-01`, confirmed in this subscription's provider metadata. Response-only/null fields, transport casing and immutable revision suffixes are normalized before updating; explicit existing canary/custom-command/multi-container arrangements need separate review instead of being silently overwritten.
+
+Verification: local PowerShell tests exercise real payload/deployment code with fake Azure/HTTP boundaries, including fresh/update, secret retention/isolation, request-file cleanup after a rejected update, schema checks and the retention activation gate. A real read-only `-Plan` confirmed SpeedInno Org. Azure's **validation-only** ARM operation accepted the API and a new manual worker resource body using dummy credentials and the existing image after an initial read-shaped payload was rejected and corrected. This proves schema/preflight acceptance, **not a deployed image, running worker, changed production configuration or provider sandbox**. No resource deployment was requested. See [operational recovery](OPERATIONAL-RECOVERY.md) for the worker, callback and pending schedule/monitoring work.
+
 ## Verified deployment: 21 October 2026
 
 - API: https://ca-brick-breaker-api.braverock-ed05a525.centralindia.azurecontainerapps.io

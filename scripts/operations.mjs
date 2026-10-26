@@ -53,7 +53,8 @@ export async function runOperations({admin,settings,batch=20,halt=()=>false,requ
  for(const task of deferred)await run(task.kind,task.identity,task.work);
  const health=await rpc('game_operation_status'),issues=[];
  if(!health||!Array.isArray(health.jobs)||!['adReviews','adRetryExhausted','privacyManualReview','privacyDue','webPurchaseRecords','expiredMetricRows'].every(key=>Number.isSafeInteger(health[key])&&health[key]>=0))throw Error('Operations health is unavailable.');
- if(health.adReviews>0)issues.push('ad_review');if(health.adRetryExhausted>0)issues.push('ad_retry_exhausted');if(health.privacyManualReview>0)issues.push('privacy_manual_review');if(health.jobs.some(job=>job.overdue))issues.push('job_overdue');
+ const expectedKeys=new Set([operationKey('ad_reconcile',internal),operationKey('metrics_prune',internal),...deferred.map(task=>operationKey(task.kind,task.identity))]);
+ if(health.adReviews>0)issues.push('ad_review');if(health.adRetryExhausted>0)issues.push('ad_retry_exhausted');if(health.privacyManualReview>0)issues.push('privacy_manual_review');if(health.jobs.some(job=>expectedKeys.has(job.key)&&job.overdue))issues.push('job_overdue');
  if(health.privacyDue>0&&!providers.size)issues.push('privacy_configuration_missing');if(health.webPurchaseRecords>0&&!commerce)issues.push('web_configuration_missing');if(health.oldestExpiredMetricAt&&Date.parse(health.oldestExpiredMetricAt)<Date.now()-86400000)issues.push('retention_overdue');
  return{environment,tasks,configuration:{privacy:providers.size>0,privacyInvalid,web:Boolean(commerce)&&!webInvalid,webInvalid},health,issues,halted:halt(),failed:tasks.some(task=>task.outcome==='error')||issues.length>0};
 }

@@ -58,6 +58,8 @@ The service-only `game_operation_status()` returns heartbeat/lease status, manua
 
 Register the actual Azure scheduled job and monitoring rules, verify executions/heartbeat and configure the intended action group before enabling commerce/analytics. The current proposed overdue thresholds are 20 minutes since a registered task finished, and 24 hours for physically unpruned expired analytics. Export/analysis already excludes raw activity at its 90-day expiry. Alerts are not installed or delivered merely because the worker has a failure exit code. This checkpoint sends no operator email or other message.
 
+Only jobs expected by the current worker configuration contribute to its overdue alarm; retained metadata for a retired/unconfigured scan is not itself a permanent failure. Due cleanup or retained web receipts with missing provider configuration remain separately actionable. The Azure API/worker payload builders now exist, and real validation-only ARM checks accepted their schema with dummy credentials; the actual worker deployment/schedule/alert entry point and execution checks still follow.
+
 The health report warns if due provider cleanup has no keyring, or existing web receipts have no web configuration. It cannot reconcile an inaccessible provider or make a mixed database environment safe. Existing payment webhooks/client recovery still cover capture/refund/purchase synchronization; this worker currently adds **dispute** scans, not an invented universal provider settlement/refund export. Keep webhook health, purchase recovery and actual provider reconciliation in the activation checklist.
 
 ## Executed evidence
