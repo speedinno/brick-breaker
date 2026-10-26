@@ -6,7 +6,7 @@ It does not publish a web game or use GitHub Actions.
 
 ## Current source deployment changes — 27 October 2026
 
-The 21 October deployment below is historical. The updated database, API and dedicated reward callback are now deployed as described below. The recovery worker has run from the operator workstation; an unattended Azure worker/schedule and alerts are still pending. The deployment script refuses to build/roll out this API until migrations through `202610270015_operational_recovery.sql` and the private status RPC are available. Do not rerun the two baseline migrations the owner already applied manually.
+The 21 October deployment below is historical. The updated database, API, dedicated reward callback and Azure scheduled recovery job are now deployed. An automatic recovery execution and a controlled failed-execution metric/portal alert were observed. Notification routing and independent missing-run monitoring remain open. The deployment script refuses to build/roll out this API until migrations through `202610270015_operational_recovery.sql` and the private status RPC are available. Do not rerun the two baseline migrations the owner already applied manually.
 
 `scripts/azure-profile.ps1` builds API and worker resource bodies. API updates preserve existing secret values/references, environment settings, traffic, ownership tags and managed identities; missing file values do not silently remove recovery credentials. It maps only approved provider settings from `.env.api`. Resend, Cloudflare, Supabase management and worker-only deletion keys are not newly copied into the API. Known server settings use Azure secret references. Optional analytics defaults off and cannot enable through the deploy script without a recently successful retention job.
 
@@ -30,6 +30,8 @@ The API was then built with ACR Tasks and updated in **SpeedInno Org Subscriptio
 RevenueCat, Razorpay and rewarded-ad configurations are absent; optional analytics remains off. Deployment success does not establish configured/sandbox-verified billing or ads. No new mobile binary was built or published in this rollout. The callback and workstation recovery observations are recorded in [operational recovery](OPERATIONAL-RECOVERY.md).
 
 After the operator compatibility/fixture cleanup corrections, the full suite passed **439/439** (71.92s), syntax/catalog parity and pinned Deno typechecking passed, and another hosted run passed with its own test-only mail reviews resolved. An independent Azure metadata read confirmed the expected image, production environment, `PLAY_METRICS_ENABLED=false` and no configured commercial providers.
+
+The later operational/native checkpoint passed **442/442** tests (63.51s). The scheduled worker reuses the deployed image by digest rather than paying for another build. Its manual execution and first automatic 20:50 UTC execution both succeeded with advancing database heartbeats. Failure monitoring uses the observed `Executions` metric and a canonical resource scope; a credential-free intentional failure produced Failed metric samples and a matching portal alert. There are no notification actions. See [operational recovery](OPERATIONAL-RECOVERY.md) for exact handles, times, limitations and commands, and [build 21](MOBILE-BUILD-3.3.md) for the newly compiled Android packages and pending iPhone build.
 
 ## Verified deployment: 21 October 2026
 
