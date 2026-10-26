@@ -14,6 +14,9 @@ test('a write failure after a verified application replays it instead of skippin
 test('corrupt or different-environment journals cannot silently skip to another provider account',async()=>{
  const f=fixture();await recoverDisputeBatch({...f.options,batch:1});await assert.rejects(()=>recoverDisputeBatch({...f.options,identity:{...identity,environment:'production'}}),/different provider/);await assert.rejects(()=>recoverDisputeBatch({...f.options,restart:true}),/Finish/);
 });
+test('JSONB object-key reordering preserves identity while a changed identity still cannot resume a journal',async()=>{
+ const f=fixture();await recoverDisputeBatch({...f.options,batch:1});const read=f.options.read;f.options.read=async()=>{const state=await read();state.identity=Object.fromEntries(Object.entries(state.identity).reverse());return state;};assert.equal((await recoverDisputeBatch({...f.options,batch:1})).processed,1);await assert.rejects(()=>recoverDisputeBatch({...f.options,identity:{...identity,database:'https://another.example'}}),/different provider/);
+});
 test('provider loops and malformed pages stop without dropping the last durable cursor',async()=>{
  const f=fixture();await recoverDisputeBatch({...f.options,batch:100});assert.equal(f.stored.skip,100);await assert.rejects(()=>recoverDisputeBatch({...f.options,page:async skip=>({ids:ids.slice(0,100),next:skip+100})}),/repeated/);assert.equal(f.stored.skip,100);
  await assert.rejects(()=>recoverDisputeBatch({...f.options,page:async()=>({ids:['not-a-dispute'],next:null})}),/invalid/);assert.equal(f.stored.skip,100);

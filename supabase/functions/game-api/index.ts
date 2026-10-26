@@ -5,7 +5,8 @@ import {nativeCommerce,nativeCatalog,persistVerifiedPurchase} from '../_shared/n
 import {equalSecret,PurchaseVerificationError} from '../_shared/revenuecat.js';
 import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebCheckout,webhookWebPayment,reconcileWebDispute} from '../_shared/web-commerce.js';
 import {verifyHmac,WebCheckoutError} from '../_shared/razorpay.js';
-import {AdMobVerifier,AdVerificationError} from '../_shared/admob-ssv.js';
+import {AdMobVerifier} from '../_shared/admob-ssv.js';
+import {admobCallback} from '../_shared/admob-handler.js';
 import {rewardedAdConfig,adPlacement} from '../_shared/ad-config.js';
 import {deletionStatus,prepareAccountDeletion,deletePreparedAccount} from '../_shared/account-deletion.js';
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
@@ -18,6 +19,7 @@ const nativeCandidate=nativeCommerce((key:string)=>Deno.env.get(key)),webCandida
 const commerce=nativeCandidate?.verifier.environment===monetizationEnvironment?nativeCandidate:null;
 const webBilling=webCandidate?.provider.environment===monetizationEnvironment?webCandidate:null;
 const adsConfig=adsCandidate?.environment===monetizationEnvironment?adsCandidate:null,adVerifier=new AdMobVerifier();
+const receiveAdMob=admobCallback({admin,verifier:adVerifier});
 const playMetricsEnabled=Deno.env.get('PLAY_METRICS_ENABLED')==='true';
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
@@ -51,15 +53,8 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
   const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
   if(origin&&!origins.has(origin))return reply({error:'Origin is not allowed'},403);
   if(request.method==='GET'&&new URL(request.url).pathname.endsWith('/webhooks/admob')){
-    try{
-      const receipt=await adVerifier.verify(request.url);
-      if(!safeUuid(receipt.offerId))return reply({ignored:true});
-      // New offers may be disabled while an old, valid promise is still owed.
-      // Verification therefore does not depend on the current ads config.
-      const result=await admin.rpc('game_receive_admob_reward',{p_offer:receipt.offerId,p_transaction:receipt.transaction,p_unit:receipt.unit,p_amount:receipt.amount,p_item:receipt.item,p_earned_at:receipt.earnedAt,p_hint:receipt.userHint,p_proof:receipt.proof});
-      if(result.error)return reply({error:'Reward reconciliation is temporarily unavailable'},503);
-      return reply({received:true});
-    }catch(error){return reply({error:error instanceof AdVerificationError?error.message:'Reward verification is temporarily unavailable'},error instanceof AdVerificationError?error.status:503);}
+    // Honour old valid promises independently of today's advertising config.
+    return receiveAdMob(request);
   }
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'600'}});
   if(request.method!=='POST')return reply({error:'POST required'},405);

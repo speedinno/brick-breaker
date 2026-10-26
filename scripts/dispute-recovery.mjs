@@ -3,7 +3,8 @@ export async function recoverDisputeBatch({identity,read,write,page,reconcile,ba
  if(!Number.isSafeInteger(batch)||batch<1||batch>200)throw Error('Batch must be between 1 and 200.');
  let state=await read();
  if(state){
-  if(state.version!==1||JSON.stringify(state.identity)!==JSON.stringify(identity)||!Number.isSafeInteger(state.skip)||state.skip<0||state.skip>1000000||!Array.isArray(state.pending)||state.pending.length>100||state.pending.some(id=>!validId(id))||new Set(state.pending).size!==state.pending.length||typeof state.complete!=='boolean'||state.complete&&state.pending.length>0||state.next!==null&&!state.pending.length||!(state.next===null||Number.isSafeInteger(state.next)&&state.next===state.skip+100))throw Error('The recovery journal is invalid or belongs to a different provider/database. Preserve it and check the configuration.');
+  const sameIdentity=state.identity&&Object.keys(state.identity).length===Object.keys(identity).length&&Object.entries(identity).every(([key,value])=>state.identity[key]===value);
+  if(state.version!==1||!sameIdentity||!Number.isSafeInteger(state.skip)||state.skip<0||state.skip>1000000||!Array.isArray(state.pending)||state.pending.length>100||state.pending.some(id=>!validId(id))||new Set(state.pending).size!==state.pending.length||typeof state.complete!=='boolean'||state.complete&&state.pending.length>0||state.next!==null&&!state.pending.length||!(state.next===null||Number.isSafeInteger(state.next)&&state.next===state.skip+100))throw Error('The recovery journal is invalid or belongs to a different provider/database. Preserve it and check the configuration.');
   if(restart&&!state.complete)throw Error('Finish the current scan before restarting it.');
  }
  if(!state||restart){state={version:1,identity,skip:0,pending:[],next:null,complete:false,previousPage:null};await write(state);}

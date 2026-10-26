@@ -3,3 +3,7 @@ project_id = "brick-breaker"
 # The handler verifies the bearer token with Auth.getUser. This supports modern
 # Supabase asymmetric signing keys instead of trusting a client-decoded JWT.
 verify_jwt = false
+[functions.reward-callback]
+# Google sends a signed query, not a Supabase JWT. The handler independently
+# verifies that signature before storing or applying any reward evidence.
+verify_jwt = false
