@@ -48,8 +48,8 @@ export class CloudAccount {
     const owner=this.userId;
     let result;try{result=await this.invoke({...body,action,accountId:owner});}catch{result={error:{}};}const {data,error}=result;
     if(this.userId!==owner){const failure=Error('Your account changed. Reopen Account and try again.');failure.status=409;failure.network=false;throw failure;}
-    const timeAction=action.startsWith('time-'),purchaseAction=action.startsWith('purchase-'),isolatedAction=timeAction||purchaseAction;
-    if(error){let message=purchaseAction?'Could not reach purchases. Your receipt can be recovered later.':timeAction?'Could not reach your time bank. Manual play is available.':'Could not reach cloud saves. Your device progress is safe. Tap Sync now to retry.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;if(!isolatedAction&&this.userId===owner){this.syncError=failure;this.onStatus();}throw failure;}
+    const timeAction=action.startsWith('time-'),purchaseAction=action.startsWith('purchase-'),adAction=action.startsWith('ad-'),isolatedAction=timeAction||purchaseAction||adAction;
+    if(error){let message=adAction?'Could not reach rewarded ads. Manual play remains available.':purchaseAction?'Could not reach purchases. Your receipt can be recovered later.':timeAction?'Could not reach your time bank. Manual play is available.':'Could not reach cloud saves. Your device progress is safe. Tap Sync now to retry.';const status=error.context?.status;try{const payload=await error.context?.json();if(payload?.error)message=payload.error;}catch{}const failure=Error(message);failure.status=status;failure.network=!status||status>=500;if(!isolatedAction&&this.userId===owner){this.syncError=failure;this.onStatus();}throw failure;}
     if(data?.error){const failure=Error(data.error);if(!isolatedAction){this.syncError=failure;this.onStatus();}throw failure;}
     if(['state','import','complete'].includes(action)){this.state=data;this.syncError=null;this.onStatus();}return data;
   }

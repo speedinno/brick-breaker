@@ -5,16 +5,24 @@ import {nativeCommerce,nativeCatalog,persistVerifiedPurchase} from '../_shared/n
 import {equalSecret,PurchaseVerificationError} from '../_shared/revenuecat.js';
 import {webCommerce,webCatalog,prepareWebCheckout,findWebIntent,recoverWebCheckout,webhookWebPayment} from '../_shared/web-commerce.js';
 import {verifyHmac,WebCheckoutError} from '../_shared/razorpay.js';
+import {AdMobVerifier,AdVerificationError} from '../_shared/admob-ssv.js';
+import {rewardedAdConfig,adPlacement} from '../_shared/ad-config.js';
 const url=Deno.env.get('SUPABASE_URL')||'',anon=Deno.env.get('SUPABASE_ANON_KEY')||'',service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const serverFetch:typeof fetch=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
 const admin=createClient(url,service,{global:{fetch:serverFetch},auth:{persistSession:false,autoRefreshToken:false}});
-const commerce=nativeCommerce((key:string)=>Deno.env.get(key));
-const webBilling=webCommerce((key:string)=>Deno.env.get(key));
+const monetizationEnvironment=Deno.env.get('MONETIZATION_ENVIRONMENT')||'production';
+const nativeCandidate=nativeCommerce((key:string)=>Deno.env.get(key)),webCandidate=webCommerce((key:string)=>Deno.env.get(key)),adsCandidate=rewardedAdConfig((key:string)=>Deno.env.get(key));
+// Test and production providers must never be mixed by a deployment profile.
+// Staging also needs its own database; provider setup must keep it isolated.
+const commerce=nativeCandidate?.verifier.environment===monetizationEnvironment?nativeCandidate:null;
+const webBilling=webCandidate?.provider.environment===monetizationEnvironment?webCandidate:null;
+const adsConfig=adsCandidate?.environment===monetizationEnvironment?adsCandidate:null,adVerifier=new AdMobVerifier();
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
 const businessErrors=new Set(['Authentication required','Stage is locked','Run ID already used','Too many attempts. Try again later.','Stage is not ready','This offline attempt expired. Replay the stage to save it online.','Stage version differs. Reconnect and replay this stage.','Attempt is too short','Invalid completion statistics','Invalid stage score','Invalid guest progress','Complete all starter stages first','Invalid history','Too many new stages. Try again later.']);
 for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired','Reconcile autoplay before completing this run','Invalid mastery import'])businessErrors.add(message);
+for(const message of ['Invalid reward opportunity','Reward opportunity identity conflict','Rewarded ads are unavailable','No rewarded opportunities remain today','Unknown reward opportunity','This reward opportunity expired','Another reward is still pending verification','Recover this reward on its original device','Unknown browser reward opportunity','Invalid reward timestamp'])businessErrors.add(message);
 async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
@@ -40,6 +48,17 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
   if(origin&&origins.has(origin))headers['Access-Control-Allow-Origin']=origin;
   const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
   if(origin&&!origins.has(origin))return reply({error:'Origin is not allowed'},403);
+  if(request.method==='GET'&&new URL(request.url).pathname.endsWith('/webhooks/admob')){
+    try{
+      const receipt=await adVerifier.verify(request.url);
+      if(!safeUuid(receipt.offerId))return reply({ignored:true});
+      // New offers may be disabled while an old, valid promise is still owed.
+      // Verification therefore does not depend on the current ads config.
+      const result=await admin.rpc('game_receive_admob_reward',{p_offer:receipt.offerId,p_transaction:receipt.transaction,p_unit:receipt.unit,p_amount:receipt.amount,p_item:receipt.item,p_earned_at:receipt.earnedAt,p_hint:receipt.userHint,p_proof:receipt.proof});
+      if(result.error)return reply({error:'Reward reconciliation is temporarily unavailable'},503);
+      return reply({received:true});
+    }catch(error){return reply({error:error instanceof AdVerificationError?error.message:'Reward verification is temporarily unavailable'},error instanceof AdVerificationError?error.status:503);}
+  }
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Max-Age':'600'}});
   if(request.method!=='POST')return reply({error:'POST required'},405);
   try{
@@ -77,6 +96,33 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
+    if(typeof body.action==='string'&&body.action.startsWith('ad-')){
+      if(body.action==='ad-state')return reply(await rpc('game_ad_state'));
+      if(body.action==='ad-catalog'||body.action==='ad-prepare'){
+        if(!['android','ios','web'].includes(String(body.platform)))return reply({error:'Unknown game edition'},400);
+        const placement=await adPlacement(adsConfig,admin,body.platform,origin);
+        if(!placement)return reply({available:false,reason:'Rewarded ads are not available in this edition yet.'});
+        if(body.action==='ad-catalog')return reply({available:true,provider:placement.provider,platform:placement.platform,environment:placement.environment,placementId:placement.id,unit:placement.request_unit,state:await rpc('game_ad_state')});
+        if(!safeUuid(body.offerId)||!safeUuid(body.deviceId))return reply({error:'Invalid reward opportunity'},400);
+        return reply(await rpc('game_prepare_ad',{p_id:body.offerId,p_device:body.deviceId,p_placement:placement.id}));
+      }
+      if(!safeUuid(body.offerId))return reply({error:'Invalid reward opportunity'},400);
+      if(body.action==='ad-status'){
+        const offer=await client.from('game_ad_offers').select('id,state,promised_ms,provider,platform,prepare_until,earned_at,device_id,placement_id').eq('id',body.offerId).eq('owner_user_id',user.id).maybeSingle();
+        if(offer.error||!offer.data)return reply({error:'Unknown reward opportunity'},400);
+        const placement=await admin.from('game_ad_placements').select('id,provider,platform,environment,request_unit').eq('id',offer.data.placement_id).maybeSingle();
+        if(placement.error)throw Error('Reward placement is unavailable');
+        return reply({offer:offer.data,placement:placement.data,state:await rpc('game_ad_state')});
+      }
+      if(!safeUuid(body.deviceId))return reply({error:'Invalid reward device'},400);
+      if(body.action==='ad-start')return reply(await rpc('game_commit_ad',{p_id:body.offerId,p_device:body.deviceId}));
+      if(body.action==='ad-cancel')return reply(await rpc('game_cancel_ad',{p_id:body.offerId,p_device:body.deviceId,p_web_unearned:body.definitivelyUnearned===true,p_never_presented:body.neverPresented===true}));
+      if(body.action==='ad-web-earned'){
+        if(!Number.isSafeInteger(body.earnedAtMs)||Number(body.earnedAtMs)<946684800000||Number(body.earnedAtMs)>Date.now()+300000)return reply({error:'Invalid reward timestamp'},400);
+        return reply(await rpc('game_claim_web_ad',{p_id:body.offerId,p_device:body.deviceId,p_earned_at:new Date(Number(body.earnedAtMs)).toISOString()}));
+      }
+      return reply({error:'Unknown reward action'},400);
+    }
     if(body.action==='purchase-catalog'){
       if(!['android','ios','web'].includes(String(body.platform)))return reply({error:'Unknown game edition'},400);
       if(body.platform==='web')return reply(!webBilling?{available:false,reason:'Web checkout is not configured yet.'}:webBilling.origins.has(origin||'')?await webCatalog(webBilling,admin):{available:false,reason:'Purchases are available only in the official game edition.'});
