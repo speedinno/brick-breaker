@@ -1,6 +1,7 @@
 import {test,before,after} from 'node:test';import assert from 'node:assert/strict';import {PGlite} from '@electric-sql/pglite';import {migrateGame} from './db-migrations.mjs';
 import {operationKey,operationSummary,runOperations} from '../scripts/operations.mjs';
-import {mkdtemp,rmdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {mkdtemp,rmdir,writeFile,readFile,unlink} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {pathToFileURL} from 'node:url';
 let db;const identity={provider:'internal',environment:'sandbox',database:'https://fixture.example'},settings=name=>({SUPABASE_URL:identity.database,MONETIZATION_ENVIRONMENT:'sandbox'})[name];
 const scalar=async(sql,args=[])=>(await db.query(sql,args)).rows[0]?.value;
 const claim=(key='lease-test',kind='metrics_prune',who=identity)=>scalar('select game_operation_claim($1,$2,$3) as value',[key,kind,JSON.stringify(who)]);
@@ -57,5 +58,18 @@ test('bounded runs defer unopened projects and the next invocation prioritizes o
  await runOperations({admin,settings:scoped,batch:1,request,halt:()=>stopped});assert.equal(seen[0],projects[1]);
 });
 test('the CLI rejects missing/invalid private configuration before making a request and never prints keys',async()=>{
- const cwd=await mkdtemp(join(tmpdir(),'brick-operations-')),env={...process.env};for(const key of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','MONETIZATION_ENVIRONMENT'])delete env[key];const script=new URL('../scripts/run-operations.mjs',import.meta.url).pathname.replace(/^\/(\w:)/,'$1');try{for(const args of [[],['--batch','0']])await assert.rejects(()=>promisify(execFile)(process.execPath,[script,...args],{cwd,env}),error=>{assert.equal(error.code,1);assert.match(error.stderr,/not configured|Usage:/);assert.equal(error.stdout,'');return true;});}finally{await rmdir(cwd);}
+ const cwd=await mkdtemp(join(tmpdir(),'brick-operations-')),env={...process.env};for(const key of ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_SECRET_KEY','MONETIZATION_ENVIRONMENT'])delete env[key];const script=new URL('../scripts/run-operations.mjs',import.meta.url).pathname.replace(/^\/(\w:)/,'$1');try{for(const args of [[],['--batch','0']])await assert.rejects(()=>promisify(execFile)(process.execPath,[script,...args],{cwd,env}),error=>{assert.equal(error.code,1);assert.match(error.stderr,/not configured|Usage:/);assert.equal(error.stdout,'');return true;});}finally{await rmdir(cwd);}
+});
+
+
+test('the actual worker CLI accepts the newer Supabase secret name and prefers an explicit canonical key',async()=>{
+ const cwd=await mkdtemp(join(tmpdir(),'brick-operation-alias-')),preload=join(cwd,'fetch-fixture.mjs'),marker=join(cwd,'called.json'),script=new URL('../scripts/run-operations.mjs',import.meta.url).pathname.replace(/^\/(\w:)/,'$1');
+ try{
+  await writeFile(preload,`import {writeFileSync} from 'node:fs';globalThis.fetch=async(input,init)=>{writeFileSync(${JSON.stringify(marker)},JSON.stringify({correct:new Headers(init.headers).get('apikey')===process.env.EXPECTED_FIXTURE_KEY}));return new Response(JSON.stringify({message:'fixture unavailable'}),{status:503,headers:{'Content-Type':'application/json'}});};`);
+  for(const canonical of [undefined,'sb_secret_canonical_fixture']){
+   const env={...process.env,OPERATIONS_ENV_ONLY:'true',SUPABASE_URL:'https://fixture.example',SUPABASE_SECRET_KEY:'sb_secret_alias_fixture',MONETIZATION_ENVIRONMENT:'production',EXPECTED_FIXTURE_KEY:canonical||'sb_secret_alias_fixture'};delete env.SUPABASE_SERVICE_ROLE_KEY;if(canonical)env.SUPABASE_SERVICE_ROLE_KEY=canonical;
+   await assert.rejects(()=>promisify(execFile)(process.execPath,['--import',pathToFileURL(preload).href,script],{cwd,env,timeout:10000}),error=>{assert.equal(error.code,1);assert.match(error.stderr,/Operations database request failed/);assert(!error.stderr.includes('sb_secret_'));assert.equal(error.stdout,'');return true;});
+   assert.deepEqual(JSON.parse(await readFile(marker,'utf8')),{correct:true});await unlink(marker);
+  }
+ }finally{await unlink(preload);await unlink(marker).catch(error=>{if(error.code!=='ENOENT')throw error;});await rmdir(cwd);}
 });

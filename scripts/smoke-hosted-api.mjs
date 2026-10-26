@@ -4,13 +4,14 @@
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
+import {resolveHostedTestMailReviews} from './hosted-test-cleanup.mjs';
 
 const apiUrl=process.argv[2];
 assert(apiUrl&&new URL(apiUrl).protocol==='https:','Supply the deployed HTTPS API endpoint');
 const url=process.env.SUPABASE_URL,publicKey=process.env.SUPABASE_PUBLISHABLE_KEY||process.env.SUPABASE_ANON_KEY,secret=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
 assert(url&&publicKey&&secret,'Load server configuration from the ignored .env.api file');
 const options={global:{fetch:(input,init={})=>fetch(input,{...init,signal:AbortSignal.timeout(20000)})},auth:{persistSession:false,autoRefreshToken:false}};
-const admin=createClient(url,secret,options),created=new Set(),checks=[];
+const admin=createClient(url,secret,options),created=new Set(),ownedEmails=[],checks=[];
 async function call(account,action,body={},expected=200){
   const response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+account.token},body:JSON.stringify({...body,action,accountId:account.id}),signal:AbortSignal.timeout(30000)});
   assert.equal(response.status,expected,`${action}: unexpected HTTP status`);
@@ -20,7 +21,7 @@ async function account(label){
   const email=`brick-launch-${label}-${randomUUID()}@example.test`,password=randomBytes(32).toString('base64url');
   const result=await admin.auth.admin.createUser({email,password,email_confirm:true});
   assert(!result.error&&result.data.user,`Cannot create disposable ${label} account`);
-  const id=result.data.user.id;created.add(id);
+  const id=result.data.user.id;created.add(id);ownedEmails.push(email);
   const client=createClient(url,publicKey,options),signed=await client.auth.signInWithPassword({email,password});
   assert(!signed.error&&signed.data.session,`Cannot sign in disposable ${label} account`);
   return {id,client,token:signed.data.session.access_token};
@@ -64,10 +65,12 @@ try{
   const shared=await admin.from('game_catalog').select('level').eq('version',3).in('level',[1,13]);
   assert.equal(shared.error,null);assert.equal(shared.data.length,2);
   checks.push('fresh-sign-in deletion, private cascades and shared catalog preservation');
+  await resolveHostedTestMailReviews(admin,ownedEmails);
   console.log(JSON.stringify({status:'passed',apiUrl,checkedAt:new Date().toISOString(),checks,disposableAccountsRemoved:true,emailDeliveryTested:false,completionWasSynthetic:true},null,2));
 }finally{
   for(const id of created){
     const result=await admin.auth.admin.deleteUser(id);
     if(result.error&&result.error.status!==404)throw Error(`Disposable account cleanup failed for ${id}; remove it before further testing`);
   }
+  await resolveHostedTestMailReviews(admin,ownedEmails);
 }
