@@ -17,6 +17,9 @@ test('time-bank outages cannot incorrectly mark successfully synced stage saves 
  await cloud.progress();fail=true;await assert.rejects(()=>cloud.time('state'),/time bank/);
  assert.equal(cloud.syncError,null);assert.deepEqual(cloud.state.starter_completed,[1]);
 });
+test('optional analytics failures cannot mark successfully synced saves as failed',async()=>{
+ let fail=false;const cloud=make(async()=>fail?{error:{}}:{data:{starter_completed:[1]}});cloud.session={user:{id:'a'}};await cloud.progress();fail=true;await assert.rejects(()=>cloud.metrics('state'));assert.equal(cloud.syncError,null);assert.deepEqual(cloud.state.starter_completed,[1]);
+});
 test('purchase verification outages do not mark successfully synced stage saves as failed',async()=>{
  let fail=false;const cloud=make(async()=>fail?{error:{}}:{data:{starter_completed:[1]}});cloud.session={user:{id:'a'}};
  await cloud.progress();fail=true;await assert.rejects(()=>cloud.api('purchase-sync'),/purchases/);

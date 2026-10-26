@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 export class PurchasePanel {
  constructor({service,cloud,onBusy,onWallet,canStart=()=>true,externalStart=()=>null,externalEnd=()=>{}}){Object.assign(this,{service,cloud,onBusy,onWallet,canStart,externalStart,externalEnd});this.epoch=0;this.busy=false;
-  $('purchaseRefresh').onclick=()=>void this.load();$('purchaseRecover').onclick=()=>void this.operation(()=>service.recover());this.reset();
+  $('purchaseRefresh').onclick=()=>void this.load();$('purchaseRecover').onclick=()=>void this.operation(()=>service.recover(),['android','ios'].includes(service.platform));this.reset();
   $('purchaseConfirm').onclick=()=>void this.operation(()=>service.confirm(),true);$('purchaseDiscard').onclick=()=>void this.operation(()=>service.discardQuote());
  }
  message(text,error=false){$('purchaseMessage').textContent=text;$('purchaseMessage').classList.toggle('error',error);}
@@ -22,7 +22,7 @@ export class PurchasePanel {
   try{
    const catalog=await this.service.load();if(epoch!==this.epoch)return;
    $('purchaseStatus').textContent=catalog.available?'One-time purchases. Unused seconds do not expire. Your balance stays with this game account across official editions.':catalog.reason;
-   for(const offer of this.service.items){const button=document.createElement('button');button.className='secondary full';button.textContent=offer.price?`Buy ${(offer.milliseconds/1000).toLocaleString()} seconds · ${offer.price}`:`Check price · ${(offer.milliseconds/1000).toLocaleString()} seconds`;button.onclick=()=>void this.operation(()=>this.service.buy(offer.id));$('purchaseOffers').append(button);}
+   for(const offer of this.service.items){const button=document.createElement('button');button.className='secondary full';button.textContent=offer.price?`Buy ${(offer.milliseconds/1000).toLocaleString()} seconds · ${offer.price}`:`Check price · ${(offer.milliseconds/1000).toLocaleString()} seconds`;button.onclick=()=>void this.operation(()=>this.service.buy(offer.id),['android','ios'].includes(this.service.platform));$('purchaseOffers').append(button);}
    if(catalog.available&&!this.service.items.length)$('purchaseStatus').textContent='The store has no available prices. Try again later.';
    if(this.service.pending(this.cloud.userId)||this.service.journalCorrupt)this.message('A previous checkout needs checking. Recover purchases before buying again.');
   }catch{if(epoch===this.epoch)$('purchaseStatus').textContent='Time packs are unavailable right now. Manual play and existing time remain available.';}

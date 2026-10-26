@@ -18,6 +18,7 @@ const nativeCandidate=nativeCommerce((key:string)=>Deno.env.get(key)),webCandida
 const commerce=nativeCandidate?.verifier.environment===monetizationEnvironment?nativeCandidate:null;
 const webBilling=webCandidate?.provider.environment===monetizationEnvironment?webCandidate:null;
 const adsConfig=adsCandidate?.environment===monetizationEnvironment?adsCandidate:null,adVerifier=new AdMobVerifier();
+const playMetricsEnabled=Deno.env.get('PLAY_METRICS_ENABLED')==='true';
 const origins=new Set((Deno.env.get('ALLOWED_ORIGINS')||'https://speedinno.github.io,https://localhost,capacitor://localhost').split(',').map(s=>s.trim()));
 const safeLevel=(n:unknown):n is number=>typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<Number.MAX_SAFE_INTEGER;
 const safeUuid=(n:unknown):n is string=>typeof n==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(n);
@@ -107,6 +108,26 @@ Deno.serve({port:Number(Deno.env.get('PORT')||8000)},async request=>{
     const body=await readLimitedJson(request);
     if(body.accountId!==user.id)return reply({error:'Your account changed. Please reopen Account and try again.'},409);
     const rpc=async(name:string,args:Record<string,unknown>={})=>{const result=await client.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data;};
+    if(typeof body.action==='string'&&body.action.startsWith('metrics-')){
+      const revision=(value:unknown):value is string=>typeof value==='string'&&/^(0|[1-9][0-9]{0,18})$/.test(value)&&BigInt(value)<=9223372036854775807n;
+      const metricReply=(data:Record<string,unknown>)=>reply({...data,available:playMetricsEnabled});
+      if(body.action==='metrics-state')return metricReply(await rpc('game_metrics_state',{p_allow_assignment:playMetricsEnabled}));
+      if(body.action==='metrics-export'){
+        if(body.before!==undefined&&body.before!==null&&(!revision(body.before)||body.before==='0'))return reply({error:'Invalid analytics cursor'},400);
+        return reply(await rpc('game_metrics_export',{p_before:body.before??null}));
+      }
+      if(body.action==='metrics-set'){
+        if(typeof body.enabled!=='boolean'||!revision(body.expectedRevision))return reply({error:'Invalid analytics preference'},400);
+        if(body.enabled&&!playMetricsEnabled)return metricReply({...await rpc('game_metrics_state',{p_allow_assignment:false}),applied:false});
+        return metricReply(await rpc('game_metrics_set',{p_enabled:body.enabled,p_expected:body.expectedRevision}));
+      }
+      if(body.action==='metrics-collect'){
+        if(!revision(body.revision)||!safeUuid(body.streamId)||!Number.isSafeInteger(body.dropped)||Number(body.dropped)<0||Number(body.dropped)>1000000000||!Array.isArray(body.events)||body.events.length>40)return reply({error:'Invalid analytics batch'},400);
+        if(!playMetricsEnabled)return metricReply({...await rpc('game_metrics_state',{p_allow_assignment:false}),accepted:false});
+        return metricReply(await rpc('game_metrics_collect',{p_revision:body.revision,p_stream:body.streamId,p_dropped:body.dropped,p_events:body.events}));
+      }
+      return reply({error:'Unknown analytics action'},400);
+    }
     if(typeof body.action==='string'&&body.action.startsWith('ad-')){
       if(body.action==='ad-state')return reply(await rpc('game_ad_state'));
       if(body.action==='ad-catalog'||body.action==='ad-prepare'){

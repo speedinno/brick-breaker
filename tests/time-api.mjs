@@ -33,6 +33,8 @@ async function handle(body) {
   }
   if(body.action==='qa-privacy-jobs')return(await db.query('select state,last_code,subject is not null as has_subject from game_privacy_jobs order by state')).rows;
   if(body.action==='qa-ledger')return (await db.query('select kind,sum(amount_ms)::integer as ms from public.game_time_ledger group by kind')).rows;
+  if(body.action==='qa-metrics-events')return(await db.query('select type,data from game_metric_events where user_id=$1 order by sequence',[user])).rows;
+  if(body.action==='qa-metrics-experiment'){await db.query('update game_metric_experiments set active=$1',[body.active===true]);return{fixture:true};}
   if(body.action?.startsWith('ad-')&&!adsFixture){if(body.action==='ad-catalog')return{available:false,reason:'Local fixture ads are disabled.'};throw Error('Local fixture ads are disabled');}
   if(body.action?.startsWith('purchase-')||body.action==='qa-commerce-capture'||body.action==='qa-commerce-dispute'){
     if(!commerceFixture){if(body.action==='purchase-catalog')return{available:false,reason:'Local fixture purchases are disabled.'};throw Error('Local fixture purchases are disabled');}
@@ -42,6 +44,10 @@ async function handle(body) {
   async function rpc(sql,args=[]){return (await db.query('select public.'+sql+' as value',args)).rows[0].value;}
   try{
     switch(body.action){
+      case 'metrics-state': return rpc('game_metrics_state()');
+      case 'metrics-set': return rpc('game_metrics_set($1,$2)',[body.enabled,body.expectedRevision]);
+      case 'metrics-collect': return rpc('game_metrics_collect($1,$2,$3,$4::jsonb)',[body.revision,body.streamId,body.dropped,JSON.stringify(body.events)]);
+      case 'metrics-export': return rpc('game_metrics_export($1)',[body.before??null]);
       case 'ad-catalog': return{available:true,provider:'h5',platform:'web',environment:'sandbox',placementId:'local-web-v1',unit:'ca-pub-1234567890123456',state:await rpc('game_ad_state()')};
       case 'ad-state': return rpc('game_ad_state()');
       case 'ad-prepare': return rpc('game_prepare_ad($1,$2,$3)',[body.offerId,body.deviceId,'local-web-v1']);

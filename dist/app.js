@@ -21,6 +21,7 @@ import {SoundEffects} from './audio.js';
 import {snapshotGame,restoreGame} from './session.js';
 import {durableStorage} from './storage.js';
 import {AccountPrivacy} from './account-privacy.js';
+import {PlayMetrics} from './play-metrics.js';
 import {CloudAccount} from './cloud.js';
 import {JourneyMap} from './journey-ui.js';
 import {AccountPanel} from './account-ui.js';
@@ -63,6 +64,7 @@ const options=readJSON('brick-breaker-options-v3')||{},store=new ProgressStore(s
 let reduced=typeof options.reduced==='boolean'?options.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,haptics=options.haptics===true,lastSound=0;
 const effects=new SoundEffects({enabled:options.sound===true});
 let game=null,definition=null,currentHash='',run=null,assisted=false,paused=false,loading=false,auto=false,speed=1,paintVersion='',lastSnapshot=0,toastTimer,installPrompt=null,booting=true,accountIdentity=null,authEpoch=0,loadEpoch=0,syncTask=null,wantedLevel=1,sessionStorageError=false;
+let currentPromptKind='',coachExposureTimer=null;
 const focusBefore=new Map(),background=document.createElement('canvas');background.width=W;background.height=H;const bg=background.getContext('2d');
 let assistance=null;
 const input=new PaddleInput({touchGain:options.touchGain??2,pointerGain:options.pointerGain??1,onManual:()=>{
@@ -70,7 +72,8 @@ const input=new PaddleInput({touchGain:options.touchGain??2,pointerGain:options.
   auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');
 }});
 const simulation=new FixedSimulation();let controlEvents=null;
-function clearControls(){
+function clearControls(reason='paused'){
+  metrics.endSegment(reason);
   assistance?.stop(document.hidden?'background':'pause');
   controlEvents?.cancel();input.reset();simulation.reset(performance.now());
   if(auto){auto=false;if(game)game.mode='play';$('auto').setAttribute('aria-pressed','false');}
@@ -96,6 +99,20 @@ const cloud=new CloudAccount(accountChanged,{storage,onStatus:()=>{if(assistance
 const journey=new JourneyMap({getProgress:()=>store.value,select:level=>start(level),open:openDialog,close:closeDialog});
 const account=new AccountPanel({cloud,getProgress:()=>store.value,getGuest:()=>new ProgressStore(storage).value,open:openDialog,native,callbacks:{sync:syncPending,importGuest,deleteAccount}});
 let deviceId;try{deviceId=storage.getItem('brick-breaker-device-v1');if(!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(deviceId||'')){deviceId=crypto.randomUUID();storage.setItem('brick-breaker-device-v1',deviceId);}}catch{deviceId=crypto.randomUUID();}
+const metrics=new PlayMetrics({storage,account:()=>cloud.userId,api:(action,body)=>cloud.metrics(action,body),platform:native?Capacitor.getPlatform():'web',onChange:()=>renderMetrics()});
+function renderMetrics(){
+ const signed=Boolean(cloud.userId);$('metricsSwitch').setAttribute('aria-checked',String(metrics.choiceEnabled));$('metricsSwitch').disabled=!signed||metrics.busy||!metrics.ready&&!metrics.choiceEnabled||metrics.data?.available===false&&!metrics.choiceEnabled;$('metricsRefresh').hidden=!signed;$('metricsRefresh').disabled=metrics.busy;
+ $('metricsFeedback').textContent=!signed?'Sign in to choose. Guest activity is not uploaded.':metrics.error||(!metrics.ready?'Checking your account choice…':metrics.data?.available===false?metrics.choiceEnabled?'Your saved choice is on, but collection is paused. Turn it off to delete optional activity.':'Optional analytics are not enabled in this edition.':metrics.enabled?'On for this account. Optional activity is shared across your signed-in devices.':'Off. Optional play analytics are not shared.');$('metricsFeedback').classList.toggle('error',Boolean(metrics.error));renderReadyCoaching();
+}
+function renderReadyCoaching(){
+ clearTimeout(coachExposureTimer);coachExposureTimer=null;
+ if(!game||game.level!==1||currentPromptKind!=='ready'||$('prompt').hidden||loading)return;
+ $('promptText').textContent=metrics.coaching('Drag the paddle. Catch the boosts. Grow the swarm.',game.level);
+ const visible=()=>game?.level===1&&currentPromptKind==='ready'&&!loading&&!$('prompt').hidden&&$('home').hidden&&$('splash').hidden&&!document.hidden&&!document.querySelector('dialog[open]');
+ if(visible()&&metrics.assignment){const epoch=loadEpoch,owner=cloud.userId,assignment=metrics.assignment;coachExposureTimer=setTimeout(()=>{coachExposureTimer=null;if(visible()&&epoch===loadEpoch&&owner===cloud.userId&&assignment.experiment===metrics.assignment?.experiment&&assignment.variant===metrics.assignment?.variant)metrics.exposeCoach(String(epoch),1);},250);}
+}
+$('metricsSwitch').onclick=()=>void metrics.toggle(!metrics.choiceEnabled);$('metricsRefresh').onclick=()=>void metrics.refresh();
+setInterval(()=>void metrics.flush(),30000);
 function createAssistance(){
  const bank=new AssistanceSession({storage,api:(action,body)=>cloud.time(action,body),account:()=>cloud.userId,deviceId,onStop:reason=>{
   if(assistance!==bank)return;
@@ -164,7 +181,7 @@ function requestHome(){
     $('keepPlaying').focus({preventScroll:true});
   }else showHome();
 }
-function enterGame(){if(booting||loading===true)return;$('home').hidden=true;$('gameScreen').inert=false;requestAnimationFrame(resizeBoard);}
+function enterGame(){if(booting||loading===true)return;$('home').hidden=true;$('gameScreen').inert=false;renderReadyCoaching();requestAnimationFrame(resizeBoard);}
 function showHelp(){openDialog('help');}
 function syncHUD(){
   if(!game)return;
@@ -183,20 +200,23 @@ function syncHUD(){
 function suggestedNext(level){if(store.value.starters.length<12){for(let n=level+1;n<=12;n++)if(!isCompleted(store.value,n))return n;}return nextRequired(store.value);}
 function prompt(kind){
   if(!game)return;
+  currentPromptKind=kind;
   clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=difficultyProfile(game.level);
   const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):'Drag the paddle. Catch the boosts. Grow the swarm.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
   states.assistEnded=['Your paddle is yours.','Autoplay has stopped. Continue manually, or open your time bank to check the balance and reconcile pending time.','Continue manually'];
   const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over','assistEnded'].includes(kind);$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',['paused','assistEnded'].includes(kind)?'Resume':'Pause');
+  renderReadyCoaching();
 }
 function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
   if((e.type==='break'||e.type==='hit')&&performance.now()-lastSound>55){lastSound=performance.now();tone(620+Math.min(100,game?.combo||0)*5);}
   if(e.type==='power'){toast({add:`+3 · ${e.before} → ${e.balls} BALLS`,triple:`×3 · ${e.before} → ${e.balls} BALLS`,wide:'WIDE PADDLE · SAME BALL COUNT',floor:'SAFETY FLOOR',fire:'FIREBALLS',laser:'PADDLE SHOOTER · 8s'}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
-  if(e.type==='lost'){clearControls();saveSession();prompt('lost');tone(140,.2);}
-  if(e.type==='over'){clearControls();clearSession();prompt('over');tone(140,.2);}
+  if(e.type==='lost'){clearControls('lost');saveSession();prompt('lost');tone(140,.2);}
+  if(e.type==='over'){clearControls('game_over');if(run?.runId)metrics.record('stage_end',{level:game.level,runId:run.runId,mode:assisted?'assisted':'manual',simulationMs:Math.min(86400000,Math.round(game.stageTime*1000)),losses:game.stageLosses,outcome:'game_over'});clearSession();prompt('over');tone(140,.2);}
   if(e.type==='won'){
-    clearControls();
+    clearControls('cleared');
+    if(run?.runId)metrics.record('stage_end',{level:game.level,runId:run.runId,mode:assisted?'assisted':'manual',simulationMs:Math.min(86400000,Math.round(game.stageTime*1000)),losses:game.stageLosses,outcome:'cleared'});
     const result={score:game.score,seconds:Math.round(game.stageTime*1000)/1000,peak:game.peakBalls,mode:assisted?'watch':'play',stageLosses:game.stageLosses};
     store.complete(game.level,result);
     if(cloud.signedIn&&run){const pending={...result,level:game.level,runId:run.runId,hash:currentHash,remote:run.remote===true};store.save({...store.value,pending:[...store.value.pending.filter(p=>p.runId!==run.runId),pending]});}
@@ -220,7 +240,7 @@ async function start(level=store.value.selected,{resume=false,enter=true,sync=tr
     store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('name').title=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
     prompt(restored?'resume':'ready');syncHUD();updateStatus();
   }catch(error){if(epoch===loadEpoch){$('prompt').classList.remove('loading');$('promptTitle').textContent='Your stage is safe.';$('promptText').textContent=error.message||'Please try again.';$('launch').textContent='Try again';$('watch').hidden=true;loading='failed';toast(error.message||'Could not open this stage.');}}
-  finally{if(epoch===loadEpoch){if(loading!=='failed'){loading=false;saveSession();}updateStatus();}}
+  finally{if(epoch===loadEpoch){if(loading!=='failed'){loading=false;saveSession();}updateStatus();renderReadyCoaching();}}
 }
 async function ensureRun(){
   if(run?.level===game.level&&run.hash===currentHash)return;
@@ -239,13 +259,13 @@ async function action(){
 }
 function pause(){if(!$('home').hidden||!game||loading)return;if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}else if(game.status==='playing'){paused=true;clearControls();prompt('paused');saveSession();}}
 function away(){
- clearControls();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();
+ clearControls('background');metrics.persist();void metrics.flush();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();
  // A prepared offer is never kept ready across background/navigation. The
  // journal returns its unopened slot on recovery. An external ad/consent form
  // intentionally blurs the WebView, so its owning context is exempt.
  if(!externalContexts.size&&(rewarded.ready||rewarded.busy)){rewarded.reset();adPanel.reset();assistancePanel.adBusy=false;}
 }
-function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}clearControls();saveSession();if(!$(id).open)$(id).showModal();}
+function openDialog(id){focusBefore.set(id,document.activeElement);if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}clearControls();saveSession();if(!$(id).open)$(id).showModal();if(id==='menu'&&cloud.userId)void metrics.refresh();if(id==='help')metrics.record('help_open',{surface:$('home').hidden?'game':'home'});}
 function closeDialog(id){if($(id).open)$(id).close();}
 for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>{
   if(dialog.id==='assist'){
@@ -257,6 +277,7 @@ for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener(
     if(pending?.resume&&game===pending.game&&game.status==='playing'&&$('home').hidden&&!document.querySelector('dialog[open]')){paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}
   }
   const prior=focusBefore.get(dialog.id);if(prior?.isConnected&&(!prior.closest('dialog')||prior.closest('dialog').open))prior.focus({preventScroll:true});
+  renderReadyCoaching();
 });
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
 function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
@@ -292,6 +313,7 @@ function frame(t){
       const physicsDt=activeAuto?assistance.consume(dt*1000/speed,game.status==='playing')*speed/1000:dt;
       if(physicsDt<=0)return false;
       if(activeAuto)assisted=true;
+      if(game.status==='playing')metrics.accrue(physicsDt*1000/speed,game.level,run?.runId,activeAuto?'assisted':'manual');
       // Ready fields contain no ball. Active paddle motion always goes through
       // Game.step's swept trajectory, including fast input and AI takeover.
       if(game.status==='ready')game.paddle.x=game.target;
@@ -305,7 +327,7 @@ document.addEventListener('keydown',e=>{
   if(!$('home').hidden||document.querySelector('dialog[open]')||isInteractive(e.target)||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
   const key=e.key.length===1?e.key.toLowerCase():e.key;
   if([' ','p','Escape'].includes(key)){e.preventDefault();if(e.repeat)return;if(key===' ')void action();else pause();}
-});document.addEventListener('visibilitychange',()=>{if(document.hidden)away();});window.addEventListener('blur',away);window.addEventListener('pagehide',saveSession);
+});document.addEventListener('visibilitychange',()=>{if(document.hidden)away();else{renderReadyCoaching();if(cloud.signedIn)void metrics.refresh();}});window.addEventListener('blur',away);window.addEventListener('pagehide',away);
 async function beginAssistance(milliseconds){
   const current=game,epoch=authEpoch,bank=assistance;
   if(!cloud.signedIn)throw Error('Sign in to use your shared time bank.');
@@ -346,6 +368,7 @@ $('share').onclick=async()=>{const data={title:'Brick Breaker',text:`Narrow chan
 
 async function accountChanged(){
   const id=cloud.userId;if(id===accountIdentity&&!booting){account.render();return;}
+  void metrics.identify();
   assistance.stop('account');
   try{assistance.persist();}catch{}
   assistance=createAssistance();assistancePanel.bank=assistance;assistancePanel.epoch++;assistancePanel.busy=false;
@@ -375,20 +398,20 @@ async function syncPending(){
 async function importGuest(){if(!cloud.signedIn)throw Error('Sign in to link guest stages.');const id=cloud.userId,guest=new ProgressStore(storage).value,wasEmpty=completedCount(store.value)===0,state=await cloud.importGuest(guest);if(cloud.userId!==id||store.accountId!==id)throw Error('Your account changed. Reopen Account and try again.');store.save({...mergeProgress(store.value,cloudProgress(state)),...(wasEmpty?{selected:guest.selected}:{})});account.render();updateStatus();journey.render();if(wasEmpty)await start(store.value.selected,{resume:true,enter:$('home').hidden});}
 async function deleteAccount(){
  const id=cloud.userId;if(!id)return;const intent=privacy.prepare(id),prepared=await cloud.api('delete-prepare',{requestId:intent.requestId});privacy.canonical(id,prepared.requestId);
- await cloud.deleteAccount(prepared.requestId,{onDeleted:async()=>{privacy.seal(id);let sdkError;try{await purchases.retire?.(id);}catch{sdkError=Error('Your account is deleted. Restart the app to finish purchase-profile cleanup.');}privacy.purge(id);account.clearPrivateFields();if(sdkError)throw sdkError;}});account.render();updateStatus();
+ await cloud.deleteAccount(prepared.requestId,{onDeleted:async()=>{privacy.seal(id);metrics.forget(id);let sdkError;try{await purchases.retire?.(id);}catch{sdkError=Error('Your account is deleted. Restart the app to finish purchase-profile cleanup.');}privacy.purge(id);account.clearPrivateFields();if(sdkError)throw sdkError;}});account.render();updateStatus();
 }
 window.addEventListener('online',()=>{if(cloud.signedIn)void syncPending().catch(()=>toast('Your device saves will upload when the connection returns.'));});
 window.addEventListener('offline',()=>{if(cloud.signedIn){cloud.syncError=Error('You are offline. Your device progress is safe. Reconnect, then tap Sync now.');updateStatus();account.render();}});
 window.addEventListener('storage',e=>{if(e.key===store.key){store.save(mergeProgress(store.value,store.read()));updateStatus();if($('gallery').open)journey.render();}});
 if(native){
-  void App.addListener('appStateChange',({isActive})=>{if(!isActive){away();cloud.client?.auth.stopAutoRefresh();}else{cloud.client?.auth.startAutoRefresh();if(cloud.signedIn)void syncPending().catch(()=>{});}});
+  void App.addListener('appStateChange',({isActive})=>{if(!isActive){away();cloud.client?.auth.stopAutoRefresh();}else{cloud.client?.auth.startAutoRefresh();renderReadyCoaching();if(cloud.signedIn){void syncPending().catch(()=>{});void metrics.refresh();}}});
   if(Capacitor.getPlatform()==='android')void App.addListener('backButton',()=>{const dialog=[...document.querySelectorAll('dialog[open]')].at(-1);if(dialog)dialog.close();else if($('home').hidden)requestHome();else{saveSession();void App.exitApp();}});
 }else if('serviceWorker' in navigator){void navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 // Legacy scores are retained, but an old freely selected stage is not treated
 // as proof that the preceding stages were completed.
 if(!readJSON(store.key)){const legacy=readJSON('brick-breaker-channel-v2');if(Number.isSafeInteger(legacy?.best)&&legacy.best>=0&&legacy.best<=1e12)store.save({...store.value,best:legacy.best});}
 requestAnimationFrame(frame);updateStatus();
-setTimeout(()=>$('splash').hidden=true,reduced?150:650);
+setTimeout(()=>{$('splash').hidden=true;renderReadyCoaching();},reduced?150:650);
 try{await privacy.recover(id=>cloud.deletionStatus(id));}catch{account.message('Account deletion recovery needs a connection or available device storage. Keep this app installed and retry.',true);}
 try{await cloud.init();}catch{account.message('Cloud saving is offline. You can keep playing.',true);}
 booting=false;loading=false;await start(store.value.selected,{resume:true,enter:false,sync:!cloud.signedIn});

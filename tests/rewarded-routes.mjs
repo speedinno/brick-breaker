@@ -5,6 +5,7 @@ export async function rewardedRoute(url,res){
  let source,type;
  if(url.pathname==='/__rewarded'){source=await readFile('tests/rewarded-feedback.html','utf8');type='text/html';}
  else if(url.pathname==='/__privacy'){source=await readFile('tests/privacy-feedback.html','utf8');type='text/html';}
+ else if(url.pathname==='/__metrics'){source=await readFile('tests/play-metrics-feedback.html','utf8');type='text/html';}
  else if(url.pathname==='/__consent'){source=await readFile('tests/consent-feedback.html','utf8');type='text/html';}
  else if(url.pathname==='/__consent-game'){
   source=(await readFile('dist/index.html','utf8')).replace('<head>','<head><script src="/__time-mock.js"></script><script src="/__consent-sdk.js"></script>').replace('src="./app.js"','src="/__consent-app.js"');type='text/html';

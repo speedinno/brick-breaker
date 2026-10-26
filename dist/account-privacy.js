@@ -4,7 +4,7 @@ const uuid=value=>typeof value==='string'&&/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a
 const journalKey='brick-breaker-deletions-v1',authKey='brick-breaker-auth-v3';
 export function accountStorageKeys(owner){
  if(!uuid(owner))throw Error('Invalid account cleanup identity');
- return['brick-breaker-v3:user:'+owner,'brick-breaker-session-v3:user:'+owner,...['assistance','purchase-pending','web-checkout','rewarded'].map(name=>'brick-breaker-'+name+'-v1:'+owner),...['native','web'].flatMap(platform=>['production','sandbox'].flatMap(environment=>{const key='brick-breaker-'+platform+'-recovery-v1:'+owner+':'+environment;return[key,key+':repair'];}))];
+ return['brick-breaker-v3:user:'+owner,'brick-breaker-session-v3:user:'+owner,'brick-breaker-metrics-v1:user:'+owner,...['assistance','purchase-pending','web-checkout','rewarded'].map(name=>'brick-breaker-'+name+'-v1:'+owner),...['native','web'].flatMap(platform=>['production','sandbox'].flatMap(environment=>{const key='brick-breaker-'+platform+'-recovery-v1:'+owner+':'+environment;return[key,key+':repair'];}))];
 }
 export class AccountPrivacy {
  constructor(raw){
