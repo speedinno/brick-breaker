@@ -30,7 +30,10 @@ jobs:
             const id = process.env.BUILD_RUN_ID;
             if (!/^\d+$/.test(id)) throw new Error('Invalid build ID');
             const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id: Number(id)});
-            if (run.name !== 'Native mobile builds' || run.conclusion !== 'success' || run.head_repository.full_name !== `${context.repo.owner}/${context.repo.repo}`) throw new Error('A successful native build from this repository is required');
+            if (run.name !== 'Native mobile builds' || run.head_repository.full_name !== `${context.repo.owner}/${context.repo.repo}`) throw new Error('A native build from this repository is required');
+            const {data: response} = await github.rest.actions.listJobsForWorkflowRun({...context.repo, run_id: Number(id), per_page: 100});
+            const required = context.payload.inputs.platform === 'android' ? ['android'] : context.payload.inputs.platform === 'ios' ? ['ios'] : ['android', 'ios'];
+            if (!required.every(name => response.jobs.some(job => job.name === name && job.conclusion === 'success'))) throw new Error('The requested platform build must succeed before its launch check');
             core.setOutput('source', run.head_sha);
   android:
     needs: validate
