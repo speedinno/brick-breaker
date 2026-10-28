@@ -64,8 +64,8 @@ try {
     assert.equal(await evaluate(`document.getElementById('prompt').hidden`),false,'Restored field waits for explicit resume');
     const restoredRemaining=await evaluate(`Number(document.getElementById('remaining').textContent)`);
     assert.equal(restoredRemaining,before.signature.replaceAll('w','').replaceAll('.','').length-before.removed.length);
-    await evaluate(`document.getElementById('launch').click();true`);await wait(3000);
-    assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true);
+    const resumed=await evaluate(`(async()=>{document.getElementById('launch').click();for(let i=0;i<40;i++){if(document.getElementById('prompt').hidden)return true;await new Promise(resolve=>setTimeout(resolve,50));}return false;})()`);
+    assert.equal(resumed,true,'Continue must resume the saved field, even if that ball later misses');
     assert.deepEqual(errors,[]);
     await writeFile('native-evidence/android-relaunch-checks.json',JSON.stringify({fieldReady:true,exactSnapshotRestored:true,resumeWorks:true,remaining:restoredRemaining,errors},null,2));
     console.log('Cold restart restored the exact saved field, lives, balls, boosts and shots');
