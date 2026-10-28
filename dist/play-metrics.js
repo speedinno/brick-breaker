@@ -19,7 +19,7 @@ function validData(type,d){
  return valid&&Object.keys(d).every(key=>keys.includes(key));
 }
 export class PlayMetrics {
- constructor({storage,account,api,platform,build='3.3.0',now=()=>Date.now(),onChange=()=>{}}){Object.assign(this,{storage,account,api,platform,build,now,onChange});this.owner=null;this.data=null;this.epoch=0;this.ready=false;this.busy=false;this.error='';this.timer=null;this.flushing=null;this.segment=null;this.exposures=new Set();this.retired=new Set();}
+ constructor({storage,account,api,platform,build='3.3.1',now=()=>Date.now(),onChange=()=>{}}){Object.assign(this,{storage,account,api,platform,build,now,onChange});this.owner=null;this.data=null;this.epoch=0;this.ready=false;this.busy=false;this.error='';this.timer=null;this.flushing=null;this.segment=null;this.exposures=new Set();this.retired=new Set();}
  key(owner){return'brick-breaker-metrics-v1:user:'+owner;}
  get choiceEnabled(){return Boolean(this.owner&&this.owner===this.account()&&this.data?.enabled&&!this.data.suppressed&&!this.data.pendingOff&&!this.retired.has(this.owner));}
  get enabled(){return this.choiceEnabled&&this.data.available!==false;}
@@ -76,7 +76,7 @@ export class PlayMetrics {
   if(this.segment.activeMs>=60000){const remainder=this.segment.activeMs-60000;this.segment.activeMs=60000;this.endSegment('periodic');if(remainder>0)this.segment={level,runId,mode,activeMs:remainder};}
  }
  endSegment(reason='paused'){const segment=this.segment;this.segment=null;if(!segment)return;const activeMs=Math.min(60000,Math.round(segment.activeMs));if(activeMs>0)this.record('play_segment',{...segment,activeMs,reason});}
- coaching(base,level){return level===1&&this.assignment?.variant==='aim_hint'?'Drag to move. Centre hits go up; edge hits aim left or right.':base;}
+ coaching(base,level){return level===1&&this.assignment?.variant==='aim_hint'?'Tap to place the paddle. Set the gold arrow for your first shot; edge hits aim later returns.':base;}
  exposeCoach(key,level){const assignment=this.assignment;if(level!==1||!assignment||this.exposures.has(key+':'+assignment.experiment))return;this.exposures.add(key+':'+assignment.experiment);this.record('coach_exposure',{experiment:assignment.experiment,variant:assignment.variant});}
  async flush(){
   if(this.busy)return;if(this.flushing)return this.flushing;if(this.data?.pendingOff){await this.refresh();return;}if(!this.enabled)return;

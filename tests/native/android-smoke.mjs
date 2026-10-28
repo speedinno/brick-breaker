@@ -47,7 +47,7 @@ try {
   assert.equal(await evaluate(`document.getElementById('home').hidden`),false,'Every cold launch opens the home menu');
   await evaluate(`document.getElementById('homePlay').click();if(document.getElementById('help').open)document.getElementById('helpDone').click();true`);
   assert.equal(await evaluate(`document.getElementById('home').hidden`),true,'Play enters the preserved stage');
-  if(!relaunch)assert.match(await evaluate(`document.getElementById('promptText').textContent`),/free paddle shooter/,'First play must explain its forgiving opening volley');
+  if(!relaunch)assert.match(await evaluate(`document.getElementById('promptText').textContent`),/place your paddle, set the arrow/,'First play must explain player-controlled launch');
   assert.equal(await evaluate(`document.getElementById('saveStatus').tagName`),'SPAN','Autosaving is a status, not a Save button');
   const layout=await evaluate(`(()=>{const app=document.querySelector('.app'),board=document.getElementById('game'),rect=app.getBoundingClientRect(),footer=document.querySelector('footer').getBoundingClientRect();return {width:innerWidth,height:innerHeight,app:rect.toJSON(),footer:footer.toJSON(),scrollHeight:document.documentElement.scrollHeight,canvas:{width:board.width,height:board.height,css:board.getBoundingClientRect().toJSON()},controls:[...document.querySelectorAll('header button,.journey-strip button,.play-tools button')].map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))};})()`);
   assert(Math.abs(layout.app.width-layout.width)<2&&Math.abs(layout.app.height-layout.height)<2,'Native app must fill its entire viewport');
@@ -85,7 +85,7 @@ try {
   await evaluate(`document.querySelector('#journeyGrid button').click();true`);
   assert.match(await evaluate(`document.getElementById('lockMessage').textContent`),/Finish all 12 starter stages first/);
   await evaluate(`document.getElementById('lockDialog').close();document.getElementById('closeGallery').click();true`);
-  await evaluate(`document.getElementById('launch').click(); true`);
+  await evaluate(`(()=>{const aim=document.getElementById('aimAngle');aim.value='-5';aim.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('launch').click();return true;})()`);
   for(let attempt=0;attempt<50;attempt++){if(await evaluate(`document.getElementById('prompt').hidden`))break;await wait(200);}
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'Manual offline launch must start gameplay');
   await evaluate(`document.getElementById('pause').click();true`);

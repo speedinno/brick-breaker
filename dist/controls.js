@@ -24,10 +24,11 @@ export class PaddleInput {
     const dx = (x - this.touchX) / scale * this.touchGain; this.touchX = x;
     this.enqueue(at, 'delta', {owner: 'touch', dx}); return true;
   }
-  touchEnd(id, at) {
+  touchEnd(id, at, retain = false) {
     if (id !== this.touchId) return false;
-    this.touchId = null; this.touchX = null; this.enqueue(at, 'end', {owner: 'touch'}); return true;
+    this.touchId = null; this.touchX = null; this.enqueue(at, 'end', {owner: 'touch', retain}); return true;
   }
+  place(x, at) { this.enqueue(at, 'place', {x}); }
   pointerLeave() { this.pointerX = null; this.pointerMotion = 0; this.pointerClaimed = false; }
   pointerMove(x, scale, at) {
     if (this.touchId !== null || !(scale > 0)) return;
@@ -66,11 +67,12 @@ export class PaddleInput {
         if (e.dx * (this.target - paddle.x) < 0) this.target = paddle.x;
         this.target = clamp(this.target + e.dx);
       }
+      if (e.kind === 'place') this.target = clamp(e.x);
       if (e.kind === 'key') {
         if (e.down) this.keys.add(e.key);
         else { this.keys.delete(e.key); if (!this.keys.size && this.owner === 'keyboard') this.target = paddle.x; }
       }
-      if (e.kind === 'end' && this.owner === e.owner) { this.owner = 'none'; this.target = paddle.x; }
+      if (e.kind === 'end' && this.owner === e.owner) { this.owner = 'none'; if(!e.retain)this.target = paddle.x; }
     }
     if (this.head === this.events.length) { this.events.length = 0; this.head = 0; }
     // A widening power-up changes the legal centre range immediately.

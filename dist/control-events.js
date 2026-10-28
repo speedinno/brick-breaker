@@ -3,7 +3,7 @@
 const INTERACTIVE = 'button,a,input,select,textarea,label,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="switch"],dialog';
 export const isInteractive = target => Boolean(target?.closest?.(INTERACTIVE));
 
-export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, now = () => performance.now()}) {
+export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, ready = () => false, position = () => 0, now = () => performance.now()}) {
   const suppressedClicks = new Set();
   const on = (target, type, handler, options) => {
     target.addEventListener(type, handler, options);
@@ -21,8 +21,12 @@ export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, n
   on(surface, 'pointerdown', e => {
     suppressedClicks.delete(e.pointerId);
     if (!enabled() || isInteractive(e.target)) return;
-    if (e.pointerType === 'mouse') return; // ordinary button-free hover path
+    if (e.pointerType === 'mouse') {
+      if (ready()) { input.place(position(e.clientX), now()); focusTarget.focus({preventScroll: true}); }
+      return; // ordinary button-free hover path
+    }
     if (!input.touchStart(e.pointerId, e.clientX, now())) return;
+    if (ready()) input.place(position(e.clientX), now());
     suppressedClicks.add(e.pointerId);
     if (suppressedClicks.size > 32) suppressedClicks.delete(suppressedClicks.values().next().value);
     e.preventDefault();
@@ -39,7 +43,7 @@ export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, n
     }
   }, {capture: true, passive: false});
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) on(surface, type, e => {
-    if (input.touchEnd(e.pointerId, now())) { e.preventDefault(); release(e.pointerId); }
+    if (input.touchEnd(e.pointerId, now(), ready())) { e.preventDefault(); release(e.pointerId); }
   }, {capture: true, passive: false});
   on(surface, 'pointerleave', () => input.pointerLeave());
   // Browsers differ on compatibility click dispatch after pointer capture. A

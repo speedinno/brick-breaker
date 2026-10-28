@@ -14,6 +14,14 @@ test('fast swipe reversal and release stop a lagging real paddle immediately',()
  i.touchEnd(1,30);step(30);const released=g.paddle.x;step(40);assert.equal(g.paddle.x,released,'no stored target may move after release');
 });
 
+test('ready touch places the paddle and keeps that position after release',()=>{
+ const input=new PaddleInput(),p={x:208,y:584,w:112};
+ input.touchStart(1,300,0);input.place(300,0);input.touchEnd(1,1,true);apply(input,p,1);
+ near(p.x,300);assert.equal(input.owner,'none');
+ input.touchStart(2,310,2);input.place(310,2);input.touchMove(2,330,1,3);input.touchEnd(2,4,true);apply(input,p,4);
+ near(p.x,350);
+});
+
 test('CTL-02..06: relative touch pickup, vertical, clutch, edges and one pointer', () => {
   const i = new PaddleInput(), p = paddle();
   assert(i.touchStart(1, 5, 0)); apply(i, p, 0); near(p.x, 200);

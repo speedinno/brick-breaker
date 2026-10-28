@@ -13,13 +13,13 @@ function difficultyProfile(level) {
     chapterName: CHAPTERS[Math.min(CHAPTERS.length - 1, Math.floor(chapter / 3))],
     chapterClears: journey % 8,
     label: growth < 0.18 ? "Easy" : growth < 0.4 ? "Building" : growth < 0.65 ? "Challenging" : growth < 0.84 ? "Advanced" : "Expert",
-    speed: level <= 8 ? 228 + level * 12 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
-    paddleWidth: level <= 4 ? 168 : level <= 8 ? [156, 144, 132, 120][level - 5] : level <= 12 ? [112, 104, 96, 88][level - 9] : 82 - 16 * growth,
+    speed: level <= 4 ? 256 + level * 8 : level <= 8 ? 280 + level * 5 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
+    paddleWidth: level <= 4 ? 112 : level <= 8 ? 100 : level <= 12 ? 90 : 82 - 16 * growth,
     siteTarget: Math.round(8 + 20 * growth),
     loopTarget: Math.round(1 + 6 * growth),
     channelRadius: 1.18 - 0.12 * growth,
     gateGenerosity: 0.4 - 0.2 * growth,
-    boostInterval: level <= 4 ? [20, 24, 28, 30][level - 1] : level <= 8 ? 38 : level <= 12 ? 47 : 47 + Math.floor(16 * growth)
+    boostInterval: level <= 4 ? 30 : level <= 8 ? 38 : level <= 12 ? 47 : 47 + Math.floor(16 * growth)
   };
 }
 
@@ -400,7 +400,6 @@ var CELL = 8;
 var OX = 0;
 var OY = 18;
 var FAMILIES = ["T channel", "Switchback", "H chamber", "M channel", "Needle", "W channel", "Sword", "Bent channel", "Nested squares", "Twin hearts", "Step chamber", "Fork"];
-var STARTER_FAMILY_ORDER = [4, 0, 7, 1, 6, 2, 5, 3, 8, 9, 10, 11];
 var COLORS = ["#e71840", "#8fab18", "#527d24", "#a31973", "#47a91b", "#a6a11a", "#c61724", "#df8a27", "#c215a7", "#df2942", "#9bbb36", "#89a623"];
 var clamp2 = (x, a, b) => Math.max(a, Math.min(b, x));
 function rng(seed) {
@@ -419,7 +418,7 @@ function segmentDistance(x, y, a, b) {
 }
 function makePattern(level, seed = 1) {
   if (level > 12) return patternFromLayout(generateDefinition(level));
-  const family = STARTER_FAMILY_ORDER[Math.max(0, Math.min(11, level - 1))], random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
+  const family = (Math.max(1, level) - 1) % 12, random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
   let paths = [], entry = [26, 52], gates = [], holes = [];
   const path = (points, gate = true) => {
     paths.push(points);
@@ -497,7 +496,7 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
-  const channelRadius = level <= 2 ? 4.6 : level === 3 ? 3.6 : level === 4 ? 2.6 : level <= 8 ? 2.6 : 1.6;
+  const channelRadius = level <= 2 ? 3.6 : level <= 4 ? 2.7 : level === 8 ? 2.6 : level === 12 ? 1.6 : level <= 8 ? 1.6 : 0.86;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -517,13 +516,6 @@ function makePattern(level, seed = 1) {
     if (type !== "empty") {
       cells.push(cell);
       if (type !== "wall") bricks.push(cell);
-    }
-  }
-  if (level <= 12) {
-    for (const cell of cells) if (cell.type === "wall" && cell.c > 0 && cell.c < COLS - 1 && cell.r > 0 && cell.r < ROWS - 1) {
-      cell.type = "gate";
-      cell.hp = 1;
-      bricks.push(cell);
     }
   }
   const lookup = new Map(cells.map((c) => [c.id, c])), start = 51 * COLS + Math.floor(entry[0]);
@@ -581,12 +573,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 6 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 7 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 6, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 7, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
   if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");

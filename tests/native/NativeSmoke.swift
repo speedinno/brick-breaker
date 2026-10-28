@@ -63,7 +63,10 @@ final class NativeSmoke: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed, "One tap must close the scrolled stage picker")
         let launch = button("Launch")
         XCTAssertTrue(launch.waitForExistence(timeout: 10), "A first-time player must see the ready guidance before manual play")
-        XCTAssertTrue(game.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "free paddle shooter")).firstMatch.exists)
+        XCTAssertTrue(game.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Tap to place")).firstMatch.exists)
+        let aim = game.sliders["Launch angle, left to right"].firstMatch
+        XCTAssertTrue(aim.isHittable, "Manual launch angle must be adjustable on the phone")
+        aim.adjust(toNormalizedSliderPosition: 0.45)
         launch.tap()
         let left = game.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.69))
         let right = game.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.69))

@@ -12,9 +12,9 @@ import adRuntime from './ad-runtime.js';
 import {GoogleAdConsent} from './ad-consent.js';
 import {masteryCount,masteryLabel} from './mastery.js';
 import config from './cloud-config.js';
-import {fitViewport,dialogViewport} from './viewport.js';
-import {playProfile,starterVolleySeconds} from './difficulty.js';
-import {Game,W,H,ROWS,CELL,clamp} from './engine.js';
+import {fitViewport,dialogViewport,worldX} from './viewport.js';
+import {playProfile} from './difficulty.js';
+import {Game,W,H,ROWS,CELL,OY,clamp} from './engine.js';
 import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
 import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount,unlinkedGuestCount} from './progress.js';
 import {SoundEffects} from './audio.js';
@@ -107,7 +107,7 @@ function renderMetrics(){
 function renderReadyCoaching(){
  clearTimeout(coachExposureTimer);coachExposureTimer=null;
  if(!game||game.level!==1||currentPromptKind!=='ready'||$('prompt').hidden||loading)return;
- $('promptText').textContent='Your first shots include a free paddle shooter. Silver tiles break too. '+metrics.coaching('Drag to aim, then catch boosts to grow the swarm.',game.level);
+ $('promptText').textContent=metrics.coaching('Tap to place your paddle, set the arrow, then launch through the opening. Catch boosts as you play.',game.level);
  const visible=()=>game?.level===1&&currentPromptKind==='ready'&&!loading&&!$('prompt').hidden&&$('home').hidden&&$('splash').hidden&&!document.hidden&&!document.querySelector('dialog[open]');
  if(visible()&&metrics.assignment){const epoch=loadEpoch,owner=cloud.userId,assignment=metrics.assignment;coachExposureTimer=setTimeout(()=>{coachExposureTimer=null;if(visible()&&epoch===loadEpoch&&owner===cloud.userId&&assignment.experiment===metrics.assignment?.experiment&&assignment.variant===metrics.assignment?.variant)metrics.exposeCoach(String(epoch),1);},250);}
 }
@@ -203,9 +203,9 @@ function prompt(kind){
   currentPromptKind=kind;
   clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=playProfile(game.level);
-  const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Catch boosts and discover the way through.'):starterVolleySeconds(game.level)?`A free ${starterVolleySeconds(game.level)}-second paddle shooter starts with each launch. Drag to aim and catch boosts.`:'Drag the paddle. Catch the boosts. Grow the swarm.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Your saved stage is ready.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken.${starterVolleySeconds(game.level)?' The paddle shooter returns on launch.':''}`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
+  const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Tap to place your paddle and set the launch arrow.'): 'Tap to place the paddle, set the arrow, then launch through the opening.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Place your paddle and aim your next shot.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken. Place your paddle and aim again.`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
   states.assistEnded=['Your paddle is yours.','Autoplay has stopped. Continue manually, or open your time bank to check the balance and reconcile pending time.','Continue manually'];
-  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over','assistEnded'].includes(kind);$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',['paused','assistEnded'].includes(kind)?'Resume':'Pause');
+  const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over','assistEnded'].includes(kind);$('aimControls').hidden=game.status!=='ready'||paused;$('aimAngle').value=String(Math.round((game.launchAngle+Math.PI/2)*180/Math.PI));$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',['paused','assistEnded'].includes(kind)?'Resume':'Pause');
   renderReadyCoaching();
 }
 function event(e){
@@ -295,7 +295,12 @@ function draw(){
   const shooting=game.status==='playing'&&game.time<game.shootUntil;
   if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
   if($('activeEffect').textContent!==(shooting?'Paddle shooter active':''))$('activeEffect').textContent=shooting?'Paddle shooter active':'';
-  if(game.status==='ready'){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y-8,2.35,0,Math.PI*2);ctx.fill();const dx=game.pattern.entry.x-p.x,dy=game.pattern.entry.y+3-(p.y-8);for(let i=1;i<=11;i++){const t=i/11;ctx.fillStyle=`rgba(230,230,230,${.45*(1-t*.6)})`;ctx.beginPath();ctx.arc(p.x+dx*t,p.y-8+dy*t,1.15,0,Math.PI*2);ctx.fill();}}
+  if(game.status==='ready'){
+    const x=p.x,y=p.y-8,a=game.launchAngle,length=(y-(OY+51*CELL))/-Math.sin(a),tipX=x+Math.cos(a)*length,tipY=y+Math.sin(a)*length;
+    ctx.strokeStyle='#ffe2a4';ctx.fillStyle='#ffe2a4';ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(tipX,tipY);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(tipX,tipY);ctx.lineTo(tipX-Math.cos(a-.48)*13,tipY-Math.sin(a-.48)*13);ctx.lineTo(tipX-Math.cos(a+.48)*13,tipY-Math.sin(a+.48)*13);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,2.35,0,Math.PI*2);ctx.fill();
+  }
   for(const drop of game.drops){const spec=boosts[drop.kind];if(!reduced){ctx.shadowColor=spec.color;ctx.shadowBlur=5;}ctx.fillStyle=spec.color;ctx.beginPath();ctx.arc(drop.x,drop.y,9,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText(spec.label,drop.x,drop.y+3);}
   // Frame the entire arena, including the paddle area, as in the video reference.
   // This is presentation only: world boundaries and saved physics stay unchanged.
@@ -323,7 +328,7 @@ function frame(t){
   }else simulation.reset(t);
   draw();syncHUD();if(t-lastSnapshot>2000){lastSnapshot=t;if(game?.status==='playing'&&!paused&&$('home').hidden)saveSession();}requestAnimationFrame(frame);
 }
-controlEvents=bindPaddleEvents({surface:$('gameScreen'),focusTarget:canvas,input,enabled:gameplayInputEnabled,scale:()=>viewport.scale});
+controlEvents=bindPaddleEvents({surface:$('gameScreen'),focusTarget:canvas,input,enabled:gameplayInputEnabled,scale:()=>viewport.scale,ready:()=>game?.status==='ready',position:x=>worldX(x,canvas.getBoundingClientRect().left,viewport)});
 document.addEventListener('keydown',e=>{
   if(!$('home').hidden||document.querySelector('dialog[open]')||isInteractive(e.target)||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
   const key=e.key.length===1?e.key.toLowerCase():e.key;
@@ -339,12 +344,19 @@ async function beginAssistance(milliseconds){
   if(!run?.remote)throw Error('Could not authorize this stage. Reconnect and try again.');
   await bank.start(run.runId,milliseconds);
   if(game!==current||epoch!==authEpoch||!$('assist').open||document.hidden){bank.stop('cancelled');throw Error('Activation cancelled. Unused time will be reconciled.');}
-  closeDialog('assist');paused=false;auto=true;game.mode='play';input.startAuto(game.paddle);
+  closeDialog('assist');paused=false;auto=true;game.mode='play';
+  if(game.status==='ready'){
+    game.paddle.x=clamp(game.pattern.entry.x+20,game.paddle.w/2+2,W-game.paddle.w/2-2);game.target=game.paddle.x;
+    const dx=game.pattern.entry.x-game.paddle.x,dy=game.pattern.entry.y+3-(game.paddle.y-8);
+    game.setLaunchAngle((Math.atan2(dy,Math.abs(dx)<1?5:dx)+Math.PI/2)*180/Math.PI);
+  }
+  input.startAuto(game.paddle);
   $('auto').setAttribute('aria-pressed','true');$('pause').setAttribute('aria-label','Pause');
   $('prompt').hidden=true;if(game.status==='ready')game.launch();saveSession();canvas.focus({preventScroll:true});
 }
 function takeControl(){assistance.stop('manual');input.takeControl(game.paddle);auto=false;syncHUD();canvas.focus({preventScroll:true});}
 $('auto').onclick=()=>{if(auto)takeControl();else assistancePanel.show();};$('watch').onclick=()=>assistancePanel.show();$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';if(game?.status==='playing'&&!paused)canvas.focus({preventScroll:true});};
+$('aimAngle').oninput=()=>{if(game?.status==='ready'){game.setLaunchAngle(Number($('aimAngle').value));saveSession();}};
 for(const [id,property] of [['touchSensitivity','touchGain'],['pointerSensitivity','pointerGain']]){
   $(id).value=String(input[property]);$(id+'Value').textContent=input[property].toFixed(1)+'×';
   $(id).oninput=()=>{input[property]=clampGain($(id).value);$(id+'Value').textContent=input[property].toFixed(1)+'×';};

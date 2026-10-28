@@ -1,8 +1,8 @@
 # Brick Breaker · Channels & Swarms
 
-**Current candidate: 3.3.0/build25 on `codex/easier-opening-rounds`.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), and [starter difficulty rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md). Provider activation, physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
+**Current candidate: 3.3.1/build26 on `codex/easier-opening-rounds`.** This revision responds to the owner's physical-phone rejection of build 25. Start with the [manual opening-round rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), and [product implementation report](docs/PRODUCT-COMPLETION-2026-10.md). Provider activation, build 26 physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
 
-Dense colored fields, permanent gray borders, breakable silver paths in the first four stages, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
+Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
 **Older web demo (3.0, not this candidate):** https://speedinno.github.io/brick-breaker/
 
@@ -10,7 +10,7 @@ Dense colored fields, permanent gray borders, breakable silver paths in the firs
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Current Android test APK:** [3.3.0 build 25 download](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.4/Brick-Breaker-3.3.0-build25-Android-test.apk) · [checksum](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.4/Brick-Breaker-3.3.0-build25-SHA256SUMS.txt). This is a debug-signed physical-phone test build. Signed-in starter play needs the v6 database/API rollout described in the account guide; guest/device testing works without it. Exact package checks and iPhone simulator status are recorded in [mobile build history](docs/MOBILE-BUILD-3.3.md).
+**Build 26 Android test APK:** Pending the exact-source native build. The previous [build 25 APK](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.0-rc.4) is superseded after the owner's phone test. Signed-in starter play needs the v7 database/API rollout described in the account guide; guest/device testing works without it. Exact package checks are recorded in [mobile build history](docs/MOBILE-BUILD-3.3.md).
 
 **Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 
@@ -20,7 +20,7 @@ Dense colored fields, permanent gray borders, breakable silver paths in the firs
 
 Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.
 
-The first two starter boards have ten-tile entrances, stage 3 has eight and stage 4 has six. Their pale silver inner shapes break open, preventing long empty ricochets while keeping the borders clear. Stages 5–8 use four-tile entrances; stages 9–12 narrow to the original two-tile challenge. The paddle and speed ease in gradually, boosts are more frequent early, and stages 1–8 include a free paddle shooter on each launch that tapers from twelve to one second. Shorter, open motifs come first; crossing chambers arrive after the early wins. Completed-stage records remain separate from the current field snapshot.
+The first two starter boards have eight-tile entrances, stages 3–4 have six, stages 5–7 have four, stage 8 offers six, stages 9–11 have two, and stage 12 offers four. Solid gray motif walls and the original paddle sizes are restored. Every shot starts with one ball and no free power. Tap or drag to position the paddle, set the gold launch arrow, then fire through the entrance. The angle stays under the player's control after a miss. Completed-stage records remain separate from the current field snapshot.
 After the starters, every eighth stage beginning with stage 20 is a Breather with a slower ball, wider paddle and more frequent boosts. Its published pattern remains stable for players who have already downloaded it.
 
 Beyond the starters, twenty-two architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
