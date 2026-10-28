@@ -157,6 +157,9 @@ test('refund reverses only that lot and records consumed refunded value without 
 
 test('refund during an activation revokes renewal but never makes held credit spendable twice', async () => {
   const a = await identity(), id = uuid(), lot = await grant(a.user, 30000); await grant(a.user, 60000);
+  // The ledger spends oldest first. Keep the refunded lot first even when
+  // fast CI inserts share the same timestamp and UUIDs would decide the tie.
+  await db.query("update public.game_credit_lots set created_at=created_at-interval '1 second' where id=$1", [lot]);
   await reserve(a.user, id, a.device, a.run, 30000); await checkpoint(a.user, id, a.device, 1000);
   await db.query('select public.game_reverse_credit($1)', [lot]);
   const check = await checkpoint(a.user, id, a.device, 1500); assert.equal(check.authorizationValid, false);
