@@ -98,8 +98,14 @@ try {
   assert(Math.abs(paddleAfter-paddleBefore)>5,'Real Android touch drag must move the paddle');
   let destroyed=false;for(let attempt=0;attempt<120&&!destroyed;attempt++){destroyed=await evaluate(`Number(document.getElementById('remaining').textContent)<${initial.remaining}`);if(!destroyed)await wait(500);}
   assert(destroyed,'Manual offline physics must break bricks after a real touch gesture');
-  const playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed')})`);
-  assert.equal(playing.hidden, true, 'Manual play must stay active');
+  let playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed'),status:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).status,lives:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).lives})`);
+  if(!playing.hidden){
+    assert.equal(playing.status,'ready','A visible prompt after manual play should offer another shot');
+    assert(playing.lives>0,'The first missed shot should leave a retry');
+    await evaluate(`document.getElementById('launch').click();true`);
+    playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed'),status:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).status,lives:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).lives})`);
+  }
+  assert.equal(playing.hidden, true, 'Manual play or its one-shot retry must be active');
   assert.equal(playing.auto, 'false');
   assert.ok(playing.balls >= 1);
   assert.ok(playing.remaining < initial.remaining, 'Native physics must break bricks');
