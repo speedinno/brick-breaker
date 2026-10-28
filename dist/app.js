@@ -211,7 +211,7 @@ function prompt(kind){
 function event(e){
   if(e.type==='launch')$('prompt').hidden=true;
   if((e.type==='break'||e.type==='hit')&&performance.now()-lastSound>55){lastSound=performance.now();tone(620+Math.min(100,game?.combo||0)*5);}
-  if(e.type==='power'){toast({add:`+3 · ${e.before} → ${e.balls} BALLS`,triple:`×3 · ${e.before} → ${e.balls} BALLS`,wide:'WIDE PADDLE · SAME BALL COUNT',floor:'SAFETY FLOOR',fire:'FIREBALLS',laser:'PADDLE SHOOTER · 8s'}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
+  if(e.type==='power'){toast({add:`+3 · ${e.before} → ${e.balls} BALLS`,triple:`×3 · ${e.before} → ${e.balls} BALLS`,wide:'WIDE PADDLE · SAME BALL COUNT',floor:'SAFETY FLOOR',fire:'FIREBALLS',laser:`PADDLE SHOOTER · ${Math.ceil(Math.max(0,game.shootUntil-game.time))}s`}[e.kind]);tone(840,.14);if(haptics){if(native)void Haptics.impact({style:ImpactStyle.Light}).catch(()=>{});else navigator.vibrate?.(12);}}
   if(e.type==='lost'){clearControls('lost');saveSession();prompt('lost');tone(140,.2);}
   if(e.type==='over'){clearControls('game_over');if(run?.runId)metrics.record('stage_end',{level:game.level,runId:run.runId,mode:assisted?'assisted':'manual',simulationMs:Math.min(86400000,Math.round(game.stageTime*1000)),losses:game.stageLosses,outcome:'game_over'});clearSession();prompt('over');tone(140,.2);}
   if(e.type==='won'){
