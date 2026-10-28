@@ -1,6 +1,6 @@
 # Brick Breaker · Channels & Swarms
 
-**Current candidate: 3.3.0/build23 on `codex/easier-opening-rounds`.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), and [starter difficulty rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md). Provider activation, physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
+**Current candidate: 3.3.0/build25 on `codex/easier-opening-rounds`.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), and [starter difficulty rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md). Provider activation, physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
 
 Dense colored fields, permanent gray borders, breakable silver paths in the first four stages, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
@@ -10,7 +10,7 @@ Dense colored fields, permanent gray borders, breakable silver paths in the firs
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Current Android test APK:** [3.3.0 build 23 download](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.3/Brick-Breaker-3.3.0-build23-Android-test.apk) · [checksum](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.3/Brick-Breaker-3.3.0-build23-SHA256SUMS.txt). The exact-source Android emulator checks passed; the iPhone simulator check is queued. This is a debug-signed physical-phone test build. Signed-in starter play needs the v5 database/API rollout described in the account guide.
+**Current Android test APK:** [3.3.0 build 25 download](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.4/Brick-Breaker-3.3.0-build25-Android-test.apk) · [checksum](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.4/Brick-Breaker-3.3.0-build25-SHA256SUMS.txt). This is a debug-signed physical-phone test build. Signed-in starter play needs the v6 database/API rollout described in the account guide; guest/device testing works without it. Exact package checks and iPhone simulator status are recorded in [mobile build history](docs/MOBILE-BUILD-3.3.md).
 
 **Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 
