@@ -10,6 +10,8 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
+**Current Android test APK:** [3.3.0 build 22 download](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.2/Brick-Breaker-3.3.0-build22-Android-test.apk). This is a debug-signed test package. The [release notes](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.0-rc.2) identify the exact source, checks and installation caveats. Guest offline play is ready for testing; signed-in starter play needs the v4 database/API rollout described in the account guide.
+
 **Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 
 **Mobile API on Azure:** [Azure CLI deployment](docs/AZURE-API.md) runs in SpeedInno Org Subscription, with Supabase Auth/Postgres and Resend SMTP. The current API, database migrations, dedicated reward ingress and scheduled recovery worker are deployed; hosted API checks and automatic maintenance execution passed. Commercial accounts/callbacks remain unverified. Deployment uses ACR builds without GitHub Actions.

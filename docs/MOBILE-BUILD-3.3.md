@@ -1,4 +1,14 @@
-# Mobile candidate 3.3.0, build 21
+# Mobile builds — 3.3.0
+
+## Current easier-opening candidate: build 22
+
+Source `270b418e47d5508f4c971181c0f3a9b04e2c8be7` on `codex/easier-opening-rounds` adds wider early entries, a short free paddle shooter on stages 1–2, periodic Breather rounds, reliable touch reversal and a true first-play coaching screen. An Android emulator run of the preceding candidate revealed that optional coaching replaced the opening-volley instructions; this source fixes the interaction. A direct local browser check now shows the first-time help followed by the visible volley guidance and Launch control. The exact-source build 22 native pipeline is [run 40686307469](https://github.com/speedinno/brick-breaker/actions/runs/40686307469). Its verify and Android compilation jobs succeeded. Local `npm test` passed 447/447 before this one-line coaching correction; its targeted checks and `npm run check` passed after the correction. The release source preflight reports version 3.3.0/build 22.
+
+The [packaged Android gameplay check](https://github.com/speedinno/brick-breaker/actions/runs/40687613714) succeeded. It launched offline in a full-screen native viewport, verified first-play guidance, moved the paddle with a touch drag, cleared bricks with AUTO off, and confirmed the same stage, ball, lives and boost state after cold force-stop and relaunch. The APK's 62 runtime assets matched this exact source commit, and its SHA-256 is `6b31767ec6a672077521a64d66a6ae02e06bd8fc5efd3f0f97d4ce26cfc602cf`. Download the [Android test APK](https://github.com/speedinno/brick-breaker/releases/download/v3.3.0-rc.2/Brick-Breaker-3.3.0-build22-Android-test.apk) from the [public prerelease](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.0-rc.2). This is debug-signed and may not install over an older package signed by a different key; protect guest progress before uninstalling any older test build. This check proves a functioning native package, not a human novice win rate.
+
+Build 22 signed-in starter play requires `202610280016_starter_catalog_v4.sql` and the matching API bundle first. Previously started v3 runs and completed-stage history are preserved. See [rollout notes](STARTER-DIFFICULTY-ROLLOUT.md) and [Chandrahas's account handoff](ACCOUNT-SETUP-2026-10.md). The APK is for guest/device testing until that cloud rollout. An unsigned iOS archive is a signing input, not an installable iPhone app. The dated build 21 record below remains useful history but its hashes and tests do not describe build 22.
+
+## Historical build 21 record
 
 Candidate content/source: `a22930a` on `codex/product-controls-economy`. This includes the controls/physics, finite assistance, purchase/ad recovery and optional measurement work; it is not a store publication or a claim that unavailable commercial accounts were tested. Later rollout documentation does not change its Android assets/native code. The API/worker container source remains `73fa1e0a170f`, as recorded in [Azure deployment](AZURE-API.md).
 
