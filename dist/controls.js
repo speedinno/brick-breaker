@@ -60,12 +60,17 @@ export class PaddleInput {
         this.owner = e.kind === 'key' ? 'keyboard' : e.owner;
         this.target = paddle.x;
       }
-      if (e.kind === 'delta' && this.owner === e.owner) this.target = clamp(this.target + e.dx);
+      if (e.kind === 'delta' && this.owner === e.owner) {
+        // Drop unfulfilled travel when the player reverses before the physical
+        // paddle catches up. The engine still moves the collider at its limit.
+        if (e.dx * (this.target - paddle.x) < 0) this.target = paddle.x;
+        this.target = clamp(this.target + e.dx);
+      }
       if (e.kind === 'key') {
         if (e.down) this.keys.add(e.key);
         else { this.keys.delete(e.key); if (!this.keys.size && this.owner === 'keyboard') this.target = paddle.x; }
       }
-      if (e.kind === 'end' && this.owner === e.owner) this.owner = 'none';
+      if (e.kind === 'end' && this.owner === e.owner) { this.owner = 'none'; this.target = paddle.x; }
     }
     if (this.head === this.events.length) { this.events.length = 0; this.head = 0; }
     // A widening power-up changes the legal centre range immediately.

@@ -6,6 +6,13 @@ import {fitViewport} from '../dist/viewport.js';
 const near = (a, b, eps = 1e-7) => assert(Math.abs(a - b) <= eps, `${a} != ${b}`);
 const paddle = () => ({x: 200, y: 584, w: 82});
 const apply = (input, p, at, dt = 1 / 120) => { input.applyThrough(at, p); p.x = input.desired(dt, p, () => 100); };
+test('fast swipe reversal and release stop a lagging real paddle immediately',()=>{
+ const g=new Game(),i=new PaddleInput();g.launch();const step=at=>{i.applyThrough(at,g.paddle);g.target=i.desired(1/120,g.paddle,()=>200);g.step(1/120);};
+ i.touchStart(1,100,0);step(0);const initial=g.paddle.x;
+ i.touchMove(1,300,1,10);step(10);const right=g.paddle.x;assert(right>initial&&i.target>right+50);
+ i.touchMove(1,298,1,20);step(20);const reversed=g.paddle.x;assert(reversed<right,'fresh left input must move the physical paddle left');
+ i.touchEnd(1,30);step(30);const released=g.paddle.x;step(40);assert.equal(g.paddle.x,released,'no stored target may move after release');
+});
 
 test('CTL-02..06: relative touch pickup, vertical, clutch, edges and one pointer', () => {
   const i = new PaddleInput(), p = paddle();

@@ -257,7 +257,7 @@ async function action(){
   if(game.status==='ready'){const activeGame=game,epoch=authEpoch;loading=true;try{await ensureRun();if(epoch!==authEpoch||game!==activeGame)return;game.paddle.x=clamp(game.target,game.paddle.w/2+2,W-game.paddle.w/2-2);game.launch();}catch(error){if(epoch===authEpoch&&game===activeGame){toast(error.message);prompt('ready');}}finally{if(epoch===authEpoch&&game===activeGame){loading=false;saveSession();}}}
   canvas.focus({preventScroll:true});
 }
-function pause(){if(!$('home').hidden||!game||loading)return;if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');}else if(game.status==='playing'){paused=true;clearControls();prompt('paused');saveSession();}}
+function pause(){if(!$('home').hidden||!game||loading)return;if(paused){clearControls();paused=false;$('prompt').hidden=true;$('pause').setAttribute('aria-label','Pause');canvas.focus({preventScroll:true});}else if(game.status==='playing'){paused=true;clearControls();prompt('paused');saveSession();}}
 function away(){
  clearControls('background');metrics.persist();void metrics.flush();if(game?.status==='playing'&&!paused){paused=true;prompt('paused');}saveSession();
  // A prepared offer is never kept ready across background/navigation. The
@@ -342,8 +342,8 @@ async function beginAssistance(milliseconds){
   $('auto').setAttribute('aria-pressed','true');$('pause').setAttribute('aria-label','Pause');
   $('prompt').hidden=true;if(game.status==='ready')game.launch();saveSession();canvas.focus({preventScroll:true});
 }
-function takeControl(){assistance.stop('manual');input.takeControl(game.paddle);auto=false;syncHUD();}
-$('auto').onclick=()=>{if(auto)takeControl();else assistancePanel.show();};$('watch').onclick=()=>assistancePanel.show();$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';};
+function takeControl(){assistance.stop('manual');input.takeControl(game.paddle);auto=false;syncHUD();canvas.focus({preventScroll:true});}
+$('auto').onclick=()=>{if(auto)takeControl();else assistancePanel.show();};$('watch').onclick=()=>assistancePanel.show();$('launch').onclick=()=>void action();$('pause').onclick=pause;$('speed').onclick=()=>{speed=speed===1?2:speed===2?4:1;$('speed').textContent=speed+'×';if(game?.status==='playing'&&!paused)canvas.focus({preventScroll:true});};
 for(const [id,property] of [['touchSensitivity','touchGain'],['pointerSensitivity','pointerGain']]){
   $(id).value=String(input[property]);$(id+'Value').textContent=input[property].toFixed(1)+'×';
   $(id).oninput=()=>{input[property]=clampGain($(id).value);$(id+'Value').textContent=input[property].toFixed(1)+'×';};
