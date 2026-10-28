@@ -10,7 +10,7 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Build 26 Android test APK:** Pending the exact-source native build. The previous [build 25 APK](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.0-rc.4) is superseded after the owner's phone test. Signed-in starter play needs the v7 database/API rollout described in the account guide; guest/device testing works without it. Exact package checks are recorded in [mobile build history](docs/MOBILE-BUILD-3.3.md).
+**Build 26 Android test APK:** [Download the manual-aim 3.3.1 APK](https://github.com/speedinno/brick-breaker/releases/download/v3.3.1-rc.1/Brick-Breaker-3.3.1-build26-Android-test.apk) and see its [release notes](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.1-rc.1). The previous [build 25 APK](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.0-rc.4) is superseded after the owner's phone test. This is a test candidate until physical beginner play confirms the difficulty. Signed-in starter play needs the v7 database/API rollout described in the account guide; guest/device testing works without it. Exact package checks are recorded in [mobile build history](docs/MOBILE-BUILD-3.3.md).
 
 **Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 
