@@ -106,7 +106,7 @@ for(const action of ['level','start'])test(`HTTP contract: ${action} budgets eve
 });
 test('HTTP contract: a newly published starter uses catalog revision five',async()=>{
  reset();const response=await handler(request({action:'level',accountId:owner,level:1}));assert(response.status===200);
- const stage=await response.json();assert(stage.definition.version===5);assert(published.length===1&&published[0]===1);
+ const stage=await response.json();assert(stage.definition.version===6);assert(published.length===1&&published[0]===1);
  const started=await handler(request({action:'start',accountId:owner,level:1,requestId:'00000000-0000-4000-8000-000000000002'}));assert(started.status===200);
 });
 

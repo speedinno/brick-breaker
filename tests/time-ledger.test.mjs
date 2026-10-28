@@ -145,6 +145,9 @@ test('crash recovery holds authority until lease expiry and charges only acknowl
 
 test('refund reverses only that lot and records consumed refunded value without a negative balance', async () => {
   const a = await identity(), id = uuid(); const refunded = await grant(a.user, 30000); await grant(a.user, 90000);
+  // The ledger spends oldest first. Give the intended first lot a distinct
+  // timestamp so fast CI inserts cannot tie and fall back to random UUID order.
+  await db.query("update public.game_credit_lots set created_at=created_at-interval '1 second' where id=$1", [refunded]);
   await reserve(a.user, id, a.device, a.run, 15000); await settle(a.user, id, a.device, 12000);
   await db.query('select public.game_reverse_credit($1)', [refunded]);
   await db.query('select public.game_reverse_credit($1)', [refunded]);

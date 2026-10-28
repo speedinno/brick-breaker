@@ -400,7 +400,7 @@ var CELL = 8;
 var OX = 0;
 var OY = 18;
 var FAMILIES = ["T channel", "Switchback", "H chamber", "M channel", "Needle", "W channel", "Sword", "Bent channel", "Nested squares", "Twin hearts", "Step chamber", "Fork"];
-var STARTER_FAMILY_ORDER = [4, 0, 7, 1, 2, 6, 5, 3, 8, 9, 10, 11];
+var STARTER_FAMILY_ORDER = [4, 0, 7, 1, 6, 2, 5, 3, 8, 9, 10, 11];
 var COLORS = ["#e71840", "#8fab18", "#527d24", "#a31973", "#47a91b", "#a6a11a", "#c61724", "#df8a27", "#c215a7", "#df2942", "#9bbb36", "#89a623"];
 var clamp2 = (x, a, b) => Math.max(a, Math.min(b, x));
 function rng(seed) {
@@ -497,7 +497,7 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
-  const channelRadius = level <= 2 ? 4.6 : level === 3 ? 3.6 : level === 4 ? 2.6 : level <= 8 ? 1.6 : 0.86;
+  const channelRadius = level <= 2 ? 4.6 : level === 3 ? 3.6 : level === 4 ? 2.6 : level <= 8 ? 2.6 : 1.6;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -519,7 +519,7 @@ function makePattern(level, seed = 1) {
       if (type !== "wall") bricks.push(cell);
     }
   }
-  if (level <= 4) {
+  if (level <= 12) {
     for (const cell of cells) if (cell.type === "wall" && cell.c > 0 && cell.c < COLS - 1 && cell.r > 0 && cell.r < ROWS - 1) {
       cell.type = "gate";
       cell.hp = 1;
@@ -581,12 +581,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 5 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 6 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 5, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 6, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
   if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");

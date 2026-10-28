@@ -5,10 +5,10 @@ import {Game} from '../dist/engine.js';
 // This deliberately simple delayed controller follows a descending ball. It
 // catches imperfectly and does not choose strategic angles or hunt pickups.
 // It is a repeatable regression proxy, not a measurement of human win rate.
-function delayedController(level,seed,{interval=.25,predict=true}={}){
+function delayedController(level,seed,{interval=.25,predict=true,maxSeconds=360}={}){
  const game=new Game({level,seed,mode:'play'});
  let nextDecision=0,firstHit=null,launches=0;
- while(game.stageTime<360&&game.status!=='won'&&game.status!=='over'){
+ while(game.stageTime<maxSeconds&&game.status!=='won'&&game.status!=='over'){
   if(game.status==='ready'){game.launch();launches++;}
   if(game.time>=nextDecision){
    const balls=game.balls.filter(ball=>ball.vy>0&&ball.y<game.paddle.y).sort((a,b)=>(game.paddle.y-a.y)/a.vy-(game.paddle.y-b.y)/b.vy);
@@ -38,5 +38,15 @@ test('a slow reactive paddle can finish the opening four rounds without predicti
   const results=seeds.map(seed=>delayedController(level,seed,{interval:1,predict:false}));
   assert(results.every(result=>result.won&&result.losses===0),`stage ${level} one-second reactive clears`);
   assert(results.every(result=>result.seconds<120),`stage ${level} one-second reactive clear time`);
+ }
+});
+
+test('the full starter sequence stays playable as its patterns grow more involved',()=>{
+ const seeds=Array.from({length:10},(_,i)=>101+i*1907);
+ for(let level=5;level<=12;level++){
+  const results=seeds.map(seed=>delayedController(level,seed,{interval:.5,predict:false,maxSeconds:240}));
+  const wins=results.filter(result=>result.won).length;
+  assert(wins>=6,`stage ${level} reactive clears: ${wins}/10`);
+  if(level===8)assert(wins>=8,'the early Breather should restore momentum');
  }
 });
