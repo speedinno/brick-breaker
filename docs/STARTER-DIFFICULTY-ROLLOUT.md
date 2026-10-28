@@ -1,6 +1,8 @@
 # Easier opening rounds — rollout notes
 
-The current feature branch changes stages 1–4 to six-tile entrances, stages 5–8 to four tiles, and early play to a wider paddle, gentler speed and more frequent boosts. Every eighth stage from 20 is a Breather with more forgiving play controls. Later-stage layouts do not change.
+The current feature branch changes stages 1–4 to six-tile entrances, stages 5–8 to four tiles, and early play to a wider paddle, gentler speed and more frequent boosts. Stages 1 and 2 also begin every new shot with a visible eight-second paddle shooter, giving a new player an immediate opening even after losing a ball. The first launch still serves one ball; the player steers the shooter and catches later pickups. Every eighth stage from 20 is a Breather with more forgiving play controls. Later-stage layouts do not change.
+
+In seeded automatic-play checks, stage 1 cleared in 59–116 simulated seconds across four seeds with no lost lives (the earlier version took 197 seconds on the reference seed). Stage 2 cleared in 65–187 seconds across the same seeds; it remains a candidate for physical-player tuning. These checks establish reachability and rough pacing, not a human win rate. Ask first-time players to attempt both opening rounds on physical phones without AUTO and record the first clear time, losses, aim confusion, and whether they want to continue. Do not claim the onboarding is easy solely from the automatic checks.
 
 Signed-in players use a shared catalog. The existing version 3 starter rows and runs must remain in place so a previously started stage can finish against its original hash. The new starter definitions use catalog version 4 only for stages 1–12; stage 13 onward remains version 3. Completion history remains stored as the existing progress edition (version 3), so completion ticks and records do not split between catalog revisions.
 

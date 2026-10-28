@@ -4,7 +4,7 @@ import {Game,MAX_BALLS} from '../dist/engine.js';
 import {snapshotGame,restoreGame} from '../dist/session.js';
 
 test('each caught pickup applies once and reports the exact before/after count',()=>{
-  const events=[],g=new Game({onEvent:e=>events.push(e)});g.launch();
+  const events=[],g=new Game({level:3,onEvent:e=>events.push(e)});g.launch();
   g.balls=Array.from({length:4},()=>g.ball(g.paddle.x,520));
   g.drops=[{x:g.paddle.x,y:g.paddle.y-5,kind:'triple'},{x:g.paddle.x,y:g.paddle.y-5,kind:'add'}];
   g.step(1/120);

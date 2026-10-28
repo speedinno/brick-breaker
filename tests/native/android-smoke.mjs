@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {writeFile,readFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
 const relaunch=process.argv.includes('--relaunch');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 let target;
@@ -97,15 +98,20 @@ try {
   assert.equal(playing.auto, 'false');
   assert.ok(playing.balls >= 1);
   assert.ok(playing.remaining < initial.remaining, 'Native physics must break bricks');
-  const screenshot=await call('Page.captureScreenshot',{format:'png'});
-  await writeFile('native-evidence/Android-native-playing.png',Buffer.from(screenshot.data,'base64'));
+  const screenshot=spawnSync('adb',['exec-out','screencap','-p'],{maxBuffer:8*1024*1024});
+  assert.equal(screenshot.status,0,'Capture the displayed Android game surface');
+  await writeFile('native-evidence/Android-native-playing.png',screenshot.stdout);
   await evaluate(`document.getElementById('pause').click(); true`);
   assert.equal(await evaluate(`document.getElementById('promptTitle').textContent`), 'Paused.');
   await evaluate(`document.getElementById('launch').click(); true`);
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`), true);
   await evaluate(`document.getElementById('pause').click();true`);
   const saved=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest'))`);
-  assert(saved?.removed.length>0&&saved.balls.length>0,'Save real native gameplay before force stop');
+  // A real manual shot may have ended between the first broken brick and
+  // pausing. A ready field has no active balls, but must retain its damage.
+  assert(saved?.removed.length>0&&['ready','playing'].includes(saved.status)&&
+    (saved.status==='ready'||saved.balls.length>0),
+    `Save real native gameplay before force stop (status ${saved?.status}, removed ${saved?.removed?.length}, balls ${saved?.balls?.length})`);
   const committed=await evaluate(`JSON.parse(JSON.parse(window.BrickBreakerStorage.snapshot()).values['brick-breaker-session-v3:guest'])`);
   assert.deepEqual(committed,saved,'Native disk commit must match the paused field before force stop');
   await writeFile('native-evidence/android-saved-state.json',JSON.stringify(saved,null,2));

@@ -1,10 +1,10 @@
 # Brick Breaker · Channels & Swarms
 
-**Current candidate: 3.3.0/build21.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md) and [Android artifacts/iPhone build path](docs/MOBILE-BUILD-3.3.md). Provider activation, current physical-device acceptance, iPhone compilation/signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
+**Current candidate: 3.3.0/build22 on `codex/easier-opening-rounds`.** Start with the [product implementation report and complete acceptance coverage](docs/PRODUCT-COMPLETION-2026-10.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), and [starter difficulty rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md). Provider activation, physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
 
 Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
-**Play:** https://speedinno.github.io/brick-breaker/
+**Older web demo (3.0, not this candidate):** https://speedinno.github.io/brick-breaker/
 
 **Primary private source:** https://github.com/SpeedInno-Org/Brick-Breaker
 
@@ -18,7 +18,7 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.
 
-The first four starter boards have six-tile entrances and wide channels, a larger paddle, gentler ball speed and more frequent boosts. Stages 5–8 use four-tile entrances; stages 9–12 narrow to the original two-tile challenge. Completed-stage records remain separate from the current field snapshot.
+The first four starter boards have six-tile entrances and wide channels, a larger paddle, gentler ball speed and more frequent boosts. The first two give a free eight-second paddle shooter on each launch, so a new player can make visible progress while learning to aim. Stages 5–8 use four-tile entrances; stages 9–12 narrow to the original two-tile challenge. Completed-stage records remain separate from the current field snapshot.
 After the starters, every eighth stage beginning with stage 20 is a Breather with a slower ball, wider paddle and more frequent boosts. Its published pattern remains stable for players who have already downloaded it.
 
 Beyond the starters, twenty-two architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
