@@ -107,7 +107,7 @@ function renderMetrics(){
 function renderReadyCoaching(){
  clearTimeout(coachExposureTimer);coachExposureTimer=null;
  if(!game||game.level!==1||currentPromptKind!=='ready'||$('prompt').hidden||loading)return;
- $('promptText').textContent=metrics.coaching('Drag the paddle. Catch the boosts. Grow the swarm.',game.level);
+ $('promptText').textContent='Your first shots include a free paddle shooter. '+metrics.coaching('Drag to aim, then catch boosts to grow the swarm.',game.level);
  const visible=()=>game?.level===1&&currentPromptKind==='ready'&&!loading&&!$('prompt').hidden&&$('home').hidden&&$('splash').hidden&&!document.hidden&&!document.querySelector('dialog[open]');
  if(visible()&&metrics.assignment){const epoch=loadEpoch,owner=cloud.userId,assignment=metrics.assignment;coachExposureTimer=setTimeout(()=>{coachExposureTimer=null;if(visible()&&epoch===loadEpoch&&owner===cloud.userId&&assignment.experiment===metrics.assignment?.experiment&&assignment.variant===metrics.assignment?.variant)metrics.exposeCoach(String(epoch),1);},250);}
 }
