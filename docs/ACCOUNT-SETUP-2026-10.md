@@ -1,6 +1,6 @@
 # Account setup and release order — SpeedInno Brick Breaker
 
-Prepared 27 October 2026 against the implemented candidate. This is the requested setup guide to use after implementation; no new account/credential request is pending. The [product report](PRODUCT-COMPLETION-2026-10.md) records exactly what is implemented/tested. Dashboard wording and eligibility can change; linked official documentation and the actual account's requirements govern.
+Prepared 27 October 2026 and updated for the easier-opening candidate on 28 October. This is Chandrahas's release handoff guide. The [product report](PRODUCT-COMPLETION-2026-10.md) records implementation and testing, while [starter rollout notes](STARTER-DIFFICULTY-ROLLOUT.md) cover the new shared-stage revision. Dashboard wording and eligibility can change; linked official documentation and the actual account's requirements govern.
 
 ## Selected services
 
@@ -24,9 +24,10 @@ RevenueCat handles consumables as well as subscriptions; here there is **no subs
 3. Preserve app identity **`com.speedinno.brickbreaker`** on both native platforms. Do not casually change it after creating products or publishing.
 4. Keep private keys in the ignored `.env.api`/managed cloud secret settings. Never paste keys into a Git issue, store description, app bundle or chat. Only public Supabase/SDK/ad identifiers belong in public configuration.
 5. Establish a **separate sandbox Supabase database and provider projects** before commercial testing. Set `MONETIZATION_ENVIRONMENT=sandbox` there and `production` only in production. Never toggle the live player's database to sandbox as a shortcut.
-6. Take a backup, run the migration plan, and apply only pending verified revisions. The current production project already has all17 installed. Do not rerun its two manually installed baseline files or blindly run another migration system against them. See [database migration instructions](DATABASE-MIGRATIONS.md).
+6. Set up or confirm a monitored, company-owned **game support email** before store submission. If none exists, create a new address on the company domain. Test delivery and replies, give Chandrahas and a backup operator access, and use the same real address in both store listings, the game/support site and the privacy/account-deletion contact. Do not publish a placeholder or a personal mailbox as the public support address.
+7. Take a backup, run the migration plan, and apply only pending verified revisions. The production project had the first **17** revisions installed on 27 October; this branch adds revision **18**, `202610280016_starter_catalog_v4.sql`, which is not covered by that receipt. Confirm the read-only plan shows its exact pending checksum, then apply it with the tracked-project command in [database migration instructions](DATABASE-MIGRATIONS.md). Do not rerun the two manually installed baseline files or blindly switch migration systems. Deploy the matching API bundle before any build 22 client uses signed-in starter stages. Verify new v4 starter runs, old v3 in-flight runs, completion ticks and stage 13 with disposable accounts as described in [starter rollout notes](STARTER-DIFFICULTY-ROLLOUT.md).
 
-The current candidate APK is debug-signed for testing; the current AAB is unsigned. See [build21 artifacts and hashes](MOBILE-BUILD-3.3.md). Do not uninstall an older test build to resolve a signature mismatch until its guest progress is protected.
+Build 21 in the [mobile build history](MOBILE-BUILD-3.3.md) is historical. The build 22 APK is intended for testing and uses a disposable CI debug signature; its AAB remains unsigned until the company configures its release key. Do not uninstall an older test build to resolve a signature mismatch until its guest progress is protected.
 
 ## 2. Finish Google Play setup first
 
@@ -170,7 +171,7 @@ Standalone operator commands accept either the legacy `SUPABASE_SERVICE_ROLE_KEY
 
 ## 10. Beta, submission and gradual launch
 
-Finish physical gameplay and the authentic sandbox checklist before activating monetization. Use Play's internal/closed tracks and a current signed TestFlight build for a real pilot. Collect concrete observations about aiming, instruction comprehension, mastery/replay, save recovery and assistance value; do not recruit testers merely to inflate a required count.
+Finish physical gameplay and the authentic sandbox checklist before activating monetization. Use Play's internal/closed tracks and a current signed TestFlight build for a real pilot. Give at least ten first-time players stages 1 and 2 with the built-in instructions and no AUTO. Record first clear time, losses/retries, touch aim, pickup understanding, and whether each player chooses to continue. Review stages 5, 9, 13 and a later Breather for the intended difficulty progression. If the opening still causes repeated failures like the owner's original report, tune it and run another fresh-player pilot before submission. Collect observations about mastery/replay, save recovery and assistance value; do not recruit testers merely to inflate a required count.
 
 Resolve crash/payment/save/consent failures, produce final store screenshots/descriptions and review notes, verify support/deletion URLs, and submit through each console's actual checklist. Store review is an external approval, not something the code can mark passed. Release gradually with a responsible operator, visible rollback/availability controls and monitored support. Keep free manual play usable during provider outages.
 

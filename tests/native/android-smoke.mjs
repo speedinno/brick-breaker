@@ -47,6 +47,7 @@ try {
   assert.equal(await evaluate(`document.getElementById('home').hidden`),false,'Every cold launch opens the home menu');
   await evaluate(`document.getElementById('homePlay').click();if(document.getElementById('help').open)document.getElementById('helpDone').click();true`);
   assert.equal(await evaluate(`document.getElementById('home').hidden`),true,'Play enters the preserved stage');
+  if(!relaunch)assert.match(await evaluate(`document.getElementById('promptText').textContent`),/free paddle shooter/,'First play must explain its forgiving opening volley');
   assert.equal(await evaluate(`document.getElementById('saveStatus').tagName`),'SPAN','Autosaving is a status, not a Save button');
   const layout=await evaluate(`(()=>{const app=document.querySelector('.app'),board=document.getElementById('game'),rect=app.getBoundingClientRect(),footer=document.querySelector('footer').getBoundingClientRect();return {width:innerWidth,height:innerHeight,app:rect.toJSON(),footer:footer.toJSON(),scrollHeight:document.documentElement.scrollHeight,canvas:{width:board.width,height:board.height,css:board.getBoundingClientRect().toJSON()},controls:[...document.querySelectorAll('header button,.journey-strip button,.play-tools button')].map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))};})()`);
   assert(Math.abs(layout.app.width-layout.width)<2&&Math.abs(layout.app.height-layout.height)<2,'Native app must fill its entire viewport');
@@ -88,9 +89,13 @@ try {
   for(let attempt=0;attempt<50;attempt++){if(await evaluate(`document.getElementById('prompt').hidden`))break;await wait(200);}
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'Manual offline launch must start gameplay');
   const board=layout.canvas.css,x=board.x+board.width*.5,y=board.y+board.height*.83;
+  const paddleBefore=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).paddleX`);
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
   await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.min(70,board.width*.18),y,id:1}]});
   await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await wait(2500);
+  const paddleAfter=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).paddleX`);
+  assert(Math.abs(paddleAfter-paddleBefore)>5,'Real Android touch drag must move the paddle');
   let destroyed=false;for(let attempt=0;attempt<120&&!destroyed;attempt++){destroyed=await evaluate(`Number(document.getElementById('remaining').textContent)<${initial.remaining}`);if(!destroyed)await wait(500);}
   assert(destroyed,'Manual offline physics must break bricks after a real touch gesture');
   const playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed')})`);

@@ -58,10 +58,9 @@ final class NativeSmoke: XCTestCase {
         closeStages.tap()
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: closeStages)
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed, "One tap must close the scrolled stage picker")
-        // Entering from Home can restore a saved ready field, whose action is
-        // Continue; a fresh field presents Launch. Both start manual play.
-        let launch = game.buttons.matching(NSPredicate(format: "label == %@ OR label == %@", "Launch", "Continue")).firstMatch
-        XCTAssertTrue(launch.waitForExistence(timeout: 10), "Offline manual play must remain available")
+        let launch = button("Launch")
+        XCTAssertTrue(launch.waitForExistence(timeout: 10), "A first-time player must see the ready guidance before manual play")
+        XCTAssertTrue(game.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "free paddle shooter")).firstMatch.exists)
         launch.tap()
         let left = game.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.69))
         let right = game.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.69))

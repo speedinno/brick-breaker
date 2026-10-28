@@ -238,7 +238,8 @@ async function start(level=store.value.selected,{resume=false,enter=true,sync=tr
     run=restored?snapshot.run:null;auto=false;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&(snapshot.assisted||snapshot.auto));
     game.mode='play';paused=Boolean(restored&&game.status==='playing');paintVersion='';simulation.reset(performance.now());
     store.save({...store.value,selected:level,updatedAt:Date.now()});$('level').textContent=String(level).padStart(2,'0');$('name').textContent=game.name;$('name').title=game.name;$('auto').setAttribute('aria-pressed',String(auto));$('speed').textContent=speed+'×';
-    prompt(restored?'resume':'ready');syncHUD();updateStatus();
+    const previouslyPlayed=restored&&(game.status==='playing'||snapshot.removed.length>0||snapshot.time>0);
+    prompt(previouslyPlayed?'resume':'ready');syncHUD();updateStatus();
   }catch(error){if(epoch===loadEpoch){$('prompt').classList.remove('loading');$('promptTitle').textContent='Your stage is safe.';$('promptText').textContent=error.message||'Please try again.';$('launch').textContent='Try again';$('watch').hidden=true;loading='failed';toast(error.message||'Could not open this stage.');}}
   finally{if(epoch===loadEpoch){if(loading!=='failed'){loading=false;saveSession();}updateStatus();renderReadyCoaching();}}
 }
