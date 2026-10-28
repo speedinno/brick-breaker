@@ -66,7 +66,11 @@ final class NativeSmoke: XCTestCase {
         XCTAssertTrue(game.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Tap to place")).firstMatch.exists)
         let aim = game.sliders["Launch angle, left to right"].firstMatch
         XCTAssertTrue(aim.isHittable, "Manual launch angle must be adjustable on the phone")
-        aim.adjust(toNormalizedSliderPosition: 0.45)
+        // WKWebView exposes this HTML range as a Slider, but XCTest's
+        // adjust(toNormalizedSliderPosition:) expects native scrubber points
+        // that WebKit reports as (0, 0). Use a real touch on its visible track.
+        aim.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.5)).tap()
+        shot("iPhone-manual-aim")
         launch.tap()
         let speed = button("Playback speed")
         let speedReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: speed)
