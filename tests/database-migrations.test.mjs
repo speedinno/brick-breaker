@@ -14,7 +14,7 @@ test('live-style manual baseline is recognized without writes; atomic adoption a
   const id=crypto.randomUUID();await db.query('insert into auth.users(id) values($1)',[id]);await db.query('insert into game_players(user_id,starter_completed) values($1,$2)',[id,[1,2,3,4,5,6]]);
   const plan=await migrateDatabase({query,files});assert.equal(plan.baselineRecognized,true);assert.equal(plan.files.filter(row=>row.state==='adopt-baseline').length,2);assert.equal((await query("select to_regclass('public.game_schema_revisions') as value"))[0].value,null);
   await assert.rejects(()=>migrateDatabase({query,files,apply:true}),/adopt-existing-baseline/);
-  const result=await migrateDatabase({query,files,apply:true,adoptBaseline:true});assert.equal(result.applied.length,18);assert.ok(result.files.every(row=>row.state==='installed'));
+  const result=await migrateDatabase({query,files,apply:true,adoptBaseline:true});assert.equal(result.applied.length,files.length);assert.ok(result.files.every(row=>row.state==='installed'));
   assert.deepEqual((await db.query('select starter_completed from game_players where user_id=$1',[id])).rows[0].starter_completed,[1,2,3,4,5,6]);
   assert.equal((await query('select count(*)::int as count from game_wallets'))[0].count,1);
   assert.equal((await query('select count(*)::int as count from game_schema_revisions where adopted'))[0].count,2);
@@ -30,7 +30,7 @@ test('lost adoption and migration acknowledgements resume from committed checksu
   let dropDDL=true;const flakyDDL=async(sql,options)=>{const result=await query(sql);if(options?.readOnly===false&&dropDDL){dropDDL=false;throw Error('simulated lost ACK');}return result;};
   await assert.rejects(()=>migrateDatabase({query:flakyDDL,files,apply:true}),/lost ACK/);
   assert.equal((await query('select count(*)::int as count from game_schema_revisions'))[0].count,3);
-  const recovered=await migrateDatabase({query,files,apply:true});assert.equal(recovered.applied.length,15);
+  const recovered=await migrateDatabase({query,files,apply:true});assert.equal(recovered.applied.length,files.length-3);
  }finally{await db.close();}
 });
 test('a fresh schema installs the original files normally and failed DDL rolls back its journal atomically',async()=>{
@@ -39,7 +39,7 @@ test('a fresh schema installs the original files normally and failed DDL rolls b
   await assert.rejects(()=>query(migrationStatement(broken)),/game_missing_function/);
   assert.equal((await query("select to_regclass('game_should_rollback') as scratch,to_regclass('game_schema_revisions') as journal"))[0].scratch,null);
   assert.equal((await query("select to_regclass('game_schema_revisions') as journal"))[0].journal,null);
-  const result=await migrateDatabase({query,files,apply:true});assert.equal(result.applied.length,18);assert.equal((await query('select count(*)::int as count from game_schema_revisions where adopted'))[0].count,0);
+  const result=await migrateDatabase({query,files,apply:true});assert.equal(result.applied.length,files.length);assert.equal((await query('select count(*)::int as count from game_schema_revisions where adopted'))[0].count,0);
  }finally{await db.close();}
 });
 test('untracked drift, changes between inspection and adoption, checksum conflicts and history gaps fail closed',async()=>{

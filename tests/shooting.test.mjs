@@ -4,7 +4,7 @@ import {Game,MAX_SHOTS,SHOOT_SECONDS,H} from '../dist/engine.js';
 import {snapshotGame,restoreGame} from '../dist/session.js';
 
 test('shooting is earned by catching its own pickup and leaves ordinary balls intact',()=>{
- const g=new Game({level:3});g.launch();const velocity={...g.balls[0]};
+ const g=new Game({level:9});g.launch();const velocity={...g.balls[0]};
  assert.equal(g.shootUntil,0);g.spawnDrop(5,500,'laser');g.step(1/120);assert.equal(g.shootUntil,0);
  g.drops=[{x:g.paddle.x,y:g.paddle.y-5,kind:'laser'}];g.step(1/120);
  assert.equal(g.shootUntil,g.time+SHOOT_SECONDS);assert.equal(g.fireUntil,0);assert.equal(g.balls.length,1);assert.equal(g.balls[0].vx,velocity.vx);

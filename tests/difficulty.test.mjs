@@ -6,7 +6,8 @@ import {createDefinition} from '../dist/catalog.js';
 test('difficulty grows gradually within safe control and physics limits',()=>{
  let prior=difficultyProfile(13);assert.equal(prior.label,'Easy');
  for(let n=14;n<3000;n++){const p=difficultyProfile(n);assert(p.speed>=prior.speed&&p.speed-prior.speed<.7);assert(p.paddleWidth<=prior.paddleWidth&&prior.paddleWidth-p.paddleWidth<.16);assert(p.siteTarget>=prior.siteTarget);assert(p.loopTarget>=prior.loopTarget);assert(p.channelRadius<=prior.channelRadius);assert(p.speed<=422&&p.paddleWidth>=66);prior=p;}
- assert.equal(difficultyProfile(1).speed,264);assert.equal(difficultyProfile(12).paddleWidth,90);
+ assert.equal(difficultyProfile(1).speed,240);assert.equal(difficultyProfile(12).paddleWidth,90);
+ for(let level=2;level<=12;level++){const prior=difficultyProfile(level-1),current=difficultyProfile(level);assert(current.speed>prior.speed,`stage ${level} speed`);assert(current.paddleWidth<=prior.paddleWidth,`stage ${level} paddle`);}
  let early=0,later=0;for(let n=0;n<ARCHITECTURES.length;n++){const a=createDefinition(13+n),b=createDefinition(413+n);early+=a.recipe.nodes+a.recipe.edges;later+=b.recipe.nodes+b.recipe.edges;}assert(later>early*1.5,'Later recipe graphs should become substantially more interwoven');
 });
 test('chapter breather rounds relax play without changing published layouts',()=>{for(const level of [20,28,36,44]){const base=difficultyProfile(level),play=playProfile(level);assert.equal(play.label,'Breather');assert(play.speed<base.speed&&play.paddleWidth>base.paddleWidth&&play.boostInterval<base.boostInterval);assert.equal(new Game({level}).pattern.signature,createDefinition(level).layout);}assert.equal(playProfile(21).breather,undefined);});

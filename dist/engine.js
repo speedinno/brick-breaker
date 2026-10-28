@@ -1,16 +1,19 @@
 import {advanceCircle,PADDLE_ANGLE} from './physics.js';
-import {playProfile} from './difficulty.js';
+import {playProfile,starterVolleySeconds} from './difficulty.js';
 import {generateDefinition,patternFromLayout} from './generated.js';
 export const W=416,H=660,COLS=52,ROWS=52,CELL=8,OX=0,OY=18,MAX_BALLS=768;
 export const MAX_SHOTS=24,SHOT_SPEED=900,SHOT_INTERVAL=.16,SHOOT_SECONDS=8;
 export const FAMILIES=['T channel','Switchback','H chamber','M channel','Needle','W channel','Sword','Bent channel','Nested squares','Twin hearts','Step chamber','Fork'];
+// Teach the short, open motifs first; introduce crossing chambers after the
+// player has already cleared a few stages. Each starter still uses one motif.
+export const STARTER_FAMILY_ORDER=[0,7,4,1,2,6,5,3,8,9,10,11];
 export const COLORS=['#e71840','#8fab18','#527d24','#a31973','#47a91b','#a6a11a','#c61724','#df8a27','#c215a7','#df2942','#9bbb36','#89a623'];
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function rng(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function segmentDistance(x,y,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);}
 export function makePattern(level,seed=1){
  if(level>12)return patternFromLayout(generateDefinition(level));
- const family=(Math.max(1,level)-1)%12,random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
+ const family=STARTER_FAMILY_ORDER[Math.max(0,Math.min(11,level-1))],random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
  const path=(points,gate=true)=>{paths.push(points);if(gate){const a=points.at(-2),b=points.at(-1),len=Math.hypot(b[0]-a[0],b[1]-a[1]);gates.push({x:b[0],y:b[1],dx:(b[0]-a[0])/len,dy:(b[1]-a[1])/len});}};
  switch(family){
   case 0:path([[26,52],[26,29],[34,29],[34,26],[22,26]]);break;
@@ -31,7 +34,7 @@ export function makePattern(level,seed=1){
  function insidePolygon(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
  // The first chambers give a new player room to enter and recover. Later
  // starter motifs taper back to the original narrow channel geometry.
- const channelRadius=level<=4?2.6:level<=8?1.6:.86;
+ const channelRadius=level<=2?4.6:level===3?3.6:level===4?2.6:level<=8?1.6:.86;
  const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<channelRadius?'empty':distance<channelRadius+1?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<channelRadius)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
  // A letter can enclose a colored island. Add the smallest number of gate
  // tiles needed to make every breakable region reachable from the entrance.
@@ -52,7 +55,7 @@ export class Game{
  stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.stageTime=0;this.stageLosses=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.shootUntil=0;this.nextShot=0;this.multiplierReadyAt=this.time+8;this.shots=[];this.peakBalls=1;this.combo=0;this.challenge=playProfile(this.level);this.basePaddleWidth=this.challenge.paddleWidth;this.paddle.w=this.basePaddleWidth;this.paddle.x=clamp(p.entry.x+20,48,W-48);this.target=this.paddle.x;this.emit({type:'stage'});}
  speed(){return this.challenge.speed;}
  ball(x,y,angle=-Math.PI/2){const speed=this.speed();return{x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:2.35};}
- launch(){if(this.status!=='ready')return;const y=this.paddle.y-8,dx=this.pattern.entry.x-this.paddle.x,dy=this.pattern.entry.y+3-y,angle=Math.atan2(dy,Math.abs(dx)<1?5:dx);this.balls=[this.ball(this.paddle.x,y,angle)];this.status='playing';this.emit({type:'launch'});if(this.level<=2)this.power('laser');}
+ launch(){if(this.status!=='ready')return;const y=this.paddle.y-8,dx=this.pattern.entry.x-this.paddle.x,dy=this.pattern.entry.y+3-y,angle=Math.atan2(dy,Math.abs(dx)<1?5:dx);this.balls=[this.ball(this.paddle.x,y,angle)];this.status='playing';this.emit({type:'launch'});const volley=starterVolleySeconds(this.level);if(volley)this.power('laser',volley);}
  next(){if(this.status!=='won')return;this.level++;this.lives=Math.min(5,this.lives+1);this.stage();}
  spawnDrop(x,y,kind){
   if(this.drops.length>=30)return false;
@@ -63,7 +66,7 @@ export class Game{
   this.drops.push({x,y,kind});return true;
  }
  damage(cell){if(!cell||cell.type==='wall'||cell.hp<=0)return false;cell.hp--;if(cell.hp>0){this.emit({type:'hit',x:cell.x+4,y:cell.y+4});return false;}this.grid.delete(cell.id);this.remaining--;this.destroyed++;this.combo=this.time-this.lastHit<2?this.combo+1:1;this.lastHit=this.time;this.score+=10;this.emit({type:'break',x:cell.x+4,y:cell.y+4});const n=this.destroyed;if(n===1||n===18)this.spawnDrop(cell.x+4,cell.y+4,'add');else if(n===7)this.spawnDrop(cell.x+4,cell.y+4,'laser');else if(n===40)this.spawnDrop(cell.x+4,cell.y+4,'wide');else if(n===85)this.spawnDrop(cell.x+4,cell.y+4,'triple');else if(n===25)this.spawnDrop(cell.x+4,cell.y+4,'floor');else if(n%this.challenge.boostInterval===0)this.spawnDrop(cell.x+4,cell.y+4,this.random()<.25?'triple':this.random()<.65?'add':'wide');else if(this.random()<.006)this.spawnDrop(cell.x+4,cell.y+4,['triple','add','wide','floor','fire','laser'][Math.floor(this.random()*6)]);return true;}
- power(kind){const before=this.balls.length;if(kind==='triple'){const sources=this.balls.slice();for(const b of sources){for(const turn of[-.17,.17]){if(this.balls.length>=MAX_BALLS)break;this.balls.push(this.ball(b.x,b.y,Math.atan2(b.vy,b.vx)+turn));}if(this.balls.length>=MAX_BALLS)break;}}if(kind==='add'){for(let i=0;i<3&&this.balls.length<MAX_BALLS;i++)this.balls.push(this.ball(this.paddle.x+(i-1)*5,this.paddle.y-9,-Math.PI/2+(i-1)*.2));}if(kind==='wide')this.wideUntil=this.time+20-4*this.challenge.growth;if(kind==='floor')this.floorUntil=this.time+24-5*this.challenge.growth;if(kind==='fire')this.fireUntil=this.time+5;if(kind==='laser'){this.shootUntil=this.time+SHOOT_SECONDS;this.nextShot=this.time;}this.peakBalls=Math.max(this.peakBalls,this.balls.length);this.emit({type:'power',kind,before,balls:this.balls.length,added:this.balls.length-before});}
+ power(kind,duration=SHOOT_SECONDS){const before=this.balls.length;if(kind==='triple'){const sources=this.balls.slice();for(const b of sources){for(const turn of[-.17,.17]){if(this.balls.length>=MAX_BALLS)break;this.balls.push(this.ball(b.x,b.y,Math.atan2(b.vy,b.vx)+turn));}if(this.balls.length>=MAX_BALLS)break;}}if(kind==='add'){for(let i=0;i<3&&this.balls.length<MAX_BALLS;i++)this.balls.push(this.ball(this.paddle.x+(i-1)*5,this.paddle.y-9,-Math.PI/2+(i-1)*.2));}if(kind==='wide')this.wideUntil=this.time+20-4*this.challenge.growth;if(kind==='floor')this.floorUntil=this.time+24-5*this.challenge.growth;if(kind==='fire')this.fireUntil=this.time+5;if(kind==='laser'){this.shootUntil=Math.max(this.shootUntil,this.time+duration);this.nextShot=this.time;}this.peakBalls=Math.max(this.peakBalls,this.balls.length);this.emit({type:'power',kind,before,balls:this.balls.length,added:this.balls.length-before});}
  checkWin(){if(!this.remaining&&this.status==='playing'){this.status='won';this.score+=1000;this.balls=[];this.drops=[];this.shots=[];this.shootUntil=0;this.emit({type:'won'});}}
  // Purple shots pierce colored targets and pass permanent gray framing intact.
  // Swept row traversal prevents skipped bricks at fast playback or low frame rates.

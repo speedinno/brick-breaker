@@ -1,12 +1,12 @@
 import {makePattern} from './engine.js';
 import {generateDefinition,patternFromLayout,validateDefinition,canonicalLayout,GENERATOR_VERSION} from './generated.js';
 export {GENERATOR_VERSION};
-export const catalogVersion=level=>level<=12?4:GENERATOR_VERSION;
+export const catalogVersion=level=>level<=12?5:GENERATOR_VERSION;
 export function createDefinition(level,nonce=0) {
   if(!Number.isSafeInteger(level)||level<1)throw Error('Invalid stage number');
   if(level>12)return generateDefinition(level,nonce);
   const p=makePattern(level,1);
-  return {version:4,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
+  return {version:5,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
 }
 export function hydrateDefinition(definition) {return patternFromLayout(definition);}
 export function validateCatalogDefinition(definition) {

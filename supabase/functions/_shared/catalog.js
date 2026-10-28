@@ -13,13 +13,13 @@ function difficultyProfile(level) {
     chapterName: CHAPTERS[Math.min(CHAPTERS.length - 1, Math.floor(chapter / 3))],
     chapterClears: journey % 8,
     label: growth < 0.18 ? "Easy" : growth < 0.4 ? "Building" : growth < 0.65 ? "Challenging" : growth < 0.84 ? "Advanced" : "Expert",
-    speed: level <= 4 ? 256 + level * 8 : level <= 8 ? 280 + level * 5 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
-    paddleWidth: level <= 4 ? 112 : level <= 8 ? 100 : level <= 12 ? 90 : 82 - 16 * growth,
+    speed: level <= 8 ? 228 + level * 12 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
+    paddleWidth: level <= 4 ? [128, 120, 112, 108][level - 1] : level <= 8 ? 100 : level <= 12 ? 90 : 82 - 16 * growth,
     siteTarget: Math.round(8 + 20 * growth),
     loopTarget: Math.round(1 + 6 * growth),
     channelRadius: 1.18 - 0.12 * growth,
     gateGenerosity: 0.4 - 0.2 * growth,
-    boostInterval: level <= 4 ? 30 : level <= 8 ? 38 : level <= 12 ? 47 : 47 + Math.floor(16 * growth)
+    boostInterval: level <= 4 ? [20, 24, 28, 30][level - 1] : level <= 8 ? 38 : level <= 12 ? 47 : 47 + Math.floor(16 * growth)
   };
 }
 
@@ -348,7 +348,7 @@ function validateDefinition(definition) {
   if (!p.bricks.every((c) => seen[c.id])) throw Error("Unreachable colored region");
   if ([...layout.slice(0, 52)].some((t) => t !== "w")) throw Error("Open top boundary");
   for (let r = 0; r < 52; r++) if (layout[r * 52] !== "w" || layout[r * 52 + 51] !== "w") throw Error("Open side boundary");
-  const bottom = layout.slice(-52), maxEntrance = definition.level <= 4 ? 6 : 5;
+  const bottom = layout.slice(-52), maxEntrance = definition.level <= 2 ? 10 : definition.level === 3 ? 8 : definition.level === 4 ? 6 : 5;
   if (!bottom.includes("..") || bottom.replaceAll("w", "").length > maxEntrance) throw Error("Invalid entrance");
   return p;
 }
@@ -400,6 +400,7 @@ var CELL = 8;
 var OX = 0;
 var OY = 18;
 var FAMILIES = ["T channel", "Switchback", "H chamber", "M channel", "Needle", "W channel", "Sword", "Bent channel", "Nested squares", "Twin hearts", "Step chamber", "Fork"];
+var STARTER_FAMILY_ORDER = [0, 7, 4, 1, 2, 6, 5, 3, 8, 9, 10, 11];
 var COLORS = ["#e71840", "#8fab18", "#527d24", "#a31973", "#47a91b", "#a6a11a", "#c61724", "#df8a27", "#c215a7", "#df2942", "#9bbb36", "#89a623"];
 var clamp2 = (x, a, b) => Math.max(a, Math.min(b, x));
 function rng(seed) {
@@ -418,7 +419,7 @@ function segmentDistance(x, y, a, b) {
 }
 function makePattern(level, seed = 1) {
   if (level > 12) return patternFromLayout(generateDefinition(level));
-  const family = (Math.max(1, level) - 1) % 12, random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
+  const family = STARTER_FAMILY_ORDER[Math.max(0, Math.min(11, level - 1))], random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
   let paths = [], entry = [26, 52], gates = [], holes = [];
   const path = (points, gate = true) => {
     paths.push(points);
@@ -496,7 +497,7 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
-  const channelRadius = level <= 4 ? 2.6 : level <= 8 ? 1.6 : 0.86;
+  const channelRadius = level <= 2 ? 4.6 : level === 3 ? 3.6 : level === 4 ? 2.6 : level <= 8 ? 1.6 : 0.86;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -573,12 +574,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 4 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 5 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 4, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 5, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
   if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");

@@ -169,7 +169,7 @@ export function validateDefinition(definition) {
   if(!p.bricks.every(c=>seen[c.id]))throw Error('Unreachable colored region');
   if([...layout.slice(0,52)].some(t=>t!=='w'))throw Error('Open top boundary');
   for(let r=0;r<52;r++)if(layout[r*52]!=='w'||layout[r*52+51]!=='w')throw Error('Open side boundary');
-  const bottom=layout.slice(-52),maxEntrance=definition.level<=4?6:5;if(!bottom.includes('..')||bottom.replaceAll('w','').length>maxEntrance)throw Error('Invalid entrance');
+  const bottom=layout.slice(-52),maxEntrance=definition.level<=2?10:definition.level===3?8:definition.level===4?6:5;if(!bottom.includes('..')||bottom.replaceAll('w','').length>maxEntrance)throw Error('Invalid entrance');
   return p;
 }
 export function generateDefinition(level,nonce=0) {

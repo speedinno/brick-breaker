@@ -1,6 +1,10 @@
 # Mobile builds — 3.3.0
 
-## Current easier-opening candidate: build 22
+## Current wider-opening candidate: build 23
+
+Build 23 widens the first two openings to ten tiles, stage 3 to eight and stage 4 to six; it also slows the first rounds, enlarges their paddles, tapers a free visible shooter through stage 8 and reorders the starter motifs to teach open paths before crossing chambers. It uses the immutable starter catalog version 5, preserving version 3/4 rows and in-flight runs. The [starter rollout notes](STARTER-DIFFICULTY-ROLLOUT.md) include the delayed-input regression proxy and required physical novice pilot. The Android/iPhone build and package acceptance evidence for this exact source will be added after native CI completes; the build 22 links and checksums below do not describe build 23.
+
+## Historical easier-opening candidate: build 22
 
 Source `270b418e47d5508f4c971181c0f3a9b04e2c8be7` on `codex/easier-opening-rounds` adds wider early entries, a short free paddle shooter on stages 1–2, periodic Breather rounds, reliable touch reversal and a true first-play coaching screen. An Android emulator run of the preceding candidate revealed that optional coaching replaced the opening-volley instructions; this source fixes the interaction. A direct local browser check now shows the first-time help followed by the visible volley guidance and Launch control. The exact-source build 22 native pipeline is [run 40686307469](https://github.com/speedinno/brick-breaker/actions/runs/40686307469). Its verify, Android and unsigned iPhone archive/simulator compilation jobs succeeded. Local `npm test` passed 447/447 before this one-line coaching correction; its targeted checks and `npm run check` passed after the correction. The release source preflight reports version 3.3.0/build 22.
 
