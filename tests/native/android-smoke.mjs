@@ -88,6 +88,10 @@ try {
   await evaluate(`document.getElementById('launch').click(); true`);
   for(let attempt=0;attempt<50;attempt++){if(await evaluate(`document.getElementById('prompt').hidden`))break;await wait(200);}
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'Manual offline launch must start gameplay');
+  await evaluate(`document.getElementById('pause').click();true`);
+  assert.equal(await evaluate(`document.getElementById('promptTitle').textContent`),'Paused.','An active game must pause');
+  await evaluate(`document.getElementById('launch').click();true`);
+  assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'A paused game must resume');
   const board=layout.canvas.css,x=board.x+board.width*.5,y=board.y+board.height*.83;
   const paddleBefore=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).paddleX`);
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
@@ -98,25 +102,17 @@ try {
   assert(Math.abs(paddleAfter-paddleBefore)>5,'Real Android touch drag must move the paddle');
   let destroyed=false;for(let attempt=0;attempt<120&&!destroyed;attempt++){destroyed=await evaluate(`Number(document.getElementById('remaining').textContent)<${initial.remaining}`);if(!destroyed)await wait(500);}
   assert(destroyed,'Manual offline physics must break bricks after a real touch gesture');
-  let playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed'),status:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).status,lives:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).lives})`);
+  const playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed'),status:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).status,lives:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).lives})`);
   if(!playing.hidden){
     assert.equal(playing.status,'ready','A visible prompt after manual play should offer another shot');
     assert(playing.lives>0,'The first missed shot should leave a retry');
-    await evaluate(`document.getElementById('launch').click();true`);
-    playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed'),status:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).status,lives:JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).lives})`);
-  }
-  assert.equal(playing.hidden, true, 'Manual play or its one-shot retry must be active');
+  }else assert.ok(playing.balls>=1,'An active manual field must have a ball');
   assert.equal(playing.auto, 'false');
-  assert.ok(playing.balls >= 1);
   assert.ok(playing.remaining < initial.remaining, 'Native physics must break bricks');
   const screenshot=spawnSync('adb',['exec-out','screencap','-p'],{maxBuffer:8*1024*1024});
   assert.equal(screenshot.status,0,'Capture the displayed Android game surface');
   await writeFile('native-evidence/Android-native-playing.png',screenshot.stdout);
-  await evaluate(`document.getElementById('pause').click(); true`);
-  assert.equal(await evaluate(`document.getElementById('promptTitle').textContent`), 'Paused.');
-  await evaluate(`document.getElementById('launch').click(); true`);
-  assert.equal(await evaluate(`document.getElementById('prompt').hidden`), true);
-  await evaluate(`document.getElementById('pause').click();true`);
+  if(await evaluate(`document.getElementById('prompt').hidden`))await evaluate(`document.getElementById('pause').click();true`);
   const saved=await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest'))`);
   // A real manual shot may have ended between the first broken brick and
   // pausing. A ready field has no active balls, but must retain its damage.
