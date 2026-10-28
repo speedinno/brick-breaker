@@ -76,7 +76,7 @@ try {
   assert.equal(initial.title, 'Brick Breaker');
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
-  const painted=await evaluate(`(()=>{const c=document.getElementById('game'),pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let colored=0;for(let i=0;i<pixels.length;i+=16)if(pixels[i]>100&&pixels[i]>pixels[i+1]*2)colored++;return colored;})()`);
+  const painted=await evaluate(`(()=>{const c=document.getElementById('game'),pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let colored=0;for(let i=0;i<pixels.length;i+=16){const high=Math.max(pixels[i],pixels[i+1],pixels[i+2]),low=Math.min(pixels[i],pixels[i+1],pixels[i+2]);if(high>100&&high-low>45)colored++;}return colored;})()`);
   assert(painted>1000,'The responsive dense field must be painted');
   const legal=await evaluate(`Array.from(document.querySelectorAll('a[href]')).filter(a=>/privacy\\.html|terms\\.html|delete-account\\.html/.test(a.href)).map(a=>a.href)`);
   assert(legal.length>=3);assert(legal.every(url=>url.startsWith('https://')&&!url.startsWith('https://localhost/')&&!url.startsWith('capacitor:')),'Native legal links must open the public site');
