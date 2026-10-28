@@ -30,7 +30,7 @@ final class NativeSmoke: XCTestCase {
     func testPackagedGamePlayAndColdResume() {
         continueAfterFailure = false
         game.launch(); enterFromHome(); waitForField(); shot("iPhone-ready")
-        for label in ["Home", "How to play", "Pause", "Open stage journey", "Account and cloud saves", "Playback speed"] {
+        for label in ["Home", "How to play", "Pause", "Open stage journey", "Account and cloud saves"] {
             let control = button(label)
             XCTAssertTrue(control.isHittable, "\(label) must be reachable within the safe area")
             XCTAssertGreaterThanOrEqual(control.frame.width, 43.5)
@@ -68,6 +68,12 @@ final class NativeSmoke: XCTestCase {
         XCTAssertTrue(aim.isHittable, "Manual launch angle must be adjustable on the phone")
         aim.adjust(toNormalizedSliderPosition: 0.45)
         launch.tap()
+        let speed = button("Playback speed")
+        let speedReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: speed)
+        XCTAssertEqual(XCTWaiter.wait(for: [speedReady], timeout: 5), .completed, "Playback speed must be reachable after Launch hides the ready panel")
+        XCTAssertGreaterThanOrEqual(speed.frame.width, 43.5)
+        XCTAssertGreaterThanOrEqual(speed.frame.height, 43.5)
+        XCTAssertTrue(game.frame.contains(speed.frame), "Playback speed must stay inside the phone display")
         let left = game.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.69))
         let right = game.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.69))
         left.press(forDuration: 0.1, thenDragTo: right)

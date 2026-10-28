@@ -82,9 +82,10 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 40
     steps:
+      # The test harness can be corrected without rebuilding an already audited
+      # package. The runner below replaces its compiled app with the exact
+      # downloaded simulator app before executing UI tests.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.validate.outputs.source }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
