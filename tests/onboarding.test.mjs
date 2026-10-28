@@ -19,15 +19,15 @@ function delayedController(level,seed){
   game.step(1/60);
   if(firstHit===null&&game.destroyed>0)firstHit=game.stageTime;
  }
- return{won:game.status==='won',firstHit,launches,losses:game.stageLosses};
+ return{won:game.status==='won',firstHit,launches,losses:game.stageLosses,seconds:game.stageTime};
 }
 
 test('the first four rounds give delayed manual input a forgiving start',()=>{
- const seeds=[1,8937,1267,2026,5529],minimumWins=[5,4,4,3];
+ const seeds=Array.from({length:20},(_,i)=>101+i*1907);
  for(let level=1;level<=4;level++){
   const results=seeds.map(seed=>delayedController(level,seed));
   assert(results.every(result=>result.firstHit!==null&&result.firstHit<3),`stage ${level} first visible progress`);
-  assert(results.filter(result=>result.won).length>=minimumWins[level-1],`stage ${level} delayed-input clears`);
-  if(level===1)assert(results.every(result=>result.losses===0), 'first stage must not exhaust the novice proxy');
+  assert(results.every(result=>result.won&&result.losses===0),`stage ${level} delayed-input clears without retries`);
+  if(level===1)assert(results.every(result=>result.seconds<90),'first stage should clear quickly with delayed input');
  }
 });

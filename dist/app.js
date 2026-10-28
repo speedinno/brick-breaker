@@ -107,7 +107,7 @@ function renderMetrics(){
 function renderReadyCoaching(){
  clearTimeout(coachExposureTimer);coachExposureTimer=null;
  if(!game||game.level!==1||currentPromptKind!=='ready'||$('prompt').hidden||loading)return;
- $('promptText').textContent='Your first shots include a free paddle shooter. '+metrics.coaching('Drag to aim, then catch boosts to grow the swarm.',game.level);
+ $('promptText').textContent='Your first shots include a free paddle shooter. Silver tiles break too. '+metrics.coaching('Drag to aim, then catch boosts to grow the swarm.',game.level);
  const visible=()=>game?.level===1&&currentPromptKind==='ready'&&!loading&&!$('prompt').hidden&&$('home').hidden&&$('splash').hidden&&!document.hidden&&!document.querySelector('dialog[open]');
  if(visible()&&metrics.assignment){const epoch=loadEpoch,owner=cloud.userId,assignment=metrics.assignment;coachExposureTimer=setTimeout(()=>{coachExposureTimer=null;if(visible()&&epoch===loadEpoch&&owner===cloud.userId&&assignment.experiment===metrics.assignment?.experiment&&assignment.variant===metrics.assignment?.variant)metrics.exposeCoach(String(epoch),1);},250);}
 }
@@ -281,12 +281,12 @@ for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener(
   renderReadyCoaching();
 });
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
-function paintCells(context,cells,fill){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?'#e8d530':cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
+function paintCells(context,cells,fill,level){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?(level<=4?'#b7c5cd':'#e8d530'):cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#14171c';ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.setTransform(viewport.scale*viewport.ratio,0,0,viewport.scale*viewport.ratio,viewport.x*viewport.ratio,viewport.y*viewport.ratio);
   if(!game){ctx.fillStyle='#14171c';ctx.fillRect(0,0,W,H);return;}
-  const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#14171c';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color);paintVersion=version;}ctx.drawImage(background,0,0,background.width,background.height,0,0,W,H);
+  const version=`${game.level}:${game.remaining}`;if(paintVersion!==version){bg.fillStyle='#14171c';bg.fillRect(0,0,W,H);paintCells(bg,game.grid.values(),game.color,game.level);paintVersion=version;}ctx.drawImage(background,0,0,background.width,background.height,0,0,W,H);
   const p=game.paddle;if(game.time<game.floorUntil){ctx.fillStyle='#ff8251';ctx.fillRect(0,H-11,W,4);}const paddleFill=ctx.createLinearGradient(0,p.y,0,p.y+8);paddleFill.addColorStop(0,'#ffd2a4');paddleFill.addColorStop(1,'#ff8955');ctx.fillStyle=paddleFill;
   if(!reduced){ctx.shadowColor='#ff9b6c66';ctx.shadowBlur=12;}ctx.beginPath();
   ctx.arc(p.x+p.w/2-3.5,p.y+3.5,3.5,-Math.PI/2,Math.PI/2);

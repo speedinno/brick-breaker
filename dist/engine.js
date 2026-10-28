@@ -6,7 +6,7 @@ export const MAX_SHOTS=24,SHOT_SPEED=900,SHOT_INTERVAL=.16,SHOOT_SECONDS=8;
 export const FAMILIES=['T channel','Switchback','H chamber','M channel','Needle','W channel','Sword','Bent channel','Nested squares','Twin hearts','Step chamber','Fork'];
 // Teach the short, open motifs first; introduce crossing chambers after the
 // player has already cleared a few stages. Each starter still uses one motif.
-export const STARTER_FAMILY_ORDER=[0,7,4,1,2,6,5,3,8,9,10,11];
+export const STARTER_FAMILY_ORDER=[4,0,7,1,2,6,5,3,8,9,10,11];
 export const COLORS=['#e71840','#8fab18','#527d24','#a31973','#47a91b','#a6a11a','#c61724','#df8a27','#c215a7','#df2942','#9bbb36','#89a623'];
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function rng(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -36,6 +36,9 @@ export function makePattern(level,seed=1){
  // starter motifs taper back to the original narrow channel geometry.
  const channelRadius=level<=2?4.6:level===3?3.6:level===4?2.6:level<=8?1.6:.86;
  const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<channelRadius?'empty':distance<channelRadius+1?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<channelRadius)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
+ // The first four rounds teach the shapes with breakable silver tracery. A
+ // cleared corridor cannot trap a new player behind permanent inner walls.
+ if(level<=4)for(const cell of cells)if(cell.type==='wall'&&cell.c>0&&cell.c<COLS-1&&cell.r>0&&cell.r<ROWS-1){cell.type='gate';cell.hp=1;bricks.push(cell);}
  // A letter can enclose a colored island. Add the smallest number of gate
  // tiles needed to make every breakable region reachable from the entrance.
  const lookup=new Map(cells.map(c=>[c.id,c])),start=51*COLS+Math.floor(entry[0]);

@@ -400,7 +400,7 @@ var CELL = 8;
 var OX = 0;
 var OY = 18;
 var FAMILIES = ["T channel", "Switchback", "H chamber", "M channel", "Needle", "W channel", "Sword", "Bent channel", "Nested squares", "Twin hearts", "Step chamber", "Fork"];
-var STARTER_FAMILY_ORDER = [0, 7, 4, 1, 2, 6, 5, 3, 8, 9, 10, 11];
+var STARTER_FAMILY_ORDER = [4, 0, 7, 1, 2, 6, 5, 3, 8, 9, 10, 11];
 var COLORS = ["#e71840", "#8fab18", "#527d24", "#a31973", "#47a91b", "#a6a11a", "#c61724", "#df8a27", "#c215a7", "#df2942", "#9bbb36", "#89a623"];
 var clamp2 = (x, a, b) => Math.max(a, Math.min(b, x));
 function rng(seed) {
@@ -517,6 +517,13 @@ function makePattern(level, seed = 1) {
     if (type !== "empty") {
       cells.push(cell);
       if (type !== "wall") bricks.push(cell);
+    }
+  }
+  if (level <= 4) {
+    for (const cell of cells) if (cell.type === "wall" && cell.c > 0 && cell.c < COLS - 1 && cell.r > 0 && cell.r < ROWS - 1) {
+      cell.type = "gate";
+      cell.hp = 1;
+      bricks.push(cell);
     }
   }
   const lookup = new Map(cells.map((c) => [c.id, c])), start = 51 * COLS + Math.floor(entry[0]);

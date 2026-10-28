@@ -2,7 +2,7 @@
 
 ## Current wider-opening candidate: build 23
 
-Build 23 widens the first two openings to ten tiles, stage 3 to eight and stage 4 to six; it also slows the first rounds, enlarges their paddles, tapers a free visible shooter through stage 8 and reorders the starter motifs to teach open paths before crossing chambers. It uses the immutable starter catalog version 5, preserving version 3/4 rows and in-flight runs. The [starter rollout notes](STARTER-DIFFICULTY-ROLLOUT.md) include the delayed-input regression proxy and required physical novice pilot. The Android/iPhone build and package acceptance evidence for this exact source will be added after native CI completes; the build 22 links and checksums below do not describe build 23.
+Build 23 widens the first two openings to ten tiles, stage 3 to eight and stage 4 to six; it also slows the first rounds, enlarges their paddles, tapers a free visible shooter through stage 8 and reorders the starter motifs to teach open paths before crossing chambers. The first four stages have breakable silver inner tracery to avoid minutes of empty ricochets. It uses starter catalog version 5, preserving version 3/4 rows and in-flight runs. The [starter rollout notes](STARTER-DIFFICULTY-ROLLOUT.md) include a twenty-seed delayed-input regression proxy and the required physical novice pilot. The Android/iPhone build and package acceptance evidence for this exact source will be added after native CI completes; the build 22 links and checksums below do not describe build 23.
 
 ## Historical easier-opening candidate: build 22
 
