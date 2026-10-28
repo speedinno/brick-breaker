@@ -19,7 +19,7 @@ test('shots pierce a full column at maximum dt without damaging gray walls',()=>
 });
 
 test('shot rate and count are bounded, expiry stops firing, and only active play advances effects',()=>{
- const g=new Game();g.launch();g.power('laser');
+ const g=new Game();g.launch();g.power('laser');g.spawnDrop=()=>false;
  for(let n=0;n<120*12&&g.status==='playing';n++){g.step(1/120);assert(g.shots.length<=MAX_SHOTS);}
  assert(g.time>=g.shootUntil||g.status!=='playing');
  const h=new Game();h.launch();h.power('laser');h.step(1/120);h.status='ready';const before=JSON.stringify({time:h.time,shots:h.shots,until:h.shootUntil});for(let n=0;n<500;n++)h.step(1/30);assert.equal(JSON.stringify({time:h.time,shots:h.shots,until:h.shootUntil}),before);

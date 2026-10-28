@@ -13,13 +13,13 @@ function difficultyProfile(level) {
     chapterName: CHAPTERS[Math.min(CHAPTERS.length - 1, Math.floor(chapter / 3))],
     chapterClears: journey % 8,
     label: growth < 0.18 ? "Easy" : growth < 0.4 ? "Building" : growth < 0.65 ? "Challenging" : growth < 0.84 ? "Advanced" : "Expert",
-    speed: level <= 12 ? Math.min(430, 320 + level * 2) : 350 + 72 * growth,
-    paddleWidth: level <= 12 ? 82 : 82 - 16 * growth,
+    speed: level <= 4 ? 256 + level * 8 : level <= 8 ? 280 + level * 5 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
+    paddleWidth: level <= 4 ? 112 : level <= 8 ? 100 : level <= 12 ? 90 : 82 - 16 * growth,
     siteTarget: Math.round(8 + 20 * growth),
     loopTarget: Math.round(1 + 6 * growth),
     channelRadius: 1.18 - 0.12 * growth,
     gateGenerosity: 0.4 - 0.2 * growth,
-    boostInterval: level <= 12 ? 47 : 47 + Math.floor(16 * growth)
+    boostInterval: level <= 4 ? 30 : level <= 8 ? 38 : level <= 12 ? 47 : 47 + Math.floor(16 * growth)
   };
 }
 
@@ -348,8 +348,8 @@ function validateDefinition(definition) {
   if (!p.bricks.every((c) => seen[c.id])) throw Error("Unreachable colored region");
   if ([...layout.slice(0, 52)].some((t) => t !== "w")) throw Error("Open top boundary");
   for (let r = 0; r < 52; r++) if (layout[r * 52] !== "w" || layout[r * 52 + 51] !== "w") throw Error("Open side boundary");
-  const bottom = layout.slice(-52);
-  if (!bottom.includes("..") || bottom.replaceAll("w", "").length > 5) throw Error("Invalid entrance");
+  const bottom = layout.slice(-52), maxEntrance = definition.level <= 4 ? 6 : 5;
+  if (!bottom.includes("..") || bottom.replaceAll("w", "").length > maxEntrance) throw Error("Invalid entrance");
   return p;
 }
 function generateDefinition(level, nonce = 0) {
@@ -496,16 +496,17 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
+  const channelRadius = level <= 4 ? 2.6 : level <= 8 ? 1.6 : 0.86;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const x = c + 0.5, y = r + 0.5;
     let distance2 = Infinity;
     for (const [a, b] of segments) distance2 = Math.min(distance2, segmentDistance(x, y, a, b));
-    let type = distance2 < 0.86 ? "empty" : distance2 < 1.8 ? "wall" : "brick";
+    let type = distance2 < channelRadius ? "empty" : distance2 < channelRadius + 1 ? "wall" : "brick";
     if (holes.some((p) => insidePolygon(x, y, p))) type = "empty";
     if (c === 0 || c === COLS - 1 || r === 0 || r === ROWS - 1) type = "wall";
-    if (r >= 49 && Math.abs(x - entry[0]) < 0.86) type = "empty";
+    if (r >= 49 && Math.abs(x - entry[0]) < channelRadius) type = "empty";
     for (const g of gates) {
       const along = (x - g.x) * g.dx + (y - g.y) * g.dy, across = Math.abs((x - g.x) * g.dy - (y - g.y) * g.dx);
       if (along >= -0.3 && along < 1.8 && across < 0.88) type = "gate";

@@ -18,6 +18,9 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 Clear the twelve starter stages in any order. Each clear earns **✓ Completed**. All twelve unlock stage 13; later stages unlock one at a time. Future cards show locks without previews. Tap a lock to see exactly what to finish, or use Play next. Replaying stages preserves completion and best results. AUTO and manual clears both count.
 
+The first four starter boards have six-tile entrances and wide channels, a larger paddle, gentler ball speed and more frequent boosts. Stages 5–8 use four-tile entrances; stages 9–12 narrow to the original two-tile challenge. Completed-stage records remain separate from the current field snapshot.
+After the starters, every eighth stage beginning with stage 20 is a Breather with a slower ball, wider paddle and more frequent boosts. Its published pattern remains stable for players who have already downloaded it.
+
 Beyond the starters, twenty-two architecture recipes construct new chambers, loops and branching paths. These are newly synthesized layouts, not mirrored starter boards. The cloud catalog is designed to publish each versioned stage once and reuse it for everyone, with canonical structural deduplication and concurrent publication protection. An expanding journey describes the system accurately; finite grids cannot guarantee mathematically infinite unique boards.
 
 Drag to steer, launch through the entry and catch boosts. +3 adds three balls; ×3 triples the swarm up to768; ↔ widens the paddle; — adds a temporary safety floor; ♨ enables temporary fireballs; the pink/purple shooting pickup fires piercing paddle shots for eight seconds. Gray walls remain. Optional assistance uses the same simulation and a finite shared time bank, with1×/2×/4× playback; deliberate manual input takes over. Keyboard: arrows/A/D move, Space launches/advances, P/Escape pauses. Manual and clean mastery give completed stages a replay goal.
