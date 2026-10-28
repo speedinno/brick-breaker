@@ -14,7 +14,7 @@ function difficultyProfile(level) {
     chapterClears: journey % 8,
     label: growth < 0.18 ? "Easy" : growth < 0.4 ? "Building" : growth < 0.65 ? "Challenging" : growth < 0.84 ? "Advanced" : "Expert",
     speed: level <= 8 ? 228 + level * 12 : level <= 12 ? 310 + level * 3 : 350 + 72 * growth,
-    paddleWidth: level <= 4 ? [128, 120, 112, 108][level - 1] : level <= 8 ? 100 : level <= 12 ? 90 : 82 - 16 * growth,
+    paddleWidth: level <= 4 ? 168 : level <= 8 ? [156, 144, 132, 120][level - 5] : level <= 12 ? [112, 104, 96, 88][level - 9] : 82 - 16 * growth,
     siteTarget: Math.round(8 + 20 * growth),
     loopTarget: Math.round(1 + 6 * growth),
     channelRadius: 1.18 - 0.12 * growth,
