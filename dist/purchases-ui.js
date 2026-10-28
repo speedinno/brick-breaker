@@ -13,8 +13,8 @@ export class PurchasePanel {
   const signed=this.cloud.signedIn,busy=this.busy||this.service.busy||!this.canStart();
   $('purchaseRefresh').hidden=!signed;$('purchaseRefresh').disabled=busy;
   $('purchaseRecover').hidden=!signed||!this.service.configuration?.available;$('purchaseRecover').disabled=busy;
-  for(const button of $('purchaseOffers').querySelectorAll('button'))button.disabled=busy||!signed||!!this.service.quote;
   const quote=this.service.quote,pending=this.service.pending(this.cloud.userId);
+  for(const button of $('purchaseOffers').querySelectorAll('button'))button.disabled=busy||!signed||!!quote||(['android','ios'].includes(this.service.platform)&&!!pending);
   $('purchaseQuote').hidden=!quote;$('purchaseConfirm').disabled=busy||!signed;
   $('purchaseDiscard').hidden=!(this.service.discardQuote&&pending&&['preparing','review'].includes(pending.stage));$('purchaseDiscard').disabled=busy;
   if(quote){$('purchaseQuoteDetails').textContent=`${(quote.milliseconds/1000).toLocaleString()} seconds · ${quote.price}. One-time payment in ${quote.currency}, linked to this game account. Your bank is updated only after verification.`;$('purchaseConfirm').textContent=`Continue to checkout · ${quote.price}`;}

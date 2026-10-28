@@ -40,6 +40,9 @@ export class PurchaseService {
  }
  async buy(id){return this.exclusive(async()=>{
   const owner=this.cloud.userId;this.check(owner);
+  const unresolved=this.pending(owner);
+  if(unresolved?.transaction)return this.verify(owner,unresolved.transaction);
+  if(unresolved)throw Error('A previous store checkout is unresolved. Recover purchases before buying again.');
   const item=this.items.find(p=>p.id===id);if(!item||this.catalogOwner!==owner||!this.configuration?.available)throw Error('Refresh the time packs before purchasing.');
   const sdk=await this.identified(owner,this.configuration);this.check(owner);
   this.journal(owner,{stage:'store',productId:item.storeId,createdAt:Date.now()});
@@ -60,12 +63,17 @@ export class PurchaseService {
  async recover(){return this.exclusive(async()=>{
   const owner=this.cloud.userId;this.check(owner);
   if(!this.configuration?.available||this.catalogOwner!==owner)throw Error('Refresh the time packs before recovering purchases.');
-  const sdk=await this.identified(owner,this.configuration);await sdk.Purchases.restorePurchases();this.check(owner);
+  const sdk=await this.identified(owner,this.configuration),restored=await sdk.Purchases.restorePurchases();this.check(owner);
   const result=await recoverPurchasePages({cloud:this.cloud,owner,storage:this.storage,key:'brick-breaker-native-recovery-v1:'+owner+':'+(this.configuration.environment||'production'),action:'purchase-sync'});
   if(result.deletedAccountPurchase)throw Error('A receipt belongs to a deleted account. Contact support for purchase assistance.');
   if(!result.complete)return {state:'recovery-partial',wallet:result.wallet};
   const pending=this.pending(owner);
   if(pending?.transaction)return this.verify(owner,pending.transaction);
+  if(pending?.stage==='store'){
+   const recent=restored?.customerInfo?.nonSubscriptionTransactions?.filter(row=>row.productIdentifier===pending.productId&&Date.parse(row.purchaseDate)>=pending.createdAt-120000)||[];
+   const transaction=recent.length===1?recent[0].transactionIdentifier:null;
+   if(transaction){this.journal(owner,{...pending,stage:'verify',transaction});return this.verify(owner,transaction);}
+  }
   return {state:'synced',wallet:result.wallet,pending:!!pending};
  });}
 }

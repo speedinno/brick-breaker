@@ -23,6 +23,7 @@ test('COM-21: price and product come from native SDK; only server verification s
 test('SDK success followed by a failed backend keeps a durable recoverable receipt, never a successful balance',async()=>{
  const t=setup();await t.service.load();t.cloud.api=async(action)=>{if(action==='purchase-verify')throw Error('Server unavailable');return{wallet:t.wallet,next:null};};
  await assert.rejects(()=>t.service.buy('prodA'),/Server unavailable/);assert.equal(t.service.pending('account-a').transaction,'GPA.123');
+ await assert.rejects(()=>t.service.buy('prodA'),/Server unavailable/);assert.equal(t.calls.filter(c=>c.purchase).length,1,'Retry must not open a second store checkout');
  t.cloud.api=async action=>action==='purchase-sync'?{wallet:t.wallet,next:null}:{verified:true,wallet:t.wallet};
  assert.equal((await t.service.recover()).state,'verified');assert.equal(t.service.pending('account-a'),null);
 });
@@ -30,7 +31,13 @@ test('pending store approval and empty verification never manufacture purchase s
  const t=setup();await t.service.load();t.sdk.Purchases.purchaseStoreProduct=async()=>{throw{code:'20'};};
  assert.equal((await t.service.buy('prodA')).state,'pending');assert.equal(t.service.pending('account-a').stage,'store');
  t.sdk.Purchases.purchaseStoreProduct=async()=>({productIdentifier:'pack300',transaction:{transactionIdentifier:'GPA.late'}});
- t.cloud.api=async()=>({verified:false,wallet:{availableMs:0}});assert.equal((await t.service.buy('prodA')).state,'pending');assert.equal(t.service.pending('account-a').transaction,'GPA.late');
+ t.cloud.api=async()=>({verified:false,wallet:{availableMs:0}});await assert.rejects(()=>t.service.buy('prodA'),/previous store checkout is unresolved/);assert.equal(t.service.pending('account-a').stage,'store');
+});
+test('a later approved store transaction recovers the original pending checkout',async()=>{
+ const t=setup();await t.service.load();t.sdk.Purchases.purchaseStoreProduct=async()=>{throw{code:'20'};};
+ assert.equal((await t.service.buy('prodA')).state,'pending');const original=t.service.pending('account-a');
+ t.sdk.Purchases.restorePurchases=async()=>({customerInfo:{nonSubscriptionTransactions:[{productIdentifier:'pack300',transactionIdentifier:'GPA.approved',purchaseDate:new Date(original.createdAt+1000).toISOString()}]}});
+ const recovered=await t.service.recover();assert.equal(recovered.state,'verified');assert.equal(t.service.pending('account-a'),null);assert.equal(t.calls.filter(c=>c.purchase).length,0);
 });
 test('cancel is explicit and concurrent purchase attempts cannot open a second checkout',async()=>{
  const t=setup();await t.service.load();const wait=deferred();t.sdk.Purchases.purchaseStoreProduct=()=>wait.promise;
