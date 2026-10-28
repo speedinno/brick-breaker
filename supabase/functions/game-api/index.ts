@@ -28,10 +28,11 @@ const businessErrors=new Set(['Authentication required','Stage is locked','Run I
 for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired','Reconcile autoplay before completing this run','Invalid mastery import'])businessErrors.add(message);
 for(const message of ['Invalid reward opportunity','Reward opportunity identity conflict','Rewarded ads are unavailable','No rewarded opportunities remain today','Unknown reward opportunity','This reward opportunity expired','Another reward is still pending verification','Recover this reward on its original device','Unknown browser reward opportunity','Invalid reward timestamp'])businessErrors.add(message);
 async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
-  const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();
+  const version=level<=12?4:3;
+  const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',version).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
   await authorize();
-  const recent=await admin.from('game_catalog').select('canonical_layout').eq('version',3).order('level',{ascending:false}).limit(48);
+  const recent=await admin.from('game_catalog').select('canonical_layout').eq('version',version).order('level',{ascending:false}).limit(48);
   for(let nonce=0;nonce<32;nonce++){
     const definition=createDefinition(level,nonce);validateCatalogDefinition(definition);
     const canonical=canonicalLayout(definition.layout),hash=await definitionHash(definition);
@@ -40,7 +41,7 @@ async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
     if(!result.error)return result.data;
     if(result.error.code!=='23505')throw Error('Could not publish this stage');
     // Another request might have won this level while we were generating it.
-    const winner=await admin.from('game_catalog').select('definition,layout_hash').eq('version',3).eq('level',level).maybeSingle();if(winner.data)return winner.data;
+    const winner=await admin.from('game_catalog').select('definition,layout_hash').eq('version',version).eq('level',level).maybeSingle();if(winner.data)return winner.data;
   }
   throw Error('A new stage is being prepared. Please try again.');
 }

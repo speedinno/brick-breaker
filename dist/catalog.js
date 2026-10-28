@@ -1,15 +1,16 @@
 import {makePattern} from './engine.js';
 import {generateDefinition,patternFromLayout,validateDefinition,canonicalLayout,GENERATOR_VERSION} from './generated.js';
 export {GENERATOR_VERSION};
+export const catalogVersion=level=>level<=12?4:GENERATOR_VERSION;
 export function createDefinition(level,nonce=0) {
   if(!Number.isSafeInteger(level)||level<1)throw Error('Invalid stage number');
   if(level>12)return generateDefinition(level,nonce);
   const p=makePattern(level,1);
-  return {version:3,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
+  return {version:4,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
 }
 export function hydrateDefinition(definition) {return patternFromLayout(definition);}
 export function validateCatalogDefinition(definition) {
-  if(definition.version!==GENERATOR_VERSION||!Number.isSafeInteger(definition.level)||definition.level<1)throw Error('Unsupported catalog version');
+  if(!Number.isSafeInteger(definition.level)||definition.level<1||definition.version!==catalogVersion(definition.level))throw Error('Unsupported catalog version');
   if(typeof definition.name!=='string'||definition.name.length>80||!/^#[a-f\d]{6}$/i.test(definition.color))throw Error('Invalid stage metadata');
   if(definition.palette&&(!Array.isArray(definition.palette)||definition.palette.length>5||definition.palette.some(color=>!/^#[a-f\d]{6}$/i.test(color))))throw Error('Invalid palette');
   if(definition.tones&&(definition.tones.length!==2704||!/^[0-4]+$/.test(definition.tones)))throw Error('Invalid stage tones');
@@ -39,14 +40,14 @@ export class LevelCache {
   }
   valid(value,level){try{validateCatalogDefinition(value);return value.level===level;}catch{return false;}}
   async get(level){
-    const key=`${GENERATOR_VERSION}:${level}`,memory=this.memory.get(key);if(memory&&this.valid(memory,level))return memory;
+    const key=`${catalogVersion(level)}:${level}`,memory=this.memory.get(key);if(memory&&this.valid(memory,level))return memory;
     const db=await this.db();if(!db)return null;
     return new Promise(resolve=>{let settled=false;const finish=value=>{if(settled)return;settled=true;clearTimeout(timer);if(value&&this.valid(value,level)){this.remember(key,value);resolve(value);}else resolve(null);},timer=setTimeout(()=>{this.storageUnavailable=true;finish(null);},this.timeoutMs);
       try{const r=db.transaction('levels').objectStore('levels').get(key);r.onsuccess=()=>finish(r.result);r.onerror=()=>{this.storageUnavailable=true;finish(null);};}catch{this.storageUnavailable=true;finish(null);}
     });
   }
   async put(definition){
-    validateCatalogDefinition(definition);const key=`${GENERATOR_VERSION}:${definition.level}`;this.remember(key,definition);const db=await this.db();if(!db)return;
+    validateCatalogDefinition(definition);const key=`${catalogVersion(definition.level)}:${definition.level}`;this.remember(key,definition);const db=await this.db();if(!db)return;
     await new Promise(resolve=>{let settled=false;const finish=failed=>{if(settled)return;settled=true;clearTimeout(timer);if(failed)this.storageUnavailable=true;resolve();},timer=setTimeout(()=>finish(true),this.timeoutMs);
       try{const tx=db.transaction('levels','readwrite');tx.objectStore('levels').put(definition,key);tx.oncomplete=()=>finish(false);tx.onerror=tx.onabort=()=>finish(true);}catch{finish(true);}
     });

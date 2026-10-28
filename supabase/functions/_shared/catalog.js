@@ -573,14 +573,15 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
+var catalogVersion = (level) => level <= 12 ? 4 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 3, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 4, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
-  if (definition.version !== GENERATOR_VERSION || !Number.isSafeInteger(definition.level) || definition.level < 1) throw Error("Unsupported catalog version");
+  if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");
   if (typeof definition.name !== "string" || definition.name.length > 80 || !/^#[a-f\d]{6}$/i.test(definition.color)) throw Error("Invalid stage metadata");
   if (definition.palette && (!Array.isArray(definition.palette) || definition.palette.length > 5 || definition.palette.some((color) => !/^#[a-f\d]{6}$/i.test(color)))) throw Error("Invalid palette");
   if (definition.tones && (definition.tones.length !== 2704 || !/^[0-4]+$/.test(definition.tones))) throw Error("Invalid stage tones");

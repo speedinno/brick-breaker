@@ -4,7 +4,7 @@ const owner='00000000-0000-4000-8000-000000000001';
 Deno.env.set('SUPABASE_URL','https://backend.test');Deno.env.set('SUPABASE_ANON_KEY','public-test-key');Deno.env.set('SUPABASE_SERVICE_ROLE_KEY','server-test-key');Deno.env.delete('ALLOWED_ORIGINS');
 let handler:(request:Request)=>Promise<Response>;
 let calls:string[]=[],authorized=true,rpcError='',signedAt=new Date().toISOString();
-let frontier=12,budgetError='';
+let frontier=12,budgetError='',deletionPrepareBad=false;
 let prepared:number[]=[],published:number[]=[];
 const catalog=new Map<number,{definition:Record<string,unknown>,layout_hash:string}>();
 const originalFetch=globalThis.fetch,originalServe=Deno.serve;
@@ -22,6 +22,7 @@ const mockFetch:typeof fetch=async(input,init)=>{
   if(url.endsWith('/game_prepare_level')){prepared.push(args.p_level);return budgetError?Response.json({message:budgetError,code:'P0001'},{status:400}):Response.json(null);}
   if(url.endsWith('/game_publish_level')){const row={definition:args.p_definition,layout_hash:args.p_hash};published.push(args.p_level);catalog.set(args.p_level,row);return Response.json(row);}
   if(url.endsWith('/game_start'))return Response.json({runId:args.p_request_id,layout_hash:catalog.get(args.p_level)?.layout_hash});
+  if(url.endsWith('/game_prepare_account_deletion'))return Response.json(deletionPrepareBad?{}:{requestId:args.p_request});
   return Response.json({highest_unlocked:frontier,starter_completed:[],recent:[]});
  }
  throw Error('Unexpected transport request: '+url);
@@ -31,7 +32,7 @@ await import('./index.ts');
 Object.defineProperty(Deno,'serve',{value:originalServe,configurable:true});
 function assert(value:unknown,message='Assertion failed'):asserts value{if(!value)throw Error(message);}
 function test(name:string,action:()=>Promise<void>){Deno.test(name,async()=>{globalThis.fetch=mockFetch;try{await action();}finally{globalThis.fetch=originalFetch;}});}
-function reset(){calls=[];authorized=true;rpcError='';signedAt=new Date().toISOString();frontier=12;budgetError='';prepared=[];published=[];catalog.clear();}
+function reset(){calls=[];authorized=true;rpcError='';signedAt=new Date().toISOString();frontier=12;budgetError='';deletionPrepareBad=false;prepared=[];published=[];catalog.clear();}
 function request(body:unknown={action:'state',accountId:owner},headers:Record<string,string>={},method='POST'){
  return new Request('https://game.test/game-api',{method,headers:{Authorization:'Bearer test-token',Origin:'https://speedinno.github.io',...headers},...(method==='POST'?{body:typeof body==='string'?body:JSON.stringify(body)}:{})});
 }
@@ -69,7 +70,10 @@ test('HTTP contract: provider diagnostics never leak; expired unknown runs stay 
 });
 test('HTTP contract: deletion requires a valid recent sign-in and deletes only the authenticated owner',async()=>{
  reset();for(const value of ['invalid',new Date(Date.now()-3600000).toISOString(),new Date(Date.now()+3600000).toISOString()]){signedAt=value;assert((await handler(request({action:'delete',accountId:owner}))).status===409);}
- assert(!calls.some(s=>s.includes('/admin/')));signedAt=new Date().toISOString();const response=await handler(request({action:'delete',accountId:owner}));assert(response.status===200);assert(calls.some(s=>s==='DELETE /auth/v1/admin/users/'+owner));
+ assert(!calls.some(s=>s.includes('/admin/')));signedAt=new Date().toISOString();const response=await handler(request({action:'delete',accountId:owner}));assert(response.status===200);assert(calls.some(s=>s==='DELETE /auth/v1/admin/users/'+owner));assert(calls.findIndex(s=>s.endsWith('/rpc/game_prepare_account_deletion'))<calls.findIndex(s=>s==='DELETE /auth/v1/admin/users/'+owner));
+});
+test('HTTP contract: invalid deletion preparation cannot remove the auth account',async()=>{
+ reset();deletionPrepareBad=true;const response=await handler(request({action:'delete',accountId:owner}));assert(response.status===503);assert(calls.some(s=>s.endsWith('/rpc/game_prepare_account_deletion')));assert(!calls.some(s=>s.includes('/admin/users/')));
 });
 
 test('HTTP contract: completion retries cannot generate an imported frontier or its locked successor',async()=>{
