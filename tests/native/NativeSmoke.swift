@@ -4,9 +4,12 @@ final class NativeSmoke: XCTestCase {
     let game = XCUIApplication(bundleIdentifier: "com.speedinno.brickbreaker")
     func button(_ label: String) -> XCUIElement { game.buttons[label].firstMatch }
     func remaining() -> Int {
-        let item = game.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "^[0-9]+ bricks remaining$")).firstMatch
-        guard item.exists else { return -1 }
-        return Int(item.label.split(separator: " ").first ?? "") ?? -1
+        let labelled = game.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "^[0-9]+ bricks remaining$")).firstMatch
+        if labelled.exists { return Int(labelled.label.split(separator: " ").first ?? "") ?? -1 }
+        // iOS WebKit exposes the visible bold counter as a static text instead of
+        // forwarding its aria-label. Stage 1 has four digits throughout this check.
+        let visible = game.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "^[0-9]{4}$")).firstMatch
+        return visible.exists ? Int(visible.label) ?? -1 : -1
     }
     func waitForField() {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 }, object: nil)
