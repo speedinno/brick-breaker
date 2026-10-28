@@ -83,16 +83,18 @@ try {
   await evaluate(`document.querySelector('#journeyGrid button').click();true`);
   assert.match(await evaluate(`document.getElementById('lockMessage').textContent`),/Finish all 12 starter stages first/);
   await evaluate(`document.getElementById('lockDialog').close();document.getElementById('closeGallery').click();true`);
-  await evaluate(`document.getElementById('watch').click(); true`);
-  let shooting=false;
-  for(let attempt=0;attempt<150&&!shooting;attempt++){
-    shooting=await evaluate(`document.getElementById('activeEffect')?.textContent==='Paddle shooter active'&&document.getElementById('prompt').hidden`);
-    if(!shooting)await wait(200);
-  }
-  assert(shooting,'The earned paddle shooter must activate during real native gameplay');
+  await evaluate(`document.getElementById('launch').click(); true`);
+  for(let attempt=0;attempt<50;attempt++){if(await evaluate(`document.getElementById('prompt').hidden`))break;await wait(200);}
+  assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'Manual offline launch must start gameplay');
+  const board=layout.canvas.css,x=board.x+board.width*.5,y=board.y+board.height*.83;
+  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:1}]});
+  await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+Math.min(70,board.width*.18),y,id:1}]});
+  await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  let destroyed=false;for(let attempt=0;attempt<120&&!destroyed;attempt++){destroyed=await evaluate(`Number(document.getElementById('remaining').textContent)<${initial.remaining}`);if(!destroyed)await wait(500);}
+  assert(destroyed,'Manual offline physics must break bricks after a real touch gesture');
   const playing = await evaluate(`({hidden:document.getElementById('prompt').hidden,remaining:Number(document.getElementById('remaining').textContent),balls:Number(document.getElementById('balls').textContent),auto:document.getElementById('auto').getAttribute('aria-pressed')})`);
-  assert.equal(playing.hidden, true, 'Watch must launch the native game');
-  assert.equal(playing.auto, 'true');
+  assert.equal(playing.hidden, true, 'Manual play must stay active');
+  assert.equal(playing.auto, 'false');
   assert.ok(playing.balls >= 1);
   assert.ok(playing.remaining < initial.remaining, 'Native physics must break bricks');
   const screenshot=await call('Page.captureScreenshot',{format:'png'});

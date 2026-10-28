@@ -10,7 +10,24 @@ concurrency:
   group: native-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: npm ci
+      - run: npm run build:web
+      - run: npm test && npm run check && npm audit --audit-level=high
+      - run: deno check --config supabase/functions/deno.json supabase/functions/game-api/index.ts
+      - run: deno test --allow-env --config supabase/functions/deno.json supabase/functions/game-api/index.test.ts
   android:
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -24,9 +41,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci
-      - run: npm run build:web
-      - run: npm test && npm run check
-      - run: npx cap sync android
+      - run: npm run mobile:sync -- android
       - name: Build installable test APK and release bundle
         working-directory: android
         run: |
@@ -40,6 +55,7 @@ jobs:
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
   ios:
+    needs: verify
     runs-on: macos-26
     timeout-minutes: 40
     steps:
@@ -49,8 +65,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm run build:web
-      - run: npx cap sync ios
+      - run: npm run mobile:sync -- ios
       - name: Validate opaque App Store icon
         run: node -e "const b=require('fs').readFileSync('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png');if(b[25]!==2)throw Error('The iOS icon must use RGB without an alpha channel')"
       - name: Build unsigned device archive for Apple signing
