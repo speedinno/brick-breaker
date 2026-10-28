@@ -1,19 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Game} from '../dist/engine.js';
+import {Game,rng} from '../dist/engine.js';
 
 // This deliberately simple delayed controller follows a descending ball. It
 // catches imperfectly and does not choose strategic angles or hunt pickups.
 // It is a repeatable regression proxy, not a measurement of human win rate.
-function delayedController(level,seed,{interval=.25,predict=true,maxSeconds=360}={}){
+function delayedController(level,seed,{interval=.25,predict=true,maxSeconds=360,jitter=0,skipChance=0}={}){
  const game=new Game({level,seed,mode:'play'});
+ const random=rng(seed^0xcafe2211);
  let nextDecision=0,firstHit=null,launches=0;
  while(game.stageTime<maxSeconds&&game.status!=='won'&&game.status!=='over'){
   if(game.status==='ready'){game.launch();launches++;}
   if(game.time>=nextDecision){
    const balls=game.balls.filter(ball=>ball.vy>0&&ball.y<game.paddle.y).sort((a,b)=>(game.paddle.y-a.y)/a.vy-(game.paddle.y-b.y)/b.vy);
    const ball=balls[0];
-   if(ball)game.target=predict?ball.x+ball.vx*Math.min(.4,Math.max(0,(game.paddle.y-ball.y)/ball.vy-.16))+(game.time-nextDecision)*15:ball.x;
+   if(ball&&(skipChance===0||random()>skipChance))game.target=(predict?ball.x+ball.vx*Math.min(.4,Math.max(0,(game.paddle.y-ball.y)/ball.vy-.16))+(game.time-nextDecision)*15:ball.x)+(jitter?(random()*2-1)*jitter:0);
    nextDecision+=interval;
   }
   game.step(1/60);
@@ -38,6 +39,16 @@ test('a slow reactive paddle can finish the opening four rounds without predicti
   const results=seeds.map(seed=>delayedController(level,seed,{interval:1,predict:false}));
   assert(results.every(result=>result.won&&result.losses===0),`stage ${level} one-second reactive clears`);
   assert(results.every(result=>result.seconds<120),`stage ${level} one-second reactive clear time`);
+ }
+});
+
+test('imperfect novice reactions still make the opening rounds winnable',()=>{
+ const seeds=Array.from({length:30},(_,i)=>101+i*1907);
+ for(let level=1;level<=4;level++){
+  const results=seeds.map(seed=>delayedController(level,seed,{interval:1,predict:false,maxSeconds:180,jitter:24,skipChance:.15}));
+  const wins=results.filter(result=>result.won);
+  assert(wins.length>=(level===1?30:29),`stage ${level} noisy reactive clears: ${wins.length}/30`);
+  assert(wins.filter(result=>result.losses===0).length>=28,`stage ${level} clear without a retry`);
  }
 });
 
