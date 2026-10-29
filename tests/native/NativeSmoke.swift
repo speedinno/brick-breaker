@@ -66,10 +66,10 @@ final class NativeSmoke: XCTestCase {
         XCTAssertTrue(game.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Tap to place")).firstMatch.exists)
         let aim = game.sliders["Launch angle, left to right"].firstMatch
         XCTAssertTrue(aim.isHittable, "Manual launch angle must be adjustable on the phone")
-        // WKWebView exposes this HTML range as a Slider, but XCTest's
-        // adjust(toNormalizedSliderPosition:) expects native scrubber points
-        // that WebKit reports as (0, 0). Use a real touch on its visible track.
-        aim.coordinate(withNormalizedOffset: CGVector(dx: 0.45, dy: 0.5)).tap()
+        // WKWebView's range has no native XCTest scrubber coordinates and a
+        // track tap leaves the thumb centered. Drag the visible thumb to -5°.
+        aim.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: aim.coordinate(withNormalizedOffset: CGVector(dx: 0.455, dy: 0.5)))
         shot("iPhone-manual-aim")
         launch.tap()
         let speed = button("Playback speed")
@@ -78,12 +78,12 @@ final class NativeSmoke: XCTestCase {
         XCTAssertGreaterThanOrEqual(speed.frame.width, 43.5)
         XCTAssertGreaterThanOrEqual(speed.frame.height, 43.5)
         XCTAssertTrue(game.frame.contains(speed.frame), "Playback speed must stay inside the phone display")
-        let left = game.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.69))
-        let right = game.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.69))
+        let destroyed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 && self.remaining() < initial }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [destroyed], timeout: 30), .completed, "The aimed opening shot must break a real brick")
+        let left = game.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.61))
+        let right = game.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.61))
         left.press(forDuration: 0.1, thenDragTo: right)
         right.press(forDuration: 0.1, thenDragTo: left)
-        let destroyed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.remaining() > 0 && self.remaining() < initial }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [destroyed], timeout: 90), .completed, "Manual native physics must break real bricks")
         button("Pause").tap(); let saved = remaining(); XCTAssertGreaterThan(saved, 0); XCTAssertLessThan(saved, initial)
         shot("iPhone-paused-gameplay")
         game.terminate(); game.launch(); enterFromHome(); waitForField()
