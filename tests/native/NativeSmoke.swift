@@ -67,9 +67,9 @@ final class NativeSmoke: XCTestCase {
         let aim = game.sliders["Launch angle, left to right"].firstMatch
         XCTAssertTrue(aim.isHittable, "Manual launch angle must be adjustable on the phone")
         // WKWebView's range has no native XCTest scrubber coordinates and a
-        // track tap leaves the thumb centered. Drag the visible thumb to -5°.
+        // track tap leaves the thumb centered. Drag the visible thumb to +5°.
         aim.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.1, thenDragTo: aim.coordinate(withNormalizedOffset: CGVector(dx: 0.455, dy: 0.5)))
+            .press(forDuration: 0.1, thenDragTo: aim.coordinate(withNormalizedOffset: CGVector(dx: 0.545, dy: 0.5)))
         shot("iPhone-manual-aim")
         launch.tap()
         let speed = button("Playback speed")

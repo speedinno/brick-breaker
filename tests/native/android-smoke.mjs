@@ -85,7 +85,7 @@ try {
   await evaluate(`document.querySelector('#journeyGrid button').click();true`);
   assert.match(await evaluate(`document.getElementById('lockMessage').textContent`),/Finish all 12 starter stages first/);
   await evaluate(`document.getElementById('lockDialog').close();document.getElementById('closeGallery').click();true`);
-  await evaluate(`(()=>{const aim=document.getElementById('aimAngle');aim.value='-5';aim.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('launch').click();return true;})()`);
+  await evaluate(`(()=>{const aim=document.getElementById('aimAngle');aim.value='5';aim.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('launch').click();return true;})()`);
   for(let attempt=0;attempt<50;attempt++){if(await evaluate(`document.getElementById('prompt').hidden`))break;await wait(200);}
   assert.equal(await evaluate(`document.getElementById('prompt').hidden`),true,'Manual offline launch must start gameplay');
   await evaluate(`document.getElementById('pause').click();true`);

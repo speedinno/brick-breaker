@@ -37,6 +37,10 @@ test('a launch never aims itself or grants a free ability',()=>{
  }
 });
 
+test('a gentle right-hand opening shot reaches the visible lower exit quickly',()=>{
+ for(const level of [1,2]){const game=new Game({level});game.setLaunchAngle(5);game.launch();for(let tick=0;tick<120&&!game.destroyed;tick++)game.step(1/120);assert(game.destroyed>0,`stage ${level} side exit should break on the opening shot`);}
+});
+
 test('an untended opening shot cannot finish stage one',()=>{
  const game=new Game({level:1});game.launch();
  for(let tick=0;tick<30*120&&game.status==='playing';tick++)game.step(1/120);
