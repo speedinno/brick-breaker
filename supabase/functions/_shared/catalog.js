@@ -496,7 +496,7 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
-  const channelRadius = level <= 2 ? 3.6 : level <= 4 ? 2.7 : level === 8 ? 2.6 : level === 12 ? 1.6 : level <= 8 ? 1.6 : 0.86;
+  const channelRadius = level <= 8 || level === 12 ? 1.6 : 0.86;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -565,6 +565,17 @@ function makePattern(level, seed = 1) {
       }
     }
   }
+  if (level <= 2) {
+    const mouth = lookup.get(50 * COLS + entry[0] + Math.ceil(channelRadius));
+    if (mouth?.type === "gate") for (const offset of [COLS, 2 * COLS]) {
+      const beside = lookup.get(mouth.id - offset);
+      if (beside?.type === "wall") {
+        beside.type = "gate";
+        beside.hp = 1;
+        bricks.push(beside);
+      }
+    }
+  }
   signature = Array.from({ length: COLS * ROWS }, (_, id) => {
     const t = lookup.get(id)?.type;
     return t === "brick" ? "b" : t === "wall" ? "w" : t === "gate" ? "g" : ".";
@@ -573,12 +584,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 7 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 8 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 7, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 8, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
   if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");

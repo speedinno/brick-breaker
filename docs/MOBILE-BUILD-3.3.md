@@ -1,6 +1,14 @@
 # Mobile builds — 3.3.x
 
-## Current manual aiming candidate: build 26
+## Current owner-directed correction: build 27
+
+Build 27 (version 3.3.2) supersedes build 26 after the owner's physical Android screenshots showed the first two corridors were too wide and the tiny breakable exit was hard to see. The first eight starter passages and stage 12 are four tiles wide; stages 9–11 remain two. Stages 1–2 have a bright, three-tile breakable side exit near the entrance. The original motif paths, manual aim, standard paddles, earned pickups and one-ball launch remain. The server starter catalog advances to v8 with a new additive migration; old v3–v7 runs remain valid. See [rollout and physical pilot](STARTER-DIFFICULTY-ROLLOUT.md) and [Chandrahas handoff](ACCOUNT-SETUP-2026-10.md).
+
+The game and database regression checks passed locally after this correction. Native build, packaged-device smoke results, APK link and exact-source hash are recorded in the later release update. The owner must try the corrected APK on a phone before a store submission.
+
+## Historical build 26 (rejected by owner phone test)
+
+### Build 26 record
 
 Build 26 is the owner's correction after testing build 25 on a physical Android phone. It restores solid-gray starter patterns, original paddle widths and speed, and one ordinary ball with no free power on every launch. Only the stage 1–2, 8 and 12 entrances widen. The player taps to position the paddle and adjusts a gold arrow before each shot. A compact aiming dock keeps the paddle and board visible. Starter catalog version 7 preserves older v3–v6 server rows. See [mechanics, migration and physical acceptance plan](STARTER-DIFFICULTY-ROLLOUT.md). Build 25 below is superseded for phone evaluation.
 

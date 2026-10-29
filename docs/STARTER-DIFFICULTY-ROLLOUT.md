@@ -1,4 +1,16 @@
-# Manual opening rounds — build 26 rollout
+# Manual opening rounds — build 27 rollout
+
+## Owner correction after the Android build 26 test
+
+The owner rejected build 26's eight-tile first passages. The opening looked like a large empty hall with a nearly invisible route into the bricks. Build 27 keeps the original T channel and Switchback paths, solid gray walls, manual aim, one starting ball, normal paddle widths and earned boosts. Stages 1–8 and the occasional easier stage 12 now have **four-tile passages**; stages 9–11 keep two-tile passages. Only stages 1–2 gain a **three-tile breakable side cap** near the lower entrance, colored warm gold so the first target is visible. No automatic power or free opening clear was added.
+
+The corrected T board was visually checked at a 360 × 800 phone viewport. A fixed 77-shot position/angle sample found a deliberate brick hit within five seconds for 9 stage-1 shots and 6 stage-2 shots; this is an aimability regression check, not a human success rate. With the existing skilled watch paddle and earned pickups, 20/20 fixed seeds cleared each of stages 1 and 2 within ten simulated minutes; the median winning times were 56 and 79 seconds respectively. These are mechanics proxies. Physical beginner play still decides whether the target is clear and enjoyable.
+
+Build 27 uses starter catalog **version 8**. Apply `202610290020_starter_catalog_v8.sql` after all existing revisions, then deploy the matching API before signed-in build 27 play. The new revision preserves v3–v7 shared boards and in-flight runs; their server completion uses their original hashes. Stage 13 onward remains catalog version 3. Guest/device play needs no cloud rollout. The API now queries the current starter catalog version; that version lookup had lagged behind the client in build 26.
+
+For the next physical pilot, test stages 1–4 with AUTO off. Watch where the player positions the paddle, whether they notice the gold side cap, how many attempts it takes to finish, and whether they start stage 2. Stop store submission if players still struggle to understand the first target. Use build 27 for this pilot; build 26 is a rejected historical candidate.
+
+## Historical build 26 analysis
 
 The owner tested build 25 on a physical Android phone and rejected its free shooting, oversized paddle and automatic clears. Build 26 returns to the original T, Switchback, H, M and subsequent solid-gray motifs, original paddle widths (112 units on stages 1–4, 100 on 5–8, 90 on 9–12), original speed and boost cadence, and a single ordinary ball on **every** launch. No shooter or extra ball activates at launch; pickups have to be caught in play. A stationary opening shot cannot finish stage 1.
 

@@ -281,7 +281,7 @@ for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener(
   renderReadyCoaching();
 });
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>closeDialog(button.dataset.close);
-function paintCells(context,cells,fill,level){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?(level<=4?'#b7c5cd':'#e8d530'):cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
+function paintCells(context,cells,fill,level){for(const cell of cells){context.fillStyle=cell.type==='wall'?'#9a9a91':cell.type==='gate'?(level<=2?'#ffd17e':level<=4?'#b7c5cd':'#e8d530'):cell.color||fill;const inset=cell.type==='wall'?0:.55;context.fillRect(cell.x+inset,cell.y+inset,cell.w-inset*2,cell.h-inset*2);}}
 function draw(){
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#14171c';ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.setTransform(viewport.scale*viewport.ratio,0,0,viewport.scale*viewport.ratio,viewport.x*viewport.ratio,viewport.y*viewport.ratio);

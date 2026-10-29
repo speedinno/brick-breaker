@@ -28,7 +28,7 @@ const businessErrors=new Set(['Authentication required','Stage is locked','Run I
 for(const message of ['Invalid time reservation','Reservation identity conflict','Recover or finish the existing activation first','Active run required','Not enough autoplay time','Unknown time reservation','Wait for the previous activation lease to end','Wrong activation device','Invalid consumed time','Activation lease expired','Reconcile autoplay before completing this run','Invalid mastery import'])businessErrors.add(message);
 for(const message of ['Invalid reward opportunity','Reward opportunity identity conflict','Rewarded ads are unavailable','No rewarded opportunities remain today','Unknown reward opportunity','This reward opportunity expired','Another reward is still pending verification','Recover this reward on its original device','Unknown browser reward opportunity','Invalid reward timestamp'])businessErrors.add(message);
 async function ensureLevel(level:number,authorize:()=>Promise<unknown>){
-  const version=level<=12?6:3;
+  const version=level<=12?8:3;
   const existing=await admin.from('game_catalog').select('definition,layout_hash').eq('version',version).eq('level',level).maybeSingle();
   if(existing.error)throw Error('Catalog is unavailable');if(existing.data)return existing.data;
   await authorize();
