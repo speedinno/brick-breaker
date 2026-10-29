@@ -10,6 +10,17 @@ The local suite includes a geometry check that deliberate shots can break a bric
 
 A read-only Stage 1 engine proxy on 29 October used the game's perfect `watch` paddle for 20 fixed seeds, with the shipped build 26 layout and earned pickups. Nineteen cleared within ten simulated minutes; their median clear time was about 255 seconds (range 212–419 seconds). One seed still had 1,053 of 2,093 bricks after ten minutes. This is an upper-skill, automatic-paddle reference and **cannot establish novice success**. It does show why the phone pilot must measure clear time as well as attempts: a reachable first brick is weaker evidence than a satisfying first clear. Do not restore free shooter or oversized paddle in response; use the owner's physical feedback before changing the approved manual mechanics.
 
+A second in-memory comparison changed only the channel radius on Stages 1–2; it did not alter the released layouts. For each width, 189 fixed paddle/angle combinations were tried for five simulated seconds, and 20 seeds ran with the same `watch` paddle for at most ten minutes. Both stages had the same entrance-shot count. Clear-time medians below include only seeds that won.
+
+| Opening tiles | Shots entering channel / 189 | Stage 1 watch clears / 20; median | Stage 2 watch clears / 20; median |
+|---:|---:|---:|---:|
+| 6 (earlier) | 85 | 20; 214s | 20; 253s |
+| **8 (build 26)** | **107** | **19; 255s** | **20; 249s** |
+| 10 (trial) | 129 | 19; 381s | 19; 217s |
+| 12 (trial) | 145 | 17; 404s | 20; 299s |
+
+The wider opening reliably increased the sampled chance of entering the channel, but Stage 1's automatic clear became slower beyond eight tiles. Stage 2 did not show a monotonic clear-time trend. This proxy supports retaining the owner's requested modest widening for the next **physical** test; it does not prove eight tiles is optimal for people or settle the first-round difficulty.
+
 ## Shared catalog deployment
 
 Build 26 uses starter catalog **version 7**. Apply all pending migrations through the tracked migration process, including `202610280016_starter_catalog_v4.sql`, `202610280017_starter_catalog_v5.sql`, `202610280018_starter_catalog_v6.sql` and `202610280019_starter_catalog_v7.sql`, in order. Deploy the matching API bundle **before** signed-in build 26 clients request starter boards. The new migration preserves v3–v6 shared rows and in-flight runs; server completion continues to honor their original hashes. Stage 13 onward remains catalog version 3. Progress records and completion ticks remain in the existing progress edition. A client update during an unfinished older layout may require replaying that stage; completed stages persist.
