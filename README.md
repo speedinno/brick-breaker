@@ -1,6 +1,6 @@
 # Brick Breaker · Channels & Swarms
 
-**Current candidate: 3.3.1/build26 on `codex/easier-opening-rounds`.** This revision responds to the owner's physical-phone rejection of build 25. Start with the [manual opening-round rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), and [product implementation report](docs/PRODUCT-COMPLETION-2026-10.md). Provider activation, build 26 physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
+**Current candidate: 3.3.1/build26 on private `dev`.** This revision responds to the owner's physical-phone rejection of build 25. Start with the [manual opening-round rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md), [mobile build history](docs/MOBILE-BUILD-3.3.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), and [product implementation report](docs/PRODUCT-COMPLETION-2026-10.md). Android and iPhone simulator package checks passed; provider activation, build 26 physical-player acceptance, Apple signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains the earlier release history.
 
 Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
