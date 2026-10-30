@@ -1,6 +1,6 @@
 # Brick Breaker — final handoff to Chandrahas
 
-**Current handoff:** use [Chandrahas's ordered account and store setup guide](docs/ACCOUNT-SETUP-2026-10.md), the [build 27 package and test evidence](docs/MOBILE-BUILD-3.3.md), the [opening-stage rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md) and the [product report](docs/PRODUCT-COMPLETION-2026-10.md). The remainder of this file records earlier build 20/build 17 history and does not describe the current package.
+**Current handoff:** use [Chandrahas's ordered account and store setup guide](docs/ACCOUNT-SETUP-2026-10.md), the [Android build 28 review](docs/ANDROID-BUILD-28.md), the [opening-stage rollout](docs/STARTER-DIFFICULTY-ROLLOUT.md) and the [product report](docs/PRODUCT-COMPLETION-2026-10.md). The owner must approve the Android test before iPhone work. The remainder of this file records earlier build history and does not describe the current package.
 
 **Latest playtest update: 3.2.0, build 20.** See the
 [mobile feedback update](docs/MOBILE-FEEDBACK-3.2.md) for Home, Help, safe-area,

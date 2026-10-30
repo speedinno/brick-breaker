@@ -1,4 +1,12 @@
-# Manual opening rounds — build 27 rollout
+# Manual opening rounds — build 28 rollout
+
+## Current correction after the owner's build 27 Android test
+
+The owner found that a successful shot into the lower channel led to a tiny brick opening near the floor, so there was little immediate payoff. Build 28 retains the original paths and rules. The lower mouths of stages 1–3 are six tiles wide for two rows, then return to the original four-tile channels. Stages 4–8 and 12 remain four tiles at the entrance; stages 9–11 remain two. The first eight shapes have open upper exits into the colored field, including both uprights of the Stage 3 H. No lower breakable shortcut remains in stages 1–8. Manual placement and aiming, normal paddle widths, one starting ball and earned pickups remain unchanged.
+
+The starter catalog advances to **v9** through additive migration `202610300021_starter_catalog_v9.sql`; it preserves v3–v8 boards and in-flight runs. The API and migration must deploy together before signed-in build 28 starter play. Automated checks confirm a centered manual shot reaches upper bricks in stages 1–3 within three simulated seconds, all 12 starter boards can clear with the skilled simulator, and an untended opening shot does not automatically clear Stage 1. The owner's physical Android pilot is still the acceptance test. iPhone work waits for that approval.
+
+## Historical build 27 rollout
 
 ## Owner correction after the Android build 26 test
 

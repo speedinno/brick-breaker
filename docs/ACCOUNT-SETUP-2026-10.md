@@ -1,6 +1,12 @@
 # Account setup and release order — SpeedInno Brick Breaker
 
-## Build 27 owner correction (29 October 2026)
+## Current Android gate — build 28 (30 October 2026)
+
+Use [build 28 / version 3.3.3](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.3-rc.1) for the owner's next Android phone test. The first three lower mouths are only modestly wider; the original narrow channels now lead to visible upper exits into the bricks. [Android build 28 review](ANDROID-BUILD-28.md) has the exact test steps. Build 27 and earlier are historical after the owner's device feedback. The current Android APK is for testing and must not be uploaded as a Play production package. **Wait for the owner's Android OK before starting any iPhone work.**
+
+For signed-in play, back up the company Supabase project and apply pending tracked revisions in order through **`202610300021_starter_catalog_v9.sql`**. Deploy the matching API bundle. Test a new v9 starter run and completion, an in-flight v3–v8 run, and stage 13 with disposable accounts. Guest/device play can be tested without the cloud rollout. Do not alter installed migration files. The account, monitored company support email, store, privacy, payment and ad tasks described below remain for Chandrahas after Android approval; keep credentials out of Git.
+
+## Historical build 27 owner correction (29 October 2026)
 
 **Use [build 27 / version 3.3.2](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.2-rc.1) for the next phone pilot.** The owner physically rejected build 26's oversized empty first passages after seeing stages 1 and 2; build 25 was rejected earlier for free powers and automatic clears. The [updated starter rollout](STARTER-DIFFICULTY-ROLLOUT.md) describes the slim four-tile passages and three-tile breakable side exit. The manual paddle, aim arrow, one ball, stage order and earned pickups remain. Build 27 is still a **test build**, not a store-approved release. Record a fresh physical Android pilot before store submission.
 

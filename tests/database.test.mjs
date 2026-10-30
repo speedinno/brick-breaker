@@ -49,7 +49,7 @@ test('guest import validates the starter requirement and cannot change another a
  assert.equal(imported.rows[0].state.selected_level,15);
  const a=await asUser(alice,'select public.game_state() as state');assert.equal(a.rows[0].state.highest_unlocked,13);
 });
-test('v3-v7 starter runs retain their hashes while new signed-in runs use v8 boards',async()=>{
+test('v3-v8 starter runs retain their hashes while new signed-in runs use v9 boards',async()=>{
  const newer=await publish(1),original={...newer.definition,version:3},layout=[...newer.definition.layout];
  for(const c of [23,24,27,28])layout[51*52+c]='w';original.layout=layout.join('');
  const oldHash=await definitionHash(original),oldRun=crypto.randomUUID();
@@ -57,7 +57,7 @@ test('v3-v7 starter runs retain their hashes while new signed-in runs use v8 boa
  await db.query("insert into public.game_runs(id,user_id,version,level,layout_hash,started_at) values($1,$2,3,1,$3,now()-interval '3 seconds')",[oldRun,bob,oldHash]);
  const newRun=crypto.randomUUID(),started=await asUser(bob,'select public.game_start(1,$1) as run',[newRun]);
  assert.equal(started.rows[0].run.layout_hash,newer.layout_hash);
- assert.equal((await db.query('select version from public.game_runs where id=$1',[newRun])).rows[0].version,8);
+ assert.equal((await db.query('select version from public.game_runs where id=$1',[newRun])).rows[0].version,9);
  const oldScore=[...original.layout].filter(t=>t==='b'||t==='g').length*10+1000;
  const completed=await asUser(bob,"select public.game_complete($1,$2,$3,1,10,'play') as state",[oldRun,oldHash,oldScore]);
  assert(completed.rows[0].state.starter_completed.includes(1));
@@ -93,12 +93,20 @@ test('v3-v7 starter runs retain their hashes while new signed-in runs use v8 boa
  const v7Score=[...v7.layout].filter(t=>t==='b'||t==='g').length*10+1000;
  const v7Clear=await asUser(bob,"select public.game_complete($1,$2,$3,1,10,'play') as state",[v7Run,v7Hash,v7Score]);
  assert(v7Clear.rows[0].state.starter_completed.includes(1));
+ const v8={...newer.definition,version:8},v8Layout=[...newer.definition.layout];
+ for(const c of [24,25,26,27])v8Layout[50*52+c]='w';v8.layout=v8Layout.join('');
+ const v8Hash=await definitionHash(v8),v8Run=crypto.randomUUID();
+ await db.query('insert into public.game_catalog(version,level,definition,canonical_layout,layout_hash) values(8,1,$1::jsonb,$2,$3)',[JSON.stringify(v8),canonicalLayout(v8.layout),v8Hash]);
+ await db.query("insert into public.game_runs(id,user_id,version,level,layout_hash,started_at) values($1,$2,8,1,$3,now()-interval '3 seconds')",[v8Run,bob,v8Hash]);
+ const v8Score=[...v8.layout].filter(t=>t==='b'||t==='g').length*10+1000;
+ const v8Clear=await asUser(bob,"select public.game_complete($1,$2,$3,1,10,'play') as state",[v8Run,v8Hash,v8Score]);
+ assert(v8Clear.rows[0].state.starter_completed.includes(1));
 });
 test('deleting an auth identity cascades private history but keeps shared stages',async()=>{
  await db.query('delete from auth.users where id=$1',[alice]);
  assert.equal((await db.query('select count(*) as n from public.game_completions where user_id=$1',[alice])).rows[0].n,0);
  assert.equal((await db.query('select count(*) as n from public.game_runs where user_id=$1',[alice])).rows[0].n,0);
- assert.equal((await db.query('select count(*) as n from public.game_catalog')).rows[0].n,19);
+ assert.equal((await db.query('select count(*) as n from public.game_catalog')).rows[0].n,20);
 });
 test('imported frontiers cannot request unlimited unpublished layouts or reset the quota',async()=>{
  await asUser(bob,"select public.game_import_progress(array[1,2,3,4,5,6,7,8,9,10,11,12],9999,'[]')");

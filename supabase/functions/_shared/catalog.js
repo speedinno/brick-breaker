@@ -439,7 +439,6 @@ function makePattern(level, seed = 1) {
       path([[18, 52], [18, 21]]);
       path([[34, 51], [34, 21]]);
       path([[18, 35], [34, 35]], false);
-      gates.push({ x: 34, y: 51, dx: 0, dy: 1 });
       break;
     case 3:
       path([[26, 52], [26, 35], [16, 24], [16, 41]]);
@@ -475,7 +474,6 @@ function makePattern(level, seed = 1) {
         }
         holes.push(h);
       }
-      gates.push({ x: 39, y: 51, dx: 0, dy: 1 });
       break;
     case 10:
       entry = [16, 52];
@@ -486,6 +484,11 @@ function makePattern(level, seed = 1) {
       path([[26, 52], [26, 33], [15, 22], [15, 12]]);
       path([[26, 33], [37, 22], [37, 12]]);
       break;
+  }
+  const upperExits = [[[26, 26]], [[26, 13]], [[18, 21], [34, 21]], [[26, 34], [16, 24], [36, 24]], [[26, 39]], [[26, 28], [15, 21], [37, 21]], [[26, 8]], [[26, 41], [20, 35]], [[37, 15]], [[13, 29], [39, 30]], [[37, 17]], [[15, 12], [37, 12]]][family];
+  const upperOpen = /* @__PURE__ */ new Set();
+  if (level <= 8) {
+    for (const [cx, y] of upperExits) for (const row of [y - 3, y - 2, y - 1]) for (let c = 1; c < COLS - 1; c++) if (Math.abs(c + 0.5 - cx) < (level <= 3 ? 2.6 : 1.6)) upperOpen.add(row * COLS + c);
   }
   const segments = paths.flatMap((points) => points.slice(1).map((b, i) => [points[i], b]));
   function insidePolygon(x, y, p) {
@@ -507,10 +510,12 @@ function makePattern(level, seed = 1) {
     if (holes.some((p) => insidePolygon(x, y, p))) type = "empty";
     if (c === 0 || c === COLS - 1 || r === 0 || r === ROWS - 1) type = "wall";
     if (r >= 49 && Math.abs(x - entry[0]) < channelRadius) type = "empty";
+    if (level <= 3 && r >= 50 && Math.abs(x - entry[0]) < 2.6) type = "empty";
     for (const g of gates) {
       const along = (x - g.x) * g.dx + (y - g.y) * g.dy, across = Math.abs((x - g.x) * g.dy - (y - g.y) * g.dx);
       if (along >= -0.3 && along < 1.8 && across < 0.88) type = "gate";
     }
+    if (upperOpen.has(r * COLS + c)) type = "empty";
     const cell = { id: r * COLS + c, r, c, x: OX + c * CELL, y: OY + r * CELL, w: CELL, h: CELL, type, hp: type === "gate" ? 1 : type === "brick" ? 1 : Infinity };
     signature += type === "brick" ? "b" : type === "wall" ? "w" : type === "gate" ? "g" : ".";
     if (type !== "empty") {
@@ -519,6 +524,16 @@ function makePattern(level, seed = 1) {
     }
   }
   const lookup = new Map(cells.map((c) => [c.id, c])), start = 51 * COLS + Math.floor(entry[0]);
+  if (level > 8) {
+    for (const [cx, y] of upperExits) for (let c = 1; c < COLS - 1; c++) if (Math.abs(c + 0.5 - cx) < 1.6) {
+      const cell = lookup.get((y - 3) * COLS + c);
+      if (cell && cell.r > 0 && cell.type !== "gate") {
+        if (cell.type === "wall") bricks.push(cell);
+        cell.type = "gate";
+        cell.hp = 1;
+      }
+    }
+  }
   for (let attempt = 0; attempt < 30; attempt++) {
     const seen = /* @__PURE__ */ new Set([start]), queue = [start];
     for (let i = 0; i < queue.length; i++) {
@@ -565,17 +580,6 @@ function makePattern(level, seed = 1) {
       }
     }
   }
-  if (level <= 2) {
-    const mouth = lookup.get(50 * COLS + entry[0] + Math.ceil(channelRadius));
-    if (mouth?.type === "gate") for (const offset of [COLS, 2 * COLS]) {
-      const beside = lookup.get(mouth.id - offset);
-      if (beside?.type === "wall") {
-        beside.type = "gate";
-        beside.hp = 1;
-        bricks.push(beside);
-      }
-    }
-  }
   signature = Array.from({ length: COLS * ROWS }, (_, id) => {
     const t = lookup.get(id)?.type;
     return t === "brick" ? "b" : t === "wall" ? "w" : t === "gate" ? "g" : ".";
@@ -584,12 +588,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 8 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 9 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 8, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 9, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateCatalogDefinition(definition) {
   if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");

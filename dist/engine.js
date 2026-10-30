@@ -17,27 +17,35 @@ export function makePattern(level,seed=1){
  switch(family){
   case 0:path([[26,52],[26,29],[34,29],[34,26],[22,26]]);break;
   case 1:path([[26,52],[26,13],[22,13],[22,34],[31,34]]);break;
-  case 2:entry=[18,52];path([[18,52],[18,21]]);path([[34,51],[34,21]]);path([[18,35],[34,35]],false);gates.push({x:34,y:51,dx:0,dy:1});break;
+  case 2:entry=[18,52];path([[18,52],[18,21]]);path([[34,51],[34,21]]);path([[18,35],[34,35]],false);break;
   case 3:path([[26,52],[26,35],[16,24],[16,41]]);path([[26,35],[36,24],[36,41]]);break;
   case 4:path([[26,52],[26,39]]);break;
   case 5:path([[26,52],[26,28],[15,39],[15,21]]);path([[26,28],[37,39],[37,21]]);break;
   case 6:path([[26,52],[26,8]]);path([[17,40],[35,40]]);gates.push({x:17,y:40,dx:-1,dy:0});break;
   case 7:path([[26,52],[26,41],[20,35]]);break;
   case 8:path([[26,52],[26,49],[3,49],[3,3],[49,3],[49,45],[7,45],[7,7],[45,7],[45,41],[11,41],[11,11],[41,11],[41,37],[15,37],[15,15],[37,15]]);break;
-  case 9:entry=[13,52];path([[13,52],[13,35],[18,35],[18,42],[8,42],[8,33],[13,29]]);path([[39,51],[39,30],[34,30],[34,42],[44,42]]);for(const cx of [13,39]){const h=[];for(let i=0;i<=40;i++){const t=i*Math.PI/20;h.push([cx+Math.sin(t)**3*7,18-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*.45]);}holes.push(h);}gates.push({x:39,y:51,dx:0,dy:1});break;
+  case 9:entry=[13,52];path([[13,52],[13,35],[18,35],[18,42],[8,42],[8,33],[13,29]]);path([[39,51],[39,30],[34,30],[34,42],[44,42]]);for(const cx of [13,39]){const h=[];for(let i=0;i<=40;i++){const t=i*Math.PI/20;h.push([cx+Math.sin(t)**3*7,18-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))*.45]);}holes.push(h);}break;
   case 10:entry=[16,52];path([[16,52],[16,43],[22,43],[22,35],[17,35],[17,28],[37,28],[37,17]]);path([[37,17],[44,17],[44,34],[36,34]]);break;
   case 11:path([[26,52],[26,33],[15,22],[15,12]]);path([[26,33],[37,22],[37,12]]);break;
  }
+ // Each starter motif has an exit at its upper reach. The first eight are
+ // open cuts; later motifs use a short breakable cap at the same position.
+ // A ball that clears the lower entrance can therefore reach colored bricks
+ // by following the shape upward instead of finding a tiny floor-side seam.
+ const upperExits=[[[26,26]],[[26,13]],[[18,21],[34,21]],[[26,34],[16,24],[36,24]],[[26,39]],[[26,28],[15,21],[37,21]],[[26,8]],[[26,41],[20,35]],[[37,15]],[[13,29],[39,30]],[[37,17]],[[15,12],[37,12]]][family];
+ const upperOpen=new Set();
+ if(level<=8)for(const [cx,y] of upperExits)for(const row of [y-3,y-2,y-1])for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<(level<=3?2.6:1.6))upperOpen.add(row*COLS+c);
  // Preserve the reference motifs first; later fields vary connected geometry.
  const segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
  function insidePolygon(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
  // The opening motifs use a four-tile passage. Keep their original narrow
  // silhouettes; an eight-tile hall removes too many bricks from the design.
  const channelRadius=level<=8||level===12?1.6:.86;
- const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<channelRadius?'empty':distance<channelRadius+1?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<channelRadius)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
+ const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<channelRadius?'empty':distance<channelRadius+1?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<channelRadius)type='empty';if(level<=3&&r>=50&&Math.abs(x-entry[0])<2.6)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}if(upperOpen.has(r*COLS+c))type='empty';const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
  // A letter can enclose a colored island. Add the smallest number of gate
  // tiles needed to make every breakable region reachable from the entrance.
  const lookup=new Map(cells.map(c=>[c.id,c])),start=51*COLS+Math.floor(entry[0]);
+ if(level>8)for(const [cx,y] of upperExits)for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<1.6){const cell=lookup.get((y-3)*COLS+c);if(cell&&cell.r>0&&cell.type!=='gate'){if(cell.type==='wall')bricks.push(cell);cell.type='gate';cell.hp=1;}}
  for(let attempt=0;attempt<30;attempt++){
   const seen=new Set([start]),queue=[start];for(let i=0;i<queue.length;i++){const id=queue[i],r=Math.floor(id/COLS),c=id%COLS;for(const v of[id-COLS,id+COLS,c>0?id-1:-1,c<COLS-1?id+1:-1]){if(v<0||v>=COLS*ROWS||seen.has(v)||lookup.get(v)?.type==='wall')continue;seen.add(v);queue.push(v);}}
   if(!bricks.some(b=>!seen.has(b.id)))break;
@@ -45,9 +53,6 @@ export function makePattern(level,seed=1){
   while(head<tail){const id=deque[head++],r=Math.floor(id/COLS),c=id%COLS,cell=lookup.get(id);if(!seen.has(id)&&cell&&cell.type!=='wall'){found=id;break;}for(const v of[id-COLS,id+COLS,c>0?id-1:-1,c<COLS-1?id+1:-1]){if(v<0||v>=COLS*ROWS)continue;const vr=Math.floor(v/COLS),vc=v%COLS,wall=lookup.get(v)?.type==='wall';if(wall&&(vr===0||vr===ROWS-1||vc===0||vc===COLS-1))continue;const cost=wall?1:0;if(dist[v]>dist[id]+cost){dist[v]=dist[id]+cost;parent[v]=id;if(cost)deque[tail++]=v;else deque[--head]=v;}}}
   if(found<0)break;for(let v=found;v>=0&&!seen.has(v);v=parent[v]){const cell=lookup.get(v);if(cell?.type==='wall'){cell.type='gate';cell.hp=1;bricks.push(cell);}}
  }
- // Give the first two passages a short side exit near the mouth. The
- // corridor and its original motif stay narrow; this cap is visibly breakable.
- if(level<=2){const mouth=lookup.get(50*COLS+entry[0]+Math.ceil(channelRadius));if(mouth?.type==='gate')for(const offset of [COLS,2*COLS]){const beside=lookup.get(mouth.id-offset);if(beside?.type==='wall'){beside.type='gate';beside.hp=1;bricks.push(beside);}}}
  signature=Array.from({length:COLS*ROWS},(_,id)=>{const t=lookup.get(id)?.type;return t==='brick'?'b':t==='wall'?'w':t==='gate'?'g':'.';}).join('');
  return{cells,bricks,signature,family,name:FAMILIES[family],color:COLORS[family],entry:{x:entry[0]*CELL,y:OY+52*CELL},paths};
 }

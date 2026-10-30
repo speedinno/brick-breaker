@@ -37,8 +37,8 @@ test('a launch never aims itself or grants a free ability',()=>{
  }
 });
 
-test('a gentle right-hand opening shot reaches the visible lower exit quickly',()=>{
- for(const level of [1,2]){const game=new Game({level});game.setLaunchAngle(5);game.launch();for(let tick=0;tick<120&&!game.destroyed;tick++)game.step(1/120);assert(game.destroyed>0,`stage ${level} side exit should break on the opening shot`);}
+test('a centered manual shot reaches upper bricks in the first three stages',()=>{
+ for(const [level,upperRow] of [[1,23],[2,10],[3,21]]){let firstBreak=null;const game=new Game({level,onEvent:event=>{if(event.type==='break'&&!firstBreak)firstBreak=event;}});game.paddle.x=game.pattern.entry.x;game.target=game.paddle.x;game.launch();for(let tick=0;tick<360&&!firstBreak;tick++)game.step(1/120);assert(firstBreak,`stage ${level} should reward a centered opening shot`);assert((firstBreak.y-18)/8<upperRow+1,`stage ${level} first brick should be near the top of its channel`);}
 });
 
 test('an untended opening shot cannot finish stage one',()=>{

@@ -1,6 +1,12 @@
 name: Native mobile builds
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Mobile platforms to build'
+        type: choice
+        options: [android, both]
+        default: both
   push:
     branches: [main]
     paths: ['dist/**', 'android/**', 'ios/**', 'package*.json', 'capacitor.config.json', '.github/workflows/mobile.yml']
@@ -55,6 +61,7 @@ jobs:
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
   ios:
+    if: inputs.platform != 'android'
     needs: verify
     runs-on: macos-26
     timeout-minutes: 40

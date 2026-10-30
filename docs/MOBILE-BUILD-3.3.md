@@ -1,5 +1,7 @@
 # Mobile builds — 3.3.x
 
+**Current Android candidate is build 28 / 3.3.3.** See [Android build 28 review](ANDROID-BUILD-28.md) for its upper channel exits, v9 cloud rollout and test gate. Build 27 evidence below is historical after the owner's phone test. iPhone work waits for Android approval.
+
 ## Current owner-directed correction: build 27
 
 Build 27 (version 3.3.2) supersedes build 26 after the owner's physical Android screenshots showed the first two corridors were too wide and the tiny breakable exit was hard to see. The first eight starter passages and stage 12 are four tiles wide; stages 9–11 remain two. Stages 1–2 have a bright, three-tile breakable side exit near the entrance. The original motif paths, manual aim, standard paddles, earned pickups and one-ball launch remain. The server starter catalog advances to v8 with a new additive migration; old v3–v7 runs remain valid. See [rollout and physical pilot](STARTER-DIFFICULTY-ROLLOUT.md) and [Chandrahas handoff](ACCOUNT-SETUP-2026-10.md).

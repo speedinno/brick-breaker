@@ -20,14 +20,15 @@ test('release preflight follows the package version and rejects drift in either 
       await writeFile(join(dir,'android/app/build.gradle'),`versionName "${android}"\nversionCode ${androidBuild}`);
       await writeFile(join(dir,'ios/App/App.xcodeproj/project.pbxproj'),`PrivacyInfo.xcprivacy in Resources\nMARKETING_VERSION = ${debug};\nMARKETING_VERSION = ${release};\nCURRENT_PROJECT_VERSION = ${iosBuild};\nCURRENT_PROJECT_VERSION = ${iosBuild};`);
     };
-    const run=()=>spawnSync(process.execPath,['scripts/release-preflight.mjs','--production'],{cwd:dir,encoding:'utf8'});
-    await native();const valid=run();assert.equal(valid.status,0,valid.stderr);const report=JSON.parse(valid.stdout);assert.equal(report.publicCloudConfigurationComplete,true);assert.equal(report.productionConfigurationComplete,undefined);assert.equal(report.version,'7.4.2');assert.equal(report.build,81);assert.match(report.scope,/production readiness is not assessed/);
+    const run=(...flags)=>spawnSync(process.execPath,['scripts/release-preflight.mjs',...flags],{cwd:dir,encoding:'utf8'});
+    await native();const valid=run('--production');assert.equal(valid.status,0,valid.stderr);const report=JSON.parse(valid.stdout);assert.equal(report.publicCloudConfigurationComplete,true);assert.equal(report.productionConfigurationComplete,undefined);assert.equal(report.version,'7.4.2');assert.equal(report.build,81);assert.match(report.scope,/production readiness is not assessed/);
     for(const versions of [['7.4.20','7.4.2','7.4.2'],['7.4.2','7.4.1','7.4.2'],['7.4.2','7.4.2','7.4.1']]){
-      await native(...versions);const invalid=run();assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Native\/web versions differ/);
+      await native(...versions);const invalid=run('--production');assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Native\/web versions differ/);
     }
-    await native('7.4.2','7.4.2','7.4.2',81,80);let invalid=run();assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Native build numbers differ/);
-    await native();await writeFile(join(dir,'dist/index.html'),'Version 7.4.2 · Build 80');invalid=run();assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Visible version/);
-    await writeFile(join(dir,'dist/index.html'),'Version 7.4.2 · Build 81');await writeFile(join(dir,'ios/App/App/PrivacyInfo.xcprivacy'),'NSPrivacyCollectedDataTypeEmailAddress');invalid=run();assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/collection-purpose categories/);
+    await native('7.4.2','7.4.2','7.4.2',81,80);let invalid=run('--production');assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Native build numbers differ/);
+    await native('7.4.2','7.4.1','7.4.1',81,80);assert.equal(run('--android-only').status,0);assert.match(run().stderr,/Native\/web versions differ/);assert.match(run('--production').stderr,/Native\/web versions differ/);assert.match(run('--production','--android-only').stderr,/Production preflight requires both native platforms/);
+    await native();await writeFile(join(dir,'dist/index.html'),'Version 7.4.2 · Build 80');invalid=run('--production');assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Visible version/);
+    await writeFile(join(dir,'dist/index.html'),'Version 7.4.2 · Build 81');await writeFile(join(dir,'ios/App/App/PrivacyInfo.xcprivacy'),'NSPrivacyCollectedDataTypeEmailAddress');invalid=run('--production');assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/collection-purpose categories/);
   }finally{
     for(const path of files)await unlink(join(dir,path)).catch(error=>{if(error.code!=='ENOENT')throw error;});
     for(const path of directories.reverse())await rmdir(join(dir,path)).catch(error=>{if(error.code!=='ENOENT')throw error;});
