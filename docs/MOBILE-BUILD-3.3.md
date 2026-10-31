@@ -1,5 +1,7 @@
 # Mobile builds — 3.3.x
 
+**Current Android candidate is build 29 / 3.3.4.** See [Android build 29 review](ANDROID-BUILD-29.md) for tester fixes and validation. The build 28 gameplay geometry and difficulty settings are unchanged. Older build evidence below is historical.
+
 **Current Android candidate is build 28 / 3.3.3.** See [Android build 28 review](ANDROID-BUILD-28.md) for its upper channel exits, v9 cloud rollout and test gate. Build 27 evidence below is historical after the owner's phone test. iPhone work waits for Android approval.
 
 ## Current owner-directed correction: build 27

@@ -3,13 +3,13 @@
 const INTERACTIVE = 'button,a,input,select,textarea,label,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="switch"],dialog';
 export const isInteractive = target => Boolean(target?.closest?.(INTERACTIVE));
 
-export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, ready = () => false, position = () => 0, now = () => performance.now()}) {
+export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, ready = () => false, position = () => 0, aim = null, now = () => performance.now()}) {
   const suppressedClicks = new Set();
   const on = (target, type, handler, options) => {
     target.addEventListener(type, handler, options);
     listeners.push(() => target.removeEventListener(type, handler, options));
   };
-  const listeners = [], doc = surface.ownerDocument;
+  const listeners = [], doc = surface.ownerDocument;let aimId=null;
   function release(id) {
     try { if (surface.hasPointerCapture?.(id)) surface.releasePointerCapture(id); } catch {}
   }
@@ -17,10 +17,17 @@ export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, r
     const id = input.touchId;
     input.reset();
     if (id !== null) release(id);
+    if(aimId!==null){aim?.end?.();release(aimId);aimId=null;}
   }
   on(surface, 'pointerdown', e => {
     suppressedClicks.delete(e.pointerId);
     if (!enabled() || isInteractive(e.target)) return;
+    if(aimId!==null)return;
+    if(ready()&&input.touchId===null&&aim?.hit(e.clientX,e.clientY)){
+      aimId=e.pointerId;aim.move(e.clientX,e.clientY);suppressedClicks.add(e.pointerId);
+      e.preventDefault();focusTarget.focus({preventScroll:true});
+      try{surface.setPointerCapture(e.pointerId);}catch{}return;
+    }
     if (e.pointerType === 'mouse') {
       if (ready()) { input.place(position(e.clientX), now()); focusTarget.focus({preventScroll: true}); }
       return; // ordinary button-free hover path
@@ -35,6 +42,8 @@ export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, r
   }, {capture: true, passive: false});
   on(surface, 'pointermove', e => {
     if (!enabled()) return;
+    if(aimId===e.pointerId){aim.move(e.clientX,e.clientY);e.preventDefault();return;}
+    if(aimId!==null)return;
     if (input.touchId === e.pointerId) {
       input.touchMove(e.pointerId, e.clientX, scale(), now()); e.preventDefault();
     } else if (e.pointerType === 'mouse') {
@@ -43,6 +52,7 @@ export function bindPaddleEvents({surface, focusTarget, input, enabled, scale, r
     }
   }, {capture: true, passive: false});
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) on(surface, type, e => {
+    if(aimId===e.pointerId){aimId=null;aim?.end?.();e.preventDefault();release(e.pointerId);return;}
     if (input.touchEnd(e.pointerId, now(), ready())) { e.preventDefault(); release(e.pointerId); }
   }, {capture: true, passive: false});
   on(surface, 'pointerleave', () => input.pointerLeave());

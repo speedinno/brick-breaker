@@ -1,5 +1,6 @@
 import {PaddleInput,FixedSimulation,clampGain} from './controls.js';
 import {bindPaddleEvents,isInteractive} from './control-events.js';
+import {guideFor,hitGuide,angleToPoint} from './aim.js';
 import {AssistanceSession} from './assistance.js';
 import {AssistancePanel} from './assistance-ui.js';
 import {PurchaseService} from './purchases.js';
@@ -107,7 +108,7 @@ function renderMetrics(){
 function renderReadyCoaching(){
  clearTimeout(coachExposureTimer);coachExposureTimer=null;
  if(!game||game.level!==1||currentPromptKind!=='ready'||$('prompt').hidden||loading)return;
- $('promptText').textContent=metrics.coaching('Tap to place your paddle, set the arrow, then launch through the opening. Catch boosts as you play.',game.level);
+ $('promptText').textContent=metrics.coaching('Place your paddle, drag the gold arrow to aim, then launch through the opening. Catch boosts as you play.',game.level);
  const visible=()=>game?.level===1&&currentPromptKind==='ready'&&!loading&&!$('prompt').hidden&&$('home').hidden&&$('splash').hidden&&!document.hidden&&!document.querySelector('dialog[open]');
  if(visible()&&metrics.assignment){const epoch=loadEpoch,owner=cloud.userId,assignment=metrics.assignment;coachExposureTimer=setTimeout(()=>{coachExposureTimer=null;if(visible()&&epoch===loadEpoch&&owner===cloud.userId&&assignment.experiment===metrics.assignment?.experiment&&assignment.variant===metrics.assignment?.variant)metrics.exposeCoach(String(epoch),1);},250);}
 }
@@ -203,7 +204,7 @@ function prompt(kind){
   currentPromptKind=kind;
   clearTimeout(toastTimer);$('toast').classList.remove('show');
   const next=suggestedNext(game.level),remaining=12-store.value.starters.length,challenge=playProfile(game.level);
-  const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Tap to place your paddle and set the launch arrow.'): 'Tap to place the paddle, set the arrow, then launch through the opening.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Place your paddle and aim your next shot.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken. Place your paddle and aim again.`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
+  const states={ready:[definition?.entrance==='left'?'Find the left entrance.':definition?.entrance==='right'?'Find the right entrance.':'Find the entrance.',game.level>12?(challenge.label+' · Chapter '+challenge.chapter+'. Place the paddle, then drag the gold arrow to aim.'): 'Place the paddle, drag the gold arrow to aim, then launch.','Launch'],resume:[`Stage ${game.level}. Ready when you are.`,game.status==='playing'?'Your field and swarm are right where you left them.':'Place your paddle and drag the gold arrow to aim.','Continue'],paused:['Paused.','Your progress is safe on this device.','Resume'],lost:['One more shot.',`${game.lives} ${game.lives===1?'life':'lives'} left. Broken bricks stay broken. Place your paddle and drag the arrow to aim again.`,'Launch'],won:[`Stage ${game.level} completed ✓`,remaining>0?`${remaining} starter ${remaining===1?'stage remains':'stages remain'} before the journey opens.`:`Stage ${next} is unlocked. A new discovery is ready.`,`Next · Stage ${next} ↗︎`],over:['Try another angle.',`Your completion ticks are safe. Retry stage ${game.level}.`,'Retry stage']};
   states.assistEnded=['Your paddle is yours.','Autoplay has stopped. Continue manually, or open your time bank to check the balance and reconcile pending time.','Continue manually'];
   const value=states[kind];$('promptTitle').textContent=value[0];$('promptText').textContent=value[1];$('launch').textContent=value[2];$('watch').hidden=['paused','won','over','assistEnded'].includes(kind);$('aimControls').hidden=game.status!=='ready'||paused;$('aimAngle').value=String(Math.round((game.launchAngle+Math.PI/2)*180/Math.PI));$('prompt').dataset.state=kind;$('prompt').hidden=false;$('prompt').classList.remove('loading');$('pause').setAttribute('aria-label',['paused','assistEnded'].includes(kind)?'Resume':'Pause');
   renderReadyCoaching();
@@ -296,9 +297,10 @@ function draw(){
   if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
   if($('activeEffect').textContent!==(shooting?'Paddle shooter active':''))$('activeEffect').textContent=shooting?'Paddle shooter active':'';
   if(game.status==='ready'){
-    const x=p.x,y=p.y-8,a=game.launchAngle,length=(y-(OY+51*CELL))/-Math.sin(a),tipX=x+Math.cos(a)*length,tipY=y+Math.sin(a)*length;
+    const {x,y,tipX,tipY}=guideFor(p,game.launchAngle),a=game.launchAngle;
     ctx.strokeStyle='#ffe2a4';ctx.fillStyle='#ffe2a4';ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(tipX,tipY);ctx.stroke();ctx.setLineDash([]);
     ctx.beginPath();ctx.moveTo(tipX,tipY);ctx.lineTo(tipX-Math.cos(a-.48)*13,tipY-Math.sin(a-.48)*13);ctx.lineTo(tipX-Math.cos(a+.48)*13,tipY-Math.sin(a+.48)*13);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#fff0c7';ctx.lineWidth=2;ctx.beginPath();ctx.arc(tipX,tipY,11,0,Math.PI*2);ctx.stroke();
     ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,2.35,0,Math.PI*2);ctx.fill();
   }
   for(const drop of game.drops){const spec=boosts[drop.kind];if(!reduced){ctx.shadowColor=spec.color;ctx.shadowBlur=5;}ctx.fillStyle=spec.color;ctx.beginPath();ctx.arc(drop.x,drop.y,9,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText(spec.label,drop.x,drop.y+3);}
@@ -328,7 +330,12 @@ function frame(t){
   }else simulation.reset(t);
   draw();syncHUD();if(t-lastSnapshot>2000){lastSnapshot=t;if(game?.status==='playing'&&!paused&&$('home').hidden)saveSession();}requestAnimationFrame(frame);
 }
-controlEvents=bindPaddleEvents({surface:$('gameScreen'),focusTarget:canvas,input,enabled:gameplayInputEnabled,scale:()=>viewport.scale,ready:()=>game?.status==='ready',position:x=>worldX(x,canvas.getBoundingClientRect().left,viewport)});
+const aimPoint=(clientX,clientY)=>{const rect=canvas.getBoundingClientRect();return{x:worldX(clientX,rect.left,viewport),y:(clientY-rect.top-viewport.y)/viewport.scale};};
+controlEvents=bindPaddleEvents({surface:$('gameScreen'),focusTarget:canvas,input,enabled:gameplayInputEnabled,scale:()=>viewport.scale,ready:()=>game?.status==='ready',position:x=>worldX(x,canvas.getBoundingClientRect().left,viewport),aim:{
+ hit(clientX,clientY){if(!game||game.status!=='ready')return false;const {x,y}=aimPoint(clientX,clientY);return hitGuide(x,y,guideFor(game.paddle,game.launchAngle));},
+ move(clientX,clientY){if(!game||game.status!=='ready')return;const {x,y}=aimPoint(clientX,clientY);game.setLaunchAngle(angleToPoint(x,y,game.paddle));$('aimAngle').value=String(Math.round((game.launchAngle+Math.PI/2)*180/Math.PI));},
+ end(){saveSession();}
+ }});
 document.addEventListener('keydown',e=>{
   if(!$('home').hidden||document.querySelector('dialog[open]')||isInteractive(e.target)||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
   const key=e.key.length===1?e.key.toLowerCase():e.key;

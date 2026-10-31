@@ -60,6 +60,18 @@ dialog h3{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px}
 
 .sound-switch{width:64px;min-width:64px;height:44px;border-radius:24px;background:#626874;border:2px solid #9aa2ae;padding:4px;display:flex;align-items:center;transition:background .15s}.switch-thumb{display:block;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0005;transform:translateX(0);transition:transform .15s}.sound-switch[aria-checked=true]{background:#ffb082;border-color:#ffcfaa}.sound-switch[aria-checked=true] .switch-thumb{background:#30251f;transform:translateX(20px)}#guestProgress{border-color:#ffb08266}#guestProgress .primary{margin-top:14px}#soundFeedback{margin-top:0}@media(prefers-reduced-motion:reduce){.sound-switch,.switch-thumb{transition:none}}
 
+/* Direct arrow drag is the normal launch control; fine adjustment stays available. */
+.prompt:has(.aim-controls:not([hidden])) .aim-controls{flex-wrap:wrap;gap:5px 10px}
+.aim-controls>span{flex:1;text-align:left;color:#ffe2a4;font-size:11px;font-weight:700}
+.aim-controls details{min-width:100px;text-align:right;color:#e7d1bc;font-size:11px}
+.aim-controls summary{cursor:pointer;min-height:32px;display:flex;align-items:center;justify-content:flex-end;text-decoration:underline;text-underline-offset:3px}
+.aim-controls details[open]{flex-basis:100%;text-align:left;padding:5px 3px 7px}
+.aim-controls details[open] label{font-size:10px;margin-bottom:3px;letter-spacing:.8px}
+.aim-controls details[open] input{width:100%}
+button:disabled{opacity:1;cursor:not-allowed}
+.primary:disabled,.launch:disabled,.continue:disabled,.home-play:disabled{background:#373c44;color:#9da5ae;border:1px solid #5d6570;box-shadow:none}
+#assistSignIn{margin:12px 0 4px;min-height:52px;font-size:14px;box-shadow:0 4px 0 #a85b35,0 10px 20px #0004}
+
 /* The HUD and court form one gesture surface; dialogs retain normal scrolling. */
 .app{touch-action:none;user-select:none;-webkit-user-select:none}.sensitivity{width:100%;min-height:44px;accent-color:var(--accent);cursor:pointer}output{color:var(--accent);font-variant-numeric:tabular-nums}
 

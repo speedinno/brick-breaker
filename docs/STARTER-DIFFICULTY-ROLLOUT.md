@@ -1,5 +1,7 @@
 # Manual opening rounds — build 28 rollout
 
+**Build 29 keeps these exact board shapes and difficulty settings.** It changes only signed-in catalog compatibility, direct arrow aiming and button presentation; see [Android build 29 review](ANDROID-BUILD-29.md).
+
 ## Current correction after the owner's build 27 Android test
 
 The owner found that a successful shot into the lower channel led to a tiny brick opening near the floor, so there was little immediate payoff. Build 28 retains the original paths and rules. The lower mouths of stages 1–3 are six tiles wide for two rows, then return to the original four-tile channels. Stages 4–8 and 12 remain four tiles at the entrance; stages 9–11 remain two. The first eight shapes have open upper exits into the colored field, including both uprights of the Stage 3 H. No lower breakable shortcut remains in stages 1–8. Manual placement and aiming, normal paddle widths, one starting ball and earned pickups remain unchanged.

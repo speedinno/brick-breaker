@@ -595,12 +595,15 @@ function createDefinition(level, nonce = 0) {
   const p = makePattern(level, 1);
   return { version: 9, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
-function validateCatalogDefinition(definition) {
-  if (!Number.isSafeInteger(definition.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");
+function validateShape(definition) {
   if (typeof definition.name !== "string" || definition.name.length > 80 || !/^#[a-f\d]{6}$/i.test(definition.color)) throw Error("Invalid stage metadata");
   if (definition.palette && (!Array.isArray(definition.palette) || definition.palette.length > 5 || definition.palette.some((color) => !/^#[a-f\d]{6}$/i.test(color)))) throw Error("Invalid palette");
   if (definition.tones && (definition.tones.length !== 2704 || !/^[0-4]+$/.test(definition.tones))) throw Error("Invalid stage tones");
   return validateDefinition(definition);
+}
+function validateCatalogDefinition(definition) {
+  if (!Number.isSafeInteger(definition?.level) || definition.level < 1 || definition.version !== catalogVersion(definition.level)) throw Error("Unsupported catalog version");
+  return validateShape(definition);
 }
 async function definitionHash(definition) {
   const bytes = new TextEncoder().encode(canonicalLayout(definition.layout));

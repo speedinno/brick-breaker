@@ -1,6 +1,10 @@
 # Account setup and release order — SpeedInno Brick Breaker
 
-## Current Android gate — build 28 (30 October 2026)
+## Current tester correction — Android build 29 (31 October 2026)
+
+Use [build 29 / version 3.3.4](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.4-rc.1) for the next Android pilot. [Android build 29 review](ANDROID-BUILD-29.md) covers the catalog compatibility and direct arrow control. Build 29 can load existing signed-in starter boards from published catalog v3–v8 without the raw “Unsupported catalog version” error. **To give signed-in players the current v9 board shapes, Chandrahas must still back up the Supabase project, apply pending tracked migrations through `202610300021_starter_catalog_v9.sql`, and deploy the matching API.** Test a new v9 run, a v8 in-flight run and a completion tick with disposable accounts. No credentials belong in Git. The owner asked to finish Android testing before iPhone work.
+
+## Historical Android gate — build 28 (30 October 2026)
 
 Use [build 28 / version 3.3.3](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.3-rc.1) for the owner's next Android phone test. The first three lower mouths are only modestly wider; the original narrow channels now lead to visible upper exits into the bricks. [Android build 28 review](ANDROID-BUILD-28.md) has the exact test steps. Build 27 and earlier are historical after the owner's device feedback. The current Android APK is for testing and must not be uploaded as a Play production package. **Wait for the owner's Android OK before starting any iPhone work.**
 

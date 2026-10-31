@@ -47,7 +47,7 @@ try {
   assert.equal(await evaluate(`document.getElementById('home').hidden`),false,'Every cold launch opens the home menu');
   await evaluate(`document.getElementById('homePlay').click();if(document.getElementById('help').open)document.getElementById('helpDone').click();true`);
   assert.equal(await evaluate(`document.getElementById('home').hidden`),true,'Play enters the preserved stage');
-  if(!relaunch)assert.match(await evaluate(`document.getElementById('promptText').textContent`),/place your paddle, set the arrow/,'First play must explain player-controlled launch');
+  if(!relaunch)assert.match(await evaluate(`document.getElementById('promptText').textContent`),/drag the gold arrow/,'First play must explain direct launch aiming');
   assert.equal(await evaluate(`document.getElementById('saveStatus').tagName`),'SPAN','Autosaving is a status, not a Save button');
   const layout=await evaluate(`(()=>{const app=document.querySelector('.app'),board=document.getElementById('game'),rect=app.getBoundingClientRect(),footer=document.querySelector('footer').getBoundingClientRect();return {width:innerWidth,height:innerHeight,app:rect.toJSON(),footer:footer.toJSON(),scrollHeight:document.documentElement.scrollHeight,canvas:{width:board.width,height:board.height,css:board.getBoundingClientRect().toJSON()},controls:[...document.querySelectorAll('header button,.journey-strip button,.play-tools button')].map(e=>({id:e.id,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))};})()`);
   assert(Math.abs(layout.app.width-layout.width)<2&&Math.abs(layout.app.height-layout.height)<2,'Native app must fill its entire viewport');
@@ -76,6 +76,12 @@ try {
   assert.equal(initial.title, 'Brick Breaker');
   assert.ok(initial.remaining > 1000, 'The dense field must load while Wi-Fi and data are off');
   assert.equal(initial.promptHidden, false);
+  const arrow=await evaluate(`(()=>{const r=document.getElementById('game').getBoundingClientRect(),scale=Math.min(r.width/416,r.height/660),left=(r.width-416*scale)/2,top=(r.height-660*scale)/2;return{x:r.x+left+208*scale,y:r.y+top+470*scale,scale};})()`);
+  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:arrow.x,y:arrow.y,id:7}]});
+  await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:arrow.x+30*arrow.scale,y:arrow.y-15*arrow.scale,id:7}]});
+  await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  assert(Number(await evaluate(`document.getElementById('aimAngle').value`))>5,'Dragging the visible gold arrow must adjust launch direction on Android');
+  assert.equal(await evaluate(`JSON.parse(localStorage.getItem('brick-breaker-session-v3:guest')).paddleX`),208,'Aiming must not move the paddle');
   const painted=await evaluate(`(()=>{const c=document.getElementById('game'),pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let colored=0;for(let i=0;i<pixels.length;i+=16){const high=Math.max(pixels[i],pixels[i+1],pixels[i+2]),low=Math.min(pixels[i],pixels[i+1],pixels[i+2]);if(high>100&&high-low>45)colored++;}return colored;})()`);
   assert(painted>1000,'The responsive dense field must be painted');
   const legal=await evaluate(`Array.from(document.querySelectorAll('a[href]')).filter(a=>/privacy\\.html|terms\\.html|delete-account\\.html/.test(a.href)).map(a=>a.href)`);
