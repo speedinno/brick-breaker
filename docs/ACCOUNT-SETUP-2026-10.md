@@ -1,5 +1,9 @@
 # Account setup and release order — SpeedInno Brick Breaker
 
+## Current build 30 handoff (31 October 2026)
+
+Read [the single current launch handoff](LAUNCH-HANDOFF-BUILD-30.md) first. Build 30 uses starter catalog **v10**. Back up Supabase, apply pending migrations through `202610310022_starter_catalog_v10.sql` in order and deploy the API from the same source commit before expecting signed-in players to see the new Stage 9/12 order. The sections below record earlier build gates and provider setup; their v8/v9 instructions are historical, not the current migration target. The paid blast, ad revive and public competition features are not present in this build and need separate engineering before they can be offered.
+
 ## Current tester correction — Android build 29 (31 October 2026)
 
 Use [build 29 / version 3.3.4](https://github.com/speedinno/brick-breaker/releases/tag/v3.3.4-rc.1) for the next Android pilot. [Android build 29 review](ANDROID-BUILD-29.md) covers the catalog compatibility and direct arrow control. Build 29 can load existing signed-in starter boards from published catalog v3–v8 without the raw “Unsupported catalog version” error. **To give signed-in players the current v9 board shapes, Chandrahas must still back up the Supabase project, apply pending tracked migrations through `202610300021_starter_catalog_v9.sql`, and deploy the matching API.** Test a new v9 run, a v8 in-flight run and a completion tick with disposable accounts. No credentials belong in Git. The owner asked to finish Android testing before iPhone work.

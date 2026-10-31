@@ -1,12 +1,18 @@
 import {makePattern} from './engine.js';
 import {generateDefinition,patternFromLayout,validateDefinition,canonicalLayout,GENERATOR_VERSION} from './generated.js';
 export {GENERATOR_VERSION};
-export const catalogVersion=level=>level<=12?9:GENERATOR_VERSION;
+export const catalogVersion=level=>level<=12?10:GENERATOR_VERSION;
 export function createDefinition(level,nonce=0) {
   if(!Number.isSafeInteger(level)||level<1)throw Error('Invalid stage number');
   if(level>12)return generateDefinition(level,nonce);
   const p=makePattern(level,1);
-  return {version:9,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
+  return {version:10,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
+}
+// Only used to finish a saved v9 attempt on a moved starter board.
+export function legacyStarterDefinition(level){
+ if(level!==9&&level!==12)throw Error('No moved legacy stage');
+ const p=makePattern(level,1,true);
+ return {version:9,level,layout:p.signature,entry:p.entry.x/8,name:p.name,color:p.color,family:p.family,recipe:{reference:level},metrics:{reference:true}};
 }
 export function hydrateDefinition(definition) {return patternFromLayout(definition);}
 function validateShape(definition) {

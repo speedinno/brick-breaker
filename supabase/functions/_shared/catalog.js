@@ -400,6 +400,7 @@ var CELL = 8;
 var OX = 0;
 var OY = 18;
 var FAMILIES = ["T channel", "Switchback", "H chamber", "M channel", "Needle", "W channel", "Sword", "Bent channel", "Nested squares", "Twin hearts", "Step chamber", "Fork"];
+var STARTER_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 11, 9, 10, 8];
 var COLORS = ["#e71840", "#8fab18", "#527d24", "#a31973", "#47a91b", "#a6a11a", "#c61724", "#df8a27", "#c215a7", "#df2942", "#9bbb36", "#89a623"];
 var clamp2 = (x, a, b) => Math.max(a, Math.min(b, x));
 function rng(seed) {
@@ -416,9 +417,9 @@ function segmentDistance(x, y, a, b) {
   const dx = b[0] - a[0], dy = b[1] - a[1], t = clamp2(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1), 0, 1);
   return Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t);
 }
-function makePattern(level, seed = 1) {
+function makePattern(level, seed = 1, legacy = false) {
   if (level > 12) return patternFromLayout(generateDefinition(level));
-  const family = (Math.max(1, level) - 1) % 12, random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
+  const index = (Math.max(1, level) - 1) % 12, family = legacy ? index : STARTER_ORDER[index], random = rng((seed ^ Math.imul(level, 2654435761)) >>> 0);
   let paths = [], entry = [26, 52], gates = [], holes = [];
   const path = (points, gate = true) => {
     paths.push(points);
@@ -487,8 +488,8 @@ function makePattern(level, seed = 1) {
   }
   const upperExits = [[[26, 26]], [[26, 13]], [[18, 21], [34, 21]], [[26, 34], [16, 24], [36, 24]], [[26, 39]], [[26, 28], [15, 21], [37, 21]], [[26, 8]], [[26, 41], [20, 35]], [[37, 15]], [[13, 29], [39, 30]], [[37, 17]], [[15, 12], [37, 12]]][family];
   const upperOpen = /* @__PURE__ */ new Set();
-  if (level <= 8) {
-    for (const [cx, y] of upperExits) for (const row of [y - 3, y - 2, y - 1]) for (let c = 1; c < COLS - 1; c++) if (Math.abs(c + 0.5 - cx) < (level <= 3 ? 2.6 : 1.6)) upperOpen.add(row * COLS + c);
+  if (family <= 7) {
+    for (const [cx, y] of upperExits) for (const row of [y - 3, y - 2, y - 1]) for (let c = 1; c < COLS - 1; c++) if (Math.abs(c + 0.5 - cx) < (family <= 2 ? 2.6 : 1.6)) upperOpen.add(row * COLS + c);
   }
   const segments = paths.flatMap((points) => points.slice(1).map((b, i) => [points[i], b]));
   function insidePolygon(x, y, p) {
@@ -499,7 +500,7 @@ function makePattern(level, seed = 1) {
     }
     return inside;
   }
-  const channelRadius = level <= 8 || level === 12 ? 1.6 : 0.86;
+  const channelRadius = family <= 7 || family === 11 ? 1.6 : 0.86;
   const cells = [], bricks = [];
   let signature = "";
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
@@ -524,7 +525,7 @@ function makePattern(level, seed = 1) {
     }
   }
   const lookup = new Map(cells.map((c) => [c.id, c])), start = 51 * COLS + Math.floor(entry[0]);
-  if (level > 8) {
+  if (family > 7) {
     for (const [cx, y] of upperExits) for (let c = 1; c < COLS - 1; c++) if (Math.abs(c + 0.5 - cx) < 1.6) {
       const cell = lookup.get((y - 3) * COLS + c);
       if (cell && cell.r > 0 && cell.type !== "gate") {
@@ -588,12 +589,12 @@ function makePattern(level, seed = 1) {
 }
 
 // dist/catalog.js
-var catalogVersion = (level) => level <= 12 ? 9 : GENERATOR_VERSION;
+var catalogVersion = (level) => level <= 12 ? 10 : GENERATOR_VERSION;
 function createDefinition(level, nonce = 0) {
   if (!Number.isSafeInteger(level) || level < 1) throw Error("Invalid stage number");
   if (level > 12) return generateDefinition(level, nonce);
   const p = makePattern(level, 1);
-  return { version: 9, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
+  return { version: 10, level, layout: p.signature, entry: p.entry.x / 8, name: p.name, color: p.color, family: p.family, recipe: { reference: level }, metrics: { reference: true } };
 }
 function validateShape(definition) {
   if (typeof definition.name !== "string" || definition.name.length > 80 || !/^#[a-f\d]{6}$/i.test(definition.color)) throw Error("Invalid stage metadata");

@@ -1,5 +1,7 @@
 # Manual opening rounds — build 28 rollout
 
+**Current build 30:** Stage 9 now uses Fork and Nested squares moves to Stage 12 under catalog v10. The stage speed/paddle progression remains gradual and later chapter Breathers remain. The earned shooter alternates edge shots; fire appears at most once per stage. See [the current handoff](LAUNCH-HANDOFF-BUILD-30.md). The details below describe historical builds 28–29.
+
 **Build 29 keeps these exact board shapes and difficulty settings.** It changes only signed-in catalog compatibility, direct arrow aiming and button presentation; see [Android build 29 review](ANDROID-BUILD-29.md).
 
 ## Current correction after the owner's build 27 Android test

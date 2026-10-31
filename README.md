@@ -1,6 +1,6 @@
 # Brick Breaker · Channels & Swarms
 
-**Current Android test candidate: 3.3.4/build 29 on private `dev`.** Tester feedback led to direct arrow dragging, clearer sign-in/disabled buttons, and compatibility with older published starter catalogs while the v9 service rollout is pending. Board shapes, paddle, powers and difficulty progression are unchanged from build 28. Start with the [Android build 29 review](docs/ANDROID-BUILD-29.md), [ordered account setup guide](docs/ACCOUNT-SETUP-2026-10.md), and [product implementation report](docs/PRODUCT-COMPLETION-2026-10.md). iPhone packaging waits for the owner's Android approval. Provider activation, physical-player acceptance, signing and store approvals remain pending. [FINAL-HANDOFF.md](FINAL-HANDOFF.md) retains earlier release history.
+**Current Android test candidate: 3.3.5/build 30 on private `dev`.** The earned shooter reaches side columns, fire is limited to one pickup per stage, and Nested squares moves to Stage 12. The [current handoff](docs/LAUNCH-HANDOFF-BUILD-30.md) states the rollout and remaining launch work. The v10 cloud migration/API deployment, physical-player acceptance, paid blasts, ad revives, public competition system, signing and store approvals are still pending. iPhone packaging waits for the owner's Android approval.
 
 Dense colored fields, permanent gray channels, an orange paddle and earned +3/×3 and piercing paddle-shooting pickups that grow one white ball into a swarm. Mobile-first web, Android and iPhone source. Version 3 adds a clear stage journey and optional cloud integration.
 
@@ -10,7 +10,7 @@ Dense colored fields, permanent gray channels, an orange paddle and earned +3/×
 
 **Approved public source/build mirror:** https://github.com/speedinno/brick-breaker
 
-**Build 29 Android test APK:** [Download version 3.3.4](https://github.com/speedinno/brick-breaker/releases/download/v3.3.4-rc.1/Brick-Breaker-3.3.4-build29-Android-test.apk). Build 28 is the owner's accepted gameplay baseline; build 29 changes controls and sign-in compatibility. Signed-in players can use existing published v3–v8 starter boards, while the current v9 boards still require the matching database/API rollout. Guest/device play uses v9. Package verification is recorded in [Android build 29 review](docs/ANDROID-BUILD-29.md).
+**Build 30 Android test APK:** publish the exact-source candidate after package and emulator checks; see the [current handoff](docs/LAUNCH-HANDOFF-BUILD-30.md). Build 29 is [historical](docs/ANDROID-BUILD-29.md). Guest/device play uses v10; signed-in players use the published server catalog until Chandrahas deploys v10.
 
 **Mobile history:** [3.1.0 presentation](docs/MOBILE-PRESENTATION-3.1.md) and [3.2.0 phone-feedback fixes](docs/MOBILE-FEEDBACK-3.2.md). This branch preserves the populated cloud configuration and existing player progress. Earlier guides describe dated releases; use the current report before provisioning replacements or treating historical native tests as candidate acceptance.
 

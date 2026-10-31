@@ -19,7 +19,7 @@ function validData(type,d){
  return valid&&Object.keys(d).every(key=>keys.includes(key));
 }
 export class PlayMetrics {
- constructor({storage,account,api,platform,build='3.3.4',now=()=>Date.now(),onChange=()=>{}}){Object.assign(this,{storage,account,api,platform,build,now,onChange});this.owner=null;this.data=null;this.epoch=0;this.ready=false;this.busy=false;this.error='';this.timer=null;this.flushing=null;this.segment=null;this.exposures=new Set();this.retired=new Set();}
+ constructor({storage,account,api,platform,build='3.3.5',now=()=>Date.now(),onChange=()=>{}}){Object.assign(this,{storage,account,api,platform,build,now,onChange});this.owner=null;this.data=null;this.epoch=0;this.ready=false;this.busy=false;this.error='';this.timer=null;this.flushing=null;this.segment=null;this.exposures=new Set();this.retired=new Set();}
  key(owner){return'brick-breaker-metrics-v1:user:'+owner;}
  get choiceEnabled(){return Boolean(this.owner&&this.owner===this.account()&&this.data?.enabled&&!this.data.suppressed&&!this.data.pendingOff&&!this.retired.has(this.owner));}
  get enabled(){return this.choiceEnabled&&this.data.available!==false;}

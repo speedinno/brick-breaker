@@ -1,5 +1,7 @@
 # Product implementation report — 27 October 2026
 
+**Current Android build 30 / 3.3.5:** read [the launch handoff](LAUNCH-HANDOFF-BUILD-30.md). It separates completed shooter/fire/stage-order work from the unbuilt paid blast, ad revive and public competition systems. The older candidate notes below are historical.
+
 **Current Android candidate (31 October 2026): 3.3.4/build 29.** Tester findings about the older cloud catalog, button colors and launch-angle slider are addressed in [Android build 29 review](ANDROID-BUILD-29.md). Build 28 board geometry and gradual difficulty remain. Signed-in v9 stages still require Chandrahas's cloud rollout; physical Android acceptance and iPhone work remain open.
 
 **Current Android-only candidate (30 October 2026): 3.3.3/build 28.** After the owner rejected build 27's small lower brick exits, the first three stages gained modestly wider lower mouths and the first eight shapes gained upper exits. See [Android build 28 review](ANDROID-BUILD-28.md). Signed-in starter play requires the additive v9 migration and matching API. Android physical-player acceptance is pending; iPhone work waits for the owner's Android OK. All older build evidence below is historical and does not constitute acceptance of build 28.

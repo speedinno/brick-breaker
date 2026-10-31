@@ -12,10 +12,30 @@ test('shooting is earned by catching its own pickup and leaves ordinary balls in
 
 test('shots pierce a full column at maximum dt without damaging gray walls',()=>{
  const g=new Game(),column=5,targets=g.bricks.filter(c=>c.c===column),walls=[...g.grid.values()].filter(c=>c.c===column&&c.type==='wall');
- assert(targets.length>30);g.status='playing';g.power('laser');g.paddle.x=column*8+4;g.target=g.paddle.x;
+ assert(targets.length>30);g.status='playing';g.power('laser');g.paddle.x=column*8+4+g.paddle.w/2-7;g.target=g.paddle.x;
  // Isolate projectile motion from ball collisions and the life-loss path.
  for(let n=0;n<25;n++)g.stepShots(1/30);
  assert(targets.every(c=>c.hp===0));assert(walls.every(c=>c.hp===Infinity&&g.grid.has(c.id)));assert.equal(g.remaining,g.total-targets.length);
+});
+
+test('earned shooter alternates edge launchers without increasing its shot rate',()=>{
+ const g=new Game({level:9});g.launch();g.power('laser');g.paddle.x=60;g.target=60;
+ g.time=1;g.nextShot=0;g.stepShots(1/120);
+ assert.equal(g.shots.length,1);assert.equal(g.shots[0].x,22,'Left emitter reaches the outer brick columns');
+ g.time=g.nextShot;g.stepShots(1/120);
+ assert.equal(g.shots.length,2);assert.equal(g.shots[1].x,98,'The next shot comes from the right edge');
+ g.paddle.x=356;g.time=g.nextShot;g.stepShots(1/120);
+ g.time=g.nextShot;g.stepShots(1/120);
+ assert.equal(g.shots.at(-1).x,394,'Right emitter reaches the opposite outer columns');
+});
+
+test('fire pickup appears at most once in a stage, including after a save',()=>{
+ const g=new Game();g.launch();assert(g.spawnDrop(100,200,'fire'));
+ assert.equal(g.spawnDrop(100,200,'fire'),false);
+ g.drops=[];assert.equal(g.spawnDrop(100,200,'fire'),false,'Missing the pickup does not roll another one');
+ assert(g.power('fire'));assert.equal(g.power('fire'),false,'The power cannot be stacked');
+ const saved=snapshotGame(g),copy=restoreGame(saved,g.pattern,()=>{});
+ assert(copy);assert.equal(copy.spawnDrop(100,200,'fire'),false);assert.equal(copy.power('fire'),false);
 });
 
 test('shot rate and count are bounded, expiry stops firing, and only active play advances effects',()=>{

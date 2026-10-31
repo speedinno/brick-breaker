@@ -16,7 +16,7 @@ import config from './cloud-config.js';
 import {fitViewport,dialogViewport,worldX} from './viewport.js';
 import {playProfile} from './difficulty.js';
 import {Game,W,H,ROWS,CELL,OY,clamp} from './engine.js';
-import {LevelCache,hydrateDefinition,definitionHash} from './catalog.js';
+import {LevelCache,hydrateDefinition,definitionHash,legacyStarterDefinition} from './catalog.js';
 import {ProgressStore,cloudProgress,mergeProgress,isUnlocked,isCompleted,nextRequired,completedCount,unlinkedGuestCount} from './progress.js';
 import {SoundEffects} from './audio.js';
 import {snapshotGame,restoreGame} from './session.js';
@@ -231,10 +231,12 @@ async function start(level=store.value.selected,{resume=false,enter=true,sync=tr
   saveSession();wantedLevel=level;const epoch=++loadEpoch;loading=true;paused=false;clearControls();clearTimeout(toastTimer);$('toast').classList.remove('show');$('prompt').hidden=false;$('prompt').classList.add('loading');$('promptTitle').textContent='Getting your stage ready.';$('promptText').textContent='A new channel is waiting.';
   try{
     if(sync&&cloud.signedIn&&navigator.onLine!==false)await syncPending().catch(()=>{});
-    const nextDefinition=await cache.load(level,cloud),hash=nextDefinition.hash||await definitionHash(nextDefinition);
+    const snapshot=resume?readJSON(sessionKey()):null;
+    const legacy=resume&&snapshot?.level===level&&(level===9||level===12)?legacyStarterDefinition(level):null;
+    const nextDefinition=legacy&&legacy.layout===snapshot.signature?legacy:await cache.load(level,cloud),hash=nextDefinition.hash||await definitionHash(nextDefinition);
     if(epoch!==loadEpoch)return;
     definition=nextDefinition;currentHash=hash;const pattern=hydrateDefinition(definition);let restored=null;
-    const snapshot=resume?readJSON(sessionKey()):null;if(snapshot?.level===level)restored=restoreGame(snapshot,pattern,event);
+    if(snapshot?.level===level)restored=restoreGame(snapshot,pattern,event);
     game=restored||new Game({level,seed:crypto.getRandomValues(new Uint32Array(1))[0],mode:auto?'watch':'play',patternFactory:()=>pattern,onEvent:event});
     run=restored?snapshot.run:null;auto=false;speed=restored&&[1,2,4].includes(snapshot.speed)?snapshot.speed:speed;assisted=Boolean(restored&&(snapshot.assisted||snapshot.auto));
     game.mode='play';paused=Boolean(restored&&game.status==='playing');paintVersion='';simulation.reset(performance.now());
@@ -294,8 +296,8 @@ function draw(){
   ctx.arc(p.x-p.w/2+3.5,p.y+3.5,3.5,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle=game.time<game.fireUntil?'#ffd5c2':'#fff';ctx.beginPath();for(const b of game.balls){ctx.moveTo(b.x+b.r,b.y);ctx.arc(b.x,b.y,b.r,0,Math.PI*2);}ctx.fill();
   if(game.shots.length){ctx.fillStyle='#d98aef';if(!reduced){ctx.shadowColor='#b754d9';ctx.shadowBlur=5;}for(const shot of game.shots)ctx.fillRect(shot.x-1.4,shot.y-9,2.8,15);ctx.shadowBlur=0;}
   const shooting=game.status==='playing'&&game.time<game.shootUntil;
-  if(shooting){ctx.fillStyle='#d98aef';ctx.fillRect(p.x-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('SHOOTING · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
-  if($('activeEffect').textContent!==(shooting?'Paddle shooter active':''))$('activeEffect').textContent=shooting?'Paddle shooter active':'';
+  if(shooting){ctx.fillStyle='#d98aef';for(const side of [-1,1])ctx.fillRect(clamp(p.x+side*(p.w/2-7),2,W-2)-3,p.y-4,6,4);ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('EDGE SHOTS · '+Math.ceil(game.shootUntil-game.time)+'s',W/2,H-25);}
+  if($('activeEffect').textContent!==(shooting?'Paddle edge shooter active':''))$('activeEffect').textContent=shooting?'Paddle edge shooter active':'';
   if(game.status==='ready'){
     const {x,y,tipX,tipY}=guideFor(p,game.launchAngle),a=game.launchAngle;
     ctx.strokeStyle='#ffe2a4';ctx.fillStyle='#ffe2a4';ctx.lineWidth=2.5;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(tipX,tipY);ctx.stroke();ctx.setLineDash([]);

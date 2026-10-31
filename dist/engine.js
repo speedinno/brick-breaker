@@ -4,15 +4,17 @@ import {generateDefinition,patternFromLayout} from './generated.js';
 export const W=416,H=660,COLS=52,ROWS=52,CELL=8,OX=0,OY=18,MAX_BALLS=768;
 export const MAX_SHOTS=24,SHOT_SPEED=900,SHOT_INTERVAL=.16,SHOOT_SECONDS=8;
 export const FAMILIES=['T channel','Switchback','H chamber','M channel','Needle','W channel','Sword','Bent channel','Nested squares','Twin hearts','Step chamber','Fork'];
+// The long nested maze closes the starter journey instead of blocking Stage 9.
+export const STARTER_ORDER=[0,1,2,3,4,5,6,7,11,9,10,8];
 // Teach the short, open motifs first; introduce crossing chambers after the
 // player has already cleared a few stages. Each starter still uses one motif.
 export const COLORS=['#e71840','#8fab18','#527d24','#a31973','#47a91b','#a6a11a','#c61724','#df8a27','#c215a7','#df2942','#9bbb36','#89a623'];
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function rng(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function segmentDistance(x,y,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],t=clamp(((x-a[0])*dx+(y-a[1])*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);}
-export function makePattern(level,seed=1){
+export function makePattern(level,seed=1,legacy=false){
  if(level>12)return patternFromLayout(generateDefinition(level));
- const family=(Math.max(1,level)-1)%12,random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
+ const index=(Math.max(1,level)-1)%12,family=legacy?index:STARTER_ORDER[index],random=rng((seed^Math.imul(level,0x9e3779b1))>>>0);let paths=[],entry=[26,52],gates=[],holes=[];
  const path=(points,gate=true)=>{paths.push(points);if(gate){const a=points.at(-2),b=points.at(-1),len=Math.hypot(b[0]-a[0],b[1]-a[1]);gates.push({x:b[0],y:b[1],dx:(b[0]-a[0])/len,dy:(b[1]-a[1])/len});}};
  switch(family){
   case 0:path([[26,52],[26,29],[34,29],[34,26],[22,26]]);break;
@@ -34,18 +36,18 @@ export function makePattern(level,seed=1){
  // by following the shape upward instead of finding a tiny floor-side seam.
  const upperExits=[[[26,26]],[[26,13]],[[18,21],[34,21]],[[26,34],[16,24],[36,24]],[[26,39]],[[26,28],[15,21],[37,21]],[[26,8]],[[26,41],[20,35]],[[37,15]],[[13,29],[39,30]],[[37,17]],[[15,12],[37,12]]][family];
  const upperOpen=new Set();
- if(level<=8)for(const [cx,y] of upperExits)for(const row of [y-3,y-2,y-1])for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<(level<=3?2.6:1.6))upperOpen.add(row*COLS+c);
+ if(family<=7)for(const [cx,y] of upperExits)for(const row of [y-3,y-2,y-1])for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<(family<=2?2.6:1.6))upperOpen.add(row*COLS+c);
  // Preserve the reference motifs first; later fields vary connected geometry.
  const segments=paths.flatMap(points=>points.slice(1).map((b,i)=>[points[i],b]));
  function insidePolygon(x,y,p){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
  // The opening motifs use a four-tile passage. Keep their original narrow
  // silhouettes; an eight-tile hall removes too many bricks from the design.
- const channelRadius=level<=8||level===12?1.6:.86;
+ const channelRadius=family<=7||family===11?1.6:.86;
  const cells=[],bricks=[];let signature='';for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c+.5,y=r+.5;let distance=Infinity;for(const[a,b]of segments)distance=Math.min(distance,segmentDistance(x,y,a,b));let type=distance<channelRadius?'empty':distance<channelRadius+1?'wall':'brick';if(holes.some(p=>insidePolygon(x,y,p)))type='empty';if(c===0||c===COLS-1||r===0||r===ROWS-1)type='wall';if(r>=49&&Math.abs(x-entry[0])<channelRadius)type='empty';if(level<=3&&r>=50&&Math.abs(x-entry[0])<2.6)type='empty';for(const g of gates){const along=(x-g.x)*g.dx+(y-g.y)*g.dy,across=Math.abs((x-g.x)*g.dy-(y-g.y)*g.dx);if(along>=-.3&&along<1.8&&across<.88)type='gate';}if(upperOpen.has(r*COLS+c))type='empty';const cell={id:r*COLS+c,r,c,x:OX+c*CELL,y:OY+r*CELL,w:CELL,h:CELL,type,hp:type==='gate'?1:type==='brick'?1:Infinity};signature+=type==='brick'?'b':type==='wall'?'w':type==='gate'?'g':'.';if(type!=='empty'){cells.push(cell);if(type!=='wall')bricks.push(cell);}}
  // A letter can enclose a colored island. Add the smallest number of gate
  // tiles needed to make every breakable region reachable from the entrance.
  const lookup=new Map(cells.map(c=>[c.id,c])),start=51*COLS+Math.floor(entry[0]);
- if(level>8)for(const [cx,y] of upperExits)for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<1.6){const cell=lookup.get((y-3)*COLS+c);if(cell&&cell.r>0&&cell.type!=='gate'){if(cell.type==='wall')bricks.push(cell);cell.type='gate';cell.hp=1;}}
+ if(family>7)for(const [cx,y] of upperExits)for(let c=1;c<COLS-1;c++)if(Math.abs(c+.5-cx)<1.6){const cell=lookup.get((y-3)*COLS+c);if(cell&&cell.r>0&&cell.type!=='gate'){if(cell.type==='wall')bricks.push(cell);cell.type='gate';cell.hp=1;}}
  for(let attempt=0;attempt<30;attempt++){
   const seen=new Set([start]),queue=[start];for(let i=0;i<queue.length;i++){const id=queue[i],r=Math.floor(id/COLS),c=id%COLS;for(const v of[id-COLS,id+COLS,c>0?id-1:-1,c<COLS-1?id+1:-1]){if(v<0||v>=COLS*ROWS||seen.has(v)||lookup.get(v)?.type==='wall')continue;seen.add(v);queue.push(v);}}
   if(!bricks.some(b=>!seen.has(b.id)))break;
@@ -59,7 +61,7 @@ export function makePattern(level,seed=1){
 export function circleRect(x,y,r,b){const nx=clamp(x,b.x,b.x+b.w),ny=clamp(y,b.y,b.y+b.h);return(x-nx)**2+(y-ny)**2<=r*r;}
 export class Game{
  constructor({seed=1,level=1,mode='play',onEvent=()=>{},patternFactory=makePattern}={}){this.seed=seed>>>0;this.level=Number.isSafeInteger(level)&&level>0?level:1;this.patternFactory=patternFactory;this.random=rng(this.seed^7523);this.emit=onEvent;this.mode=mode;this.score=0;this.lives=3;this.time=0;this.paddle={x:W/2+20,y:584,w:82};this.target=this.paddle.x;this.balls=[];this.drops=[];this.seen=new Set();this.stage();}
- stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.launchAngle=-Math.PI/2;this.stageTime=0;this.stageLosses=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.shootUntil=0;this.nextShot=0;this.multiplierReadyAt=this.time+8;this.shots=[];this.peakBalls=1;this.combo=0;this.challenge=playProfile(this.level);this.basePaddleWidth=this.challenge.paddleWidth;this.paddle.w=this.basePaddleWidth;this.paddle.x=this.mode==='watch'?clamp(p.entry.x+20,48,W-48):W/2;this.target=this.paddle.x;this.emit({type:'stage'});}
+ stage(){let p=this.patternFactory(this.level,this.seed);p={...p,cells:p.cells.map(c=>({...c}))};p.bricks=p.cells.filter(c=>c.type!=='wall');this.seen.add(p.signature);if(this.seen.size>512)this.seen.delete(this.seen.values().next().value);this.pattern=p;this.name=p.name;this.color=p.color;this.grid=new Map(p.cells.map(c=>[c.id,c]));this.bricks=p.bricks;this.total=p.bricks.length;this.remaining=this.total;this.balls=[];this.drops=[];this.status='ready';this.launchAngle=-Math.PI/2;this.stageTime=0;this.stageLosses=0;this.destroyed=0;this.lastHit=this.time;this.floorUntil=0;this.wideUntil=0;this.fireUntil=0;this.shootUntil=0;this.nextShot=0;this.shotSide=0;this.fireDropSpawned=false;this.fireUsed=false;this.multiplierReadyAt=this.time+8;this.shots=[];this.peakBalls=1;this.combo=0;this.challenge=playProfile(this.level);this.basePaddleWidth=this.challenge.paddleWidth;this.paddle.w=this.basePaddleWidth;this.paddle.x=this.mode==='watch'?clamp(p.entry.x+20,48,W-48):W/2;this.target=this.paddle.x;this.emit({type:'stage'});}
  speed(){return this.challenge.speed;}
  ball(x,y,angle=-Math.PI/2){const speed=this.speed();return{x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,r:2.35};}
  setLaunchAngle(degrees){if(this.status==='ready'&&Number.isFinite(degrees))this.launchAngle=-Math.PI/2+clamp(degrees,-55,55)*Math.PI/180;}
@@ -67,20 +69,21 @@ export class Game{
  next(){if(this.status!=='won')return;this.level++;this.lives=Math.min(5,this.lives+1);this.stage();}
  spawnDrop(x,y,kind){
   if(this.drops.length>=30)return false;
+  if(kind==='fire'&&(this.fireDropSpawned||this.fireUsed))return false;
   if(kind==='triple'){
     if(this.time<this.multiplierReadyAt||this.drops.some(drop=>drop.kind==='triple'))return false;
     this.multiplierReadyAt=this.time+12;
   }
-  this.drops.push({x,y,kind});return true;
+  this.drops.push({x,y,kind});if(kind==='fire')this.fireDropSpawned=true;return true;
  }
- damage(cell){if(!cell||cell.type==='wall'||cell.hp<=0)return false;cell.hp--;if(cell.hp>0){this.emit({type:'hit',x:cell.x+4,y:cell.y+4});return false;}this.grid.delete(cell.id);this.remaining--;this.destroyed++;this.combo=this.time-this.lastHit<2?this.combo+1:1;this.lastHit=this.time;this.score+=10;this.emit({type:'break',x:cell.x+4,y:cell.y+4});const n=this.destroyed;if(n===1||n===18)this.spawnDrop(cell.x+4,cell.y+4,'add');else if(n===7)this.spawnDrop(cell.x+4,cell.y+4,'laser');else if(n===40)this.spawnDrop(cell.x+4,cell.y+4,'wide');else if(n===85)this.spawnDrop(cell.x+4,cell.y+4,'triple');else if(n===25)this.spawnDrop(cell.x+4,cell.y+4,'floor');else if(n%this.challenge.boostInterval===0)this.spawnDrop(cell.x+4,cell.y+4,this.random()<.25?'triple':this.random()<.65?'add':'wide');else if(this.random()<.006)this.spawnDrop(cell.x+4,cell.y+4,['triple','add','wide','floor','fire','laser'][Math.floor(this.random()*6)]);return true;}
- power(kind,duration=SHOOT_SECONDS){const before=this.balls.length;if(kind==='triple'){const sources=this.balls.slice();for(const b of sources){for(const turn of[-.17,.17]){if(this.balls.length>=MAX_BALLS)break;this.balls.push(this.ball(b.x,b.y,Math.atan2(b.vy,b.vx)+turn));}if(this.balls.length>=MAX_BALLS)break;}}if(kind==='add'){for(let i=0;i<3&&this.balls.length<MAX_BALLS;i++)this.balls.push(this.ball(this.paddle.x+(i-1)*5,this.paddle.y-9,-Math.PI/2+(i-1)*.2));}if(kind==='wide')this.wideUntil=this.time+20-4*this.challenge.growth;if(kind==='floor')this.floorUntil=this.time+24-5*this.challenge.growth;if(kind==='fire')this.fireUntil=this.time+5;if(kind==='laser'){this.shootUntil=Math.max(this.shootUntil,this.time+duration);this.nextShot=this.time;}this.peakBalls=Math.max(this.peakBalls,this.balls.length);this.emit({type:'power',kind,before,balls:this.balls.length,added:this.balls.length-before});}
+ damage(cell){if(!cell||cell.type==='wall'||cell.hp<=0)return false;cell.hp--;if(cell.hp>0){this.emit({type:'hit',x:cell.x+4,y:cell.y+4});return false;}this.grid.delete(cell.id);this.remaining--;this.destroyed++;this.combo=this.time-this.lastHit<2?this.combo+1:1;this.lastHit=this.time;this.score+=10;this.emit({type:'break',x:cell.x+4,y:cell.y+4});const n=this.destroyed;if(n===1||n===18)this.spawnDrop(cell.x+4,cell.y+4,'add');else if(n===7&&this.level>4)this.spawnDrop(cell.x+4,cell.y+4,'laser');else if(n===40)this.spawnDrop(cell.x+4,cell.y+4,'wide');else if(n===85)this.spawnDrop(cell.x+4,cell.y+4,'triple');else if(n===25)this.spawnDrop(cell.x+4,cell.y+4,'floor');else if(n%this.challenge.boostInterval===0)this.spawnDrop(cell.x+4,cell.y+4,this.random()<.25?'triple':this.random()<.65?'add':'wide');else if(this.random()<.006)this.spawnDrop(cell.x+4,cell.y+4,['triple','add','wide','floor','fire','laser'][Math.floor(this.random()*6)]);return true;}
+ power(kind,duration=SHOOT_SECONDS){if(kind==='fire'&&this.fireUsed)return false;const before=this.balls.length;if(kind==='triple'){const sources=this.balls.slice();for(const b of sources){for(const turn of[-.17,.17]){if(this.balls.length>=MAX_BALLS)break;this.balls.push(this.ball(b.x,b.y,Math.atan2(b.vy,b.vx)+turn));}if(this.balls.length>=MAX_BALLS)break;}}if(kind==='add'){for(let i=0;i<3&&this.balls.length<MAX_BALLS;i++)this.balls.push(this.ball(this.paddle.x+(i-1)*5,this.paddle.y-9,-Math.PI/2+(i-1)*.2));}if(kind==='wide')this.wideUntil=this.time+20-4*this.challenge.growth;if(kind==='floor')this.floorUntil=this.time+24-5*this.challenge.growth;if(kind==='fire'){this.fireUsed=true;this.fireUntil=this.time+5;}if(kind==='laser'){this.shootUntil=Math.max(this.shootUntil,this.time+Math.min(duration,this.level<=4?4:SHOOT_SECONDS));this.nextShot=this.time;}this.peakBalls=Math.max(this.peakBalls,this.balls.length);this.emit({type:'power',kind,before,balls:this.balls.length,added:this.balls.length-before});return true;}
  checkWin(){if(!this.remaining&&this.status==='playing'){this.status='won';this.score+=1000;this.balls=[];this.drops=[];this.shots=[];this.shootUntil=0;this.emit({type:'won'});}}
  // Purple shots pierce colored targets and pass permanent gray framing intact.
  // Swept row traversal prevents skipped bricks at fast playback or low frame rates.
  stepShots(dt){
   if(this.time<this.shootUntil&&this.time>=this.nextShot){
-   if(this.shots.length<MAX_SHOTS)this.shots.push({x:this.paddle.x,y:this.paddle.y-8});
+   if(this.shots.length<MAX_SHOTS){const side=this.shotSide++%2===0?-1:1;this.shots.push({x:clamp(this.paddle.x+side*(this.paddle.w/2-7),2,W-2),y:this.paddle.y-8});}
    this.nextShot=this.time+SHOT_INTERVAL;
   }
   for(const shot of this.shots){const oldY=shot.y;shot.y-=SHOT_SPEED*dt;const col=clamp(Math.floor(shot.x/CELL),0,COLS-1),bottom=Math.min(ROWS-1,Math.floor((oldY-OY)/CELL)),top=Math.max(0,Math.floor((shot.y-OY)/CELL));for(let row=bottom;row>=top;row--){const cell=this.grid.get(row*COLS+col);if(cell&&cell.type!=='wall')this.damage(cell);}}
